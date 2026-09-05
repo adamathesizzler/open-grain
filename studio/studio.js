@@ -54,6 +54,51 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// ---------- Shared helper: drag-to-reorder ----------
+// Makes every `itemSelector` child of `container` draggable and lets the
+// admin drag it to a new position with the mouse (grabbing the ⠿ handle).
+// `onDrop` fires once, after the element settles into its new spot, so the
+// caller can persist the new order (or just leave it as an in-memory
+// reorder, e.g. for the services list which only saves on "Guardar").
+function enableDragReorder(container, itemSelector, onDrop) {
+  let dragEl = null;
+  container.addEventListener('dragstart', (e) => {
+    const item = e.target.closest(itemSelector);
+    if (!item || !container.contains(item)) return;
+    dragEl = item;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', item.dataset.id || ''); } catch (err) {}
+    setTimeout(() => item.classList.add('dragging'), 0);
+  });
+  container.addEventListener('dragover', (e) => {
+    if (!dragEl) return;
+    e.preventDefault();
+    const item = e.target.closest(itemSelector);
+    if (!item || item === dragEl) return;
+    const rect = item.getBoundingClientRect();
+    const after = (e.clientY - rect.top) / rect.height > 0.5;
+    container.insertBefore(dragEl, after ? item.nextSibling : item);
+  });
+  container.addEventListener('drop', (e) => e.preventDefault());
+  container.addEventListener('dragend', () => {
+    if (dragEl) dragEl.classList.remove('dragging');
+    dragEl = null;
+    if (onDrop) onDrop();
+  });
+}
+
+const dragHandleSvg = '<span class="drag-handle" title="Arrastrar para reordenar"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="8" cy="5" r="1.6"/><circle cx="16" cy="5" r="1.6"/><circle cx="8" cy="12" r="1.6"/><circle cx="16" cy="12" r="1.6"/><circle cx="8" cy="19" r="1.6"/><circle cx="16" cy="19" r="1.6"/></svg></span>';
+
+// Persists the DOM order of `itemSelector` elements inside `container` as
+// each row's new `sort_order` in `table` (0, 1, 2, …), reading the row id
+// from `data-id`.
+async function persistOrder(container, itemSelector, table) {
+  const items = [...container.querySelectorAll(itemSelector)];
+  await Promise.all(items.map((el, i) =>
+    el.dataset.id ? supabaseClient.from(table).update({ sort_order: i }).eq('id', el.dataset.id) : null
+  ));
+}
+
 // ---------- Shared helper: populate a <select> with clients ----------
 async function populateClientSelect(selectEl) {
   const { data, error } = await supabaseClient.from('clients').select('id, name').order('name');
@@ -253,17 +298,23 @@ async function loadPortfolio() {
   const catList = document.getElementById('category-list');
   catList.innerHTML = '';
   categories.forEach(cat => {
-    const row = document.createElement('label');
+    const row = document.createElement('div');
     row.className = 'category-row';
+    row.draggable = true;
+    row.dataset.id = cat.id;
     row.innerHTML = `
-      <span>${cat.name} <small>${cat.slug}</small></span>
-      <input type="checkbox" data-id="${cat.id}" ${cat.is_active ? 'checked' : ''}>
+      ${dragHandleSvg}
+      <label class="checkbox-label" style="flex:1; justify-content:flex-start; gap:10px;">
+        <input type="checkbox" data-id="${cat.id}" ${cat.is_active ? 'checked' : ''}>
+        <span>${cat.name} <small>${cat.slug}</small></span>
+      </label>
     `;
     row.querySelector('input').addEventListener('change', async (e) => {
       await supabaseClient.from('portfolio_categories').update({ is_active: e.target.checked }).eq('id', cat.id);
     });
     catList.appendChild(row);
   });
+  enableDragReorder(catList, '.category-row', () => persistOrder(catList, '.category-row', 'portfolio_categories'));
 
   const select = document.getElementById('project-category');
   select.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -276,9 +327,12 @@ async function loadPortfolio() {
   projList.innerHTML = '';
   projects.forEach(p => {
     const row = document.createElement('div');
-    row.className = 'list-row project-row';
+    row.className = 'list-row project-card';
+    row.draggable = true;
+    row.dataset.id = p.id;
     row.innerHTML = `
-      ${p.cover_image_url ? `<img class="project-thumb" src="${p.cover_image_url}" alt="">` : '<span class="project-thumb project-thumb-empty">Sin foto</span>'}
+      ${dragHandleSvg}
+      ${p.cover_image_url ? `<img class="project-thumb" src="${p.cover_image_url}" alt="" draggable="false">` : '<span class="project-thumb project-thumb-empty">Sin foto</span>'}
       <span class="project-row-title">${p.title} <small>${p.portfolio_categories?.name ?? 'Uncategorised'}</small></span>
       <select data-field="layout" class="layout-select">
         <option value="tall">Vertical</option>
@@ -311,6 +365,7 @@ async function loadPortfolio() {
     });
     projList.appendChild(row);
   });
+  enableDragReorder(projList, '.project-card', () => persistOrder(projList, '.project-card', 'portfolio_projects'));
 }
 
 // Uploads a file to the public `media` Storage bucket and returns its
@@ -440,14 +495,18 @@ async function loadSiteContent() {
     try { return JSON.parse(contentOverrides[contentKey('serviceList', 'en')]); } catch (e) { return defaults.en.serviceList; }
   })();
   servicesEl.innerHTML = [0, 1, 2, 3, 4].map(i => `
-    <div class="content-field">
-      <label class="content-field-label">Servicio ${i + 1}</label>
-      <div class="content-field-row">
-        <input type="text" data-service-lang="es" data-service-index="${i}" value="${(esServices[i] || '').replace(/"/g, '&quot;')}" placeholder="Español">
-        <input type="text" data-service-lang="en" data-service-index="${i}" value="${(enServices[i] || '').replace(/"/g, '&quot;')}" placeholder="English">
+    <div class="content-field draggable" draggable="true">
+      ${dragHandleSvg}
+      <div class="content-field-body">
+        <label class="content-field-label">Servicio</label>
+        <div class="content-field-row">
+          <input type="text" data-service-lang="es" value="${(esServices[i] || '').replace(/"/g, '&quot;')}" placeholder="Español">
+          <input type="text" data-service-lang="en" value="${(enServices[i] || '').replace(/"/g, '&quot;')}" placeholder="English">
+        </div>
       </div>
     </div>
   `).join('');
+  enableDragReorder(servicesEl, '.content-field.draggable', null);
 }
 
 document.getElementById('content-save').addEventListener('click', async () => {
@@ -460,10 +519,10 @@ document.getElementById('content-save').addEventListener('click', async () => {
     rows.push({ key: el.dataset.key, lang: el.dataset.lang, value: el.value });
   });
 
-  const esServices = [0, 1, 2, 3, 4].map(i =>
-    document.querySelector(`[data-service-lang="es"][data-service-index="${i}"]`).value);
-  const enServices = [0, 1, 2, 3, 4].map(i =>
-    document.querySelector(`[data-service-lang="en"][data-service-index="${i}"]`).value);
+  // Read services in their current on-screen order (the admin may have
+  // dragged them into a new order — that DOM order is the order saved).
+  const esServices = [...document.querySelectorAll('#content-services [data-service-lang="es"]')].map(el => el.value);
+  const enServices = [...document.querySelectorAll('#content-services [data-service-lang="en"]')].map(el => el.value);
   rows.push({ key: 'serviceList', lang: 'es', value: JSON.stringify(esServices) });
   rows.push({ key: 'serviceList', lang: 'en', value: JSON.stringify(enServices) });
 
