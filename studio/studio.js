@@ -481,6 +481,9 @@ function renderProjects() {
         <label class="link-btn file-label">Cambiar foto<input type="file" accept="image/*" data-field="photo" hidden></label>
         <button class="link-btn" data-action="delete">Eliminar</button>
       </div>
+      <div class="album-controls">
+        <button class="link-btn" data-action="gallery" style="color:var(--og-accent);">Galería cliente</button>
+      </div>
     `;
     row.querySelector('[data-field="layout"]').value = p.layout_class || 'tall';
     row.querySelector('[data-field="layout"]').addEventListener('change', async (e) => {
@@ -513,6 +516,7 @@ function renderProjects() {
       await loadProjectsData();
       renderProjects();
     });
+    row.querySelector('[data-action="gallery"]').addEventListener('click', () => openClientGallery(p.id, p.title));
     projList.appendChild(row);
   });
 
@@ -553,6 +557,130 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   e.target.reset();
   document.getElementById('project-form').hidden = true;
   await loadProjects();
+});
+
+// ============================================================
+// Galería de cliente (por proyecto) — proofing: el cliente ve fotos
+// reducidas, marca favoritas, y descarga (directamente o vía un
+// enlace externo a las originales, para no gastar espacio de pago
+// en Supabase Storage con archivos a tamaño completo).
+// ============================================================
+let currentGalleryProjectId = null;
+let currentGalleryRow = null;
+
+function galleryShareUrl(token) {
+  return `${window.location.origin}/gallery.html?g=${encodeURIComponent(token)}`;
+}
+
+async function openClientGallery(projectId, projectTitle) {
+  currentGalleryProjectId = projectId;
+  document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === 'projects'));
+  document.querySelectorAll('.studio-panel').forEach(p => { p.hidden = p.dataset.panel !== 'client-gallery'; });
+  document.getElementById('cg-title').textContent = `Galería de cliente — ${projectTitle}`;
+  await loadClientGallery();
+}
+
+document.getElementById('cg-back').addEventListener('click', (e) => {
+  e.preventDefault();
+  switchTab('projects');
+});
+
+async function loadClientGallery() {
+  const statusEl = document.getElementById('cg-status');
+  statusEl.hidden = true;
+  const { data, error } = await supabaseClient.from('client_galleries').select('*').eq('project_id', currentGalleryProjectId);
+  if (error) {
+    statusEl.hidden = false;
+    statusEl.textContent = 'No se pudo cargar la galería: ' + error.message + ' (¿has ejecutado supabase/migration_client_galleries.sql en Supabase?)';
+    document.getElementById('cg-link').textContent = '—';
+    return;
+  }
+  currentGalleryRow = (data || [])[0] || null;
+
+  if (!currentGalleryRow) {
+    // First time opening this project's gallery: create it (inactive by
+    // default, so nothing is shareable until the admin explicitly saves).
+    const title = document.getElementById('cg-title').textContent.replace('Galería de cliente — ', '');
+    const { data: created, error: createErr } = await supabaseClient.from('client_galleries')
+      .insert({ project_id: currentGalleryProjectId, title, is_active: false })
+      .select();
+    if (createErr) {
+      statusEl.hidden = false;
+      statusEl.textContent = 'No se pudo crear la galería: ' + createErr.message;
+      return;
+    }
+    currentGalleryRow = (created || [])[0];
+  }
+
+  document.getElementById('cg-active').checked = !!currentGalleryRow.is_active;
+  document.getElementById('cg-pin').value = currentGalleryRow.pin || '';
+  document.getElementById('cg-download-url').value = currentGalleryRow.download_url || '';
+  document.getElementById('cg-link').textContent = currentGalleryRow.share_token ? galleryShareUrl(currentGalleryRow.share_token) : '—';
+
+  await renderClientGalleryPhotos();
+  await renderClientGalleryFavorites();
+}
+
+async function renderClientGalleryPhotos() {
+  const grid = document.getElementById('cg-photo-grid');
+  if (!currentGalleryRow) { grid.innerHTML = ''; return; }
+  const { data: photos } = await supabaseClient.from('gallery_photos').select('*').eq('gallery_id', currentGalleryRow.id).order('sort_order');
+  grid.innerHTML = (photos && photos.length) ? photos.map(p => `
+    <div class="media-item" style="position:relative;">
+      <img src="${p.image_url}" alt="" loading="lazy">
+      <button data-action="delete-photo" data-id="${p.id}" title="Eliminar" style="position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:.7rem; line-height:1;">✕</button>
+    </div>
+  `).join('') : '<p class="panel-sub">Todavía no has subido fotos a esta galería.</p>';
+  grid.querySelectorAll('[data-action="delete-photo"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await supabaseClient.from('gallery_photos').delete().eq('id', btn.dataset.id);
+      renderClientGalleryPhotos();
+    });
+  });
+}
+
+async function renderClientGalleryFavorites() {
+  const grid = document.getElementById('cg-favorites');
+  if (!currentGalleryRow) { grid.innerHTML = ''; return; }
+  const { data: favs } = await supabaseClient.from('gallery_favorites').select('*, gallery_photos(image_url)').eq('gallery_id', currentGalleryRow.id);
+  grid.innerHTML = (favs && favs.length) ? favs.map(f => `
+    <div class="media-item"><img src="${f.gallery_photos?.image_url || ''}" alt="" loading="lazy"></div>
+  `).join('') : '<p class="panel-sub">El cliente todavía no ha marcado ninguna favorita.</p>';
+}
+
+document.getElementById('cg-save').addEventListener('click', async () => {
+  if (!currentGalleryRow) return;
+  const is_active = document.getElementById('cg-active').checked;
+  const pin = document.getElementById('cg-pin').value.trim() || null;
+  const download_url = document.getElementById('cg-download-url').value.trim() || null;
+  const { error } = await supabaseClient.from('client_galleries').update({ is_active, pin, download_url }).eq('id', currentGalleryRow.id);
+  const statusEl = document.getElementById('cg-status');
+  statusEl.hidden = false;
+  statusEl.textContent = error ? ('Error: ' + error.message) : 'Guardado.';
+  if (!error) currentGalleryRow = { ...currentGalleryRow, is_active, pin, download_url };
+});
+
+document.getElementById('cg-copy-link').addEventListener('click', async () => {
+  if (!currentGalleryRow?.share_token) return;
+  const url = galleryShareUrl(currentGalleryRow.share_token);
+  try {
+    await navigator.clipboard.writeText(url);
+    const btn = document.getElementById('cg-copy-link');
+    const original = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  } catch (e) { alert(url); }
+});
+
+document.getElementById('cg-upload-input').addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  if (!files.length || !currentGalleryRow) return;
+  for (const file of files) {
+    const url = await uploadMediaFile(file, `galleries/${currentGalleryRow.id}`);
+    if (url) await supabaseClient.from('gallery_photos').insert({ gallery_id: currentGalleryRow.id, image_url: url });
+  }
+  e.target.value = '';
+  renderClientGalleryPhotos();
 });
 
 // ============================================================
@@ -838,7 +966,9 @@ document.getElementById('ai-form').addEventListener('submit', async (e) => {
   const prompt = document.getElementById('ai-prompt').value.trim();
   if (!prompt) return;
   const submitBtn = document.getElementById('ai-submit');
+  const orb = document.getElementById('ai-orb');
   submitBtn.disabled = true;
+  if (orb) orb.classList.add('thinking');
   setAiStatus('Pensando…');
   document.getElementById('ai-changes').innerHTML = '';
 
@@ -869,6 +999,7 @@ document.getElementById('ai-form').addEventListener('submit', async (e) => {
     setAiStatus('Error: ' + err.message);
   } finally {
     submitBtn.disabled = false;
+    if (orb) orb.classList.remove('thinking');
   }
 });
 

@@ -235,3 +235,76 @@ alter table portfolio_projects
 
 update portfolio_projects set status = 'published'
   where is_published = true and status = 'draft';
+
+-- ============================================================
+-- Client proofing galleries (2026): a private, shareable gallery per
+-- project where a client can view preview photos, mark favorites, and
+-- download them — no client account needed. `download_url` is an
+-- OPTIONAL external link (Drive/WeTransfer/Dropbox/anything) for the
+-- full-resolution originals, kept deliberately outside Supabase
+-- Storage so preview-quality images are the only thing counted
+-- against your Storage/bandwidth quota. See migration_client_galleries.sql
+-- for the full rationale.
+-- ============================================================
+create table if not exists client_galleries (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references portfolio_projects(id) on delete set null,
+  client_id uuid references clients(id) on delete set null,
+  title text not null,
+  share_token text not null unique default encode(gen_random_bytes(9), 'base64'),
+  pin text,
+  download_url text,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists gallery_photos (
+  id uuid primary key default gen_random_uuid(),
+  gallery_id uuid not null references client_galleries(id) on delete cascade,
+  image_url text not null,
+  sort_order int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists gallery_favorites (
+  id uuid primary key default gen_random_uuid(),
+  gallery_id uuid not null references client_galleries(id) on delete cascade,
+  photo_id uuid not null references gallery_photos(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (gallery_id, photo_id)
+);
+
+alter table client_galleries  enable row level security;
+alter table gallery_photos    enable row level security;
+alter table gallery_favorites enable row level security;
+
+drop policy if exists "admin full access client_galleries" on client_galleries;
+create policy "admin full access client_galleries" on client_galleries
+  for all using (is_admin()) with check (is_admin());
+
+drop policy if exists "admin full access gallery_photos" on gallery_photos;
+create policy "admin full access gallery_photos" on gallery_photos
+  for all using (is_admin()) with check (is_admin());
+
+drop policy if exists "admin full access gallery_favorites" on gallery_favorites;
+create policy "admin full access gallery_favorites" on gallery_favorites
+  for all using (is_admin()) with check (is_admin());
+
+drop policy if exists "public read active galleries" on client_galleries;
+create policy "public read active galleries" on client_galleries
+  for select using (is_active = true);
+
+drop policy if exists "public read photos of active galleries" on gallery_photos;
+create policy "public read photos of active galleries" on gallery_photos
+  for select using (
+    exists (select 1 from client_galleries g where g.id = gallery_photos.gallery_id and g.is_active = true)
+  );
+
+drop policy if exists "public manage favorites on active galleries" on gallery_favorites;
+create policy "public manage favorites on active galleries" on gallery_favorites
+  for all using (
+    exists (select 1 from client_galleries g where g.id = gallery_favorites.gallery_id and g.is_active = true)
+  )
+  with check (
+    exists (select 1 from client_galleries g where g.id = gallery_favorites.gallery_id and g.is_active = true)
+  );
