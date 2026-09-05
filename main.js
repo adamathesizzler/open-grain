@@ -51,6 +51,7 @@ const copy = {
     fName: 'Name', fPhone: 'Phone', fService: 'Service', fServicePh: 'Choose a service',
     fDate: 'Preferred date', fBudget: 'Approx. budget', fMessage: 'Tell us about your idea',
     fMessagePh: 'Project, location, references…',
+    fConsent: 'I have read and accept the <a href="privacidad.html" target="_blank" rel="noopener">Privacy Policy</a>.',
   },
   es: {
     work: 'Proyectos', services: 'Servicios', studio: 'Estudio', contact: 'Contacto',
@@ -75,6 +76,7 @@ const copy = {
     fName: 'Nombre', fPhone: 'Teléfono', fService: 'Servicio', fServicePh: 'Selecciona un servicio',
     fDate: 'Fecha aproximada', fBudget: 'Presupuesto aproximado', fMessage: 'Cuéntanos tu idea',
     fMessagePh: 'Proyecto, lugar, referencias…',
+    fConsent: 'He leído y acepto la <a href="privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a>.',
   },
 };
 
@@ -163,6 +165,7 @@ function renderContact() {
   document.getElementById('label-budget').firstChild.textContent = t.fBudget;
   document.getElementById('label-message').firstChild.textContent = t.fMessage;
   document.getElementById('message').placeholder = t.fMessagePh;
+  document.getElementById('label-consent').innerHTML = t.fConsent;
 
   const serviceSel = document.getElementById('service');
   serviceSel.innerHTML = `<option value="" disabled selected>${t.fServicePh}</option>` +
@@ -264,7 +267,7 @@ form.addEventListener('submit', async (e) => {
 
   if (error) {
     console.error(error);
-    alert('Something went wrong — please email hello@opengrain.studio directly.');
+    alert('Something went wrong — please email adamabalde1998@gmail.com directly.');
     return;
   }
   form.hidden = true;
@@ -326,3 +329,55 @@ function renderProvisionalSocial(grid) {
       <span>${i < 3 ? '@ Instagram' : '♪ TikTok'}</span>
     </a>`).join('');
 }
+
+// ============================================================
+// Cookie consent + Google Analytics (only loads after "Aceptar")
+// See cookies.html for the full policy. Choice is stored in
+// localStorage on the visitor's own browser — nothing is sent
+// anywhere until they accept.
+// ============================================================
+const CONSENT_KEY = 'og_cookie_consent'; // 'accepted' | 'rejected'
+
+function loadGoogleAnalytics() {
+  const id = window.GA_MEASUREMENT_ID;
+  if (!id || id.includes('XXXXXXXXXX')) return; // no real GA property yet
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${id}`;
+  document.head.appendChild(s);
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { window.dataLayer.push(arguments); }
+  window.gtag = gtag;
+  gtag('js', new Date());
+  gtag('config', id, { anonymize_ip: true });
+}
+
+function initCookieBanner() {
+  const consent = localStorage.getItem(CONSENT_KEY);
+  if (consent === 'accepted') { loadGoogleAnalytics(); return; }
+  if (consent === 'rejected') return;
+
+  const isEs = lang === 'es';
+  const banner = document.createElement('div');
+  banner.id = 'cookie-banner';
+  banner.innerHTML = `
+    <p>${isEs
+      ? 'Usamos cookies analíticas solo si las aceptas. Más info en nuestra'
+      : 'We use analytics cookies only if you accept them. More info in our'}
+      <a href="cookies.html">${isEs ? 'Política de Cookies' : 'Cookie Policy'}</a>.</p>
+    <div>
+      <button type="button" id="cookie-reject">${isEs ? 'Rechazar' : 'Reject'}</button>
+      <button type="button" id="cookie-accept">${isEs ? 'Aceptar' : 'Accept'}</button>
+    </div>`;
+  document.body.appendChild(banner);
+  document.getElementById('cookie-accept').addEventListener('click', () => {
+    localStorage.setItem(CONSENT_KEY, 'accepted');
+    loadGoogleAnalytics();
+    banner.remove();
+  });
+  document.getElementById('cookie-reject').addEventListener('click', () => {
+    localStorage.setItem(CONSENT_KEY, 'rejected');
+    banner.remove();
+  });
+}
+initCookieBanner();
