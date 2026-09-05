@@ -1,11 +1,11 @@
-const supabase = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
 const loginScreen = document.getElementById('login-screen');
 const dashboard = document.getElementById('dashboard');
 
 // ---------- Auth ----------
 async function checkSession() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) {
     loginScreen.hidden = true;
     dashboard.hidden = false;
@@ -22,7 +22,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   const password = document.getElementById('login-password').value;
   const errorEl = document.getElementById('login-error');
   errorEl.textContent = '';
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if (error) {
     errorEl.textContent = error.message;
     return;
@@ -31,7 +31,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('sign-out').addEventListener('click', async () => {
-  await supabase.auth.signOut();
+  await supabaseClient.auth.signOut();
   checkSession();
 });
 
@@ -52,9 +52,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ---------- Overview ----------
 async function loadOverview() {
   const [{ count: projectCount }, { count: enquiryCount }, { count: socialCount }] = await Promise.all([
-    supabase.from('portfolio_projects').select('*', { count: 'exact', head: true }).eq('is_published', true),
-    supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'),
-    supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('is_selected', true),
+    supabaseClient.from('portfolio_projects').select('*', { count: 'exact', head: true }).eq('is_published', true),
+    supabaseClient.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'),
+    supabaseClient.from('social_posts').select('*', { count: 'exact', head: true }).eq('is_selected', true),
   ]);
   document.getElementById('stat-projects').textContent = projectCount ?? '0';
   document.getElementById('stat-enquiries').textContent = enquiryCount ?? '0';
@@ -63,7 +63,7 @@ async function loadOverview() {
 
 // ---------- Portfolio ----------
 async function loadPortfolio() {
-  const { data: categories, error: catErr } = await supabase
+  const { data: categories, error: catErr } = await supabaseClient
     .from('portfolio_categories').select('*').order('sort_order');
   if (catErr) return console.error(catErr);
 
@@ -77,7 +77,7 @@ async function loadPortfolio() {
       <input type="checkbox" data-id="${cat.id}" ${cat.is_active ? 'checked' : ''}>
     `;
     row.querySelector('input').addEventListener('change', async (e) => {
-      await supabase.from('portfolio_categories').update({ is_active: e.target.checked }).eq('id', cat.id);
+      await supabaseClient.from('portfolio_categories').update({ is_active: e.target.checked }).eq('id', cat.id);
     });
     catList.appendChild(row);
   });
@@ -85,7 +85,7 @@ async function loadPortfolio() {
   const select = document.getElementById('project-category');
   select.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
-  const { data: projects, error: projErr } = await supabase
+  const { data: projects, error: projErr } = await supabaseClient
     .from('portfolio_projects').select('*, portfolio_categories(name)').order('sort_order');
   if (projErr) return console.error(projErr);
 
@@ -100,11 +100,11 @@ async function loadPortfolio() {
       <button class="link-btn" data-action="delete">Delete</button>
     `;
     row.querySelector('input').addEventListener('change', async (e) => {
-      await supabase.from('portfolio_projects').update({ is_published: e.target.checked }).eq('id', p.id);
+      await supabaseClient.from('portfolio_projects').update({ is_published: e.target.checked }).eq('id', p.id);
     });
     row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
       if (!confirm(`Delete "${p.title}"?`)) return;
-      await supabase.from('portfolio_projects').delete().eq('id', p.id);
+      await supabaseClient.from('portfolio_projects').delete().eq('id', p.id);
       loadPortfolio();
     });
     projList.appendChild(row);
@@ -117,7 +117,7 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
   const category_id = document.getElementById('project-category').value;
   const is_published = document.getElementById('project-published').checked;
   if (!title) return;
-  const { error } = await supabase.from('portfolio_projects').insert({ title, category_id, is_published });
+  const { error } = await supabaseClient.from('portfolio_projects').insert({ title, category_id, is_published });
   if (error) return alert(error.message);
   e.target.reset();
   loadPortfolio();
@@ -125,7 +125,7 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
 
 // ---------- Social posts ----------
 async function loadSocial() {
-  const { data, error } = await supabase.from('social_posts').select('*').order('sort_order');
+  const { data, error } = await supabaseClient.from('social_posts').select('*').order('sort_order');
   if (error) return console.error(error);
   const list = document.getElementById('social-list');
   list.innerHTML = '';
@@ -138,10 +138,10 @@ async function loadSocial() {
       <button class="link-btn" data-action="delete">Delete</button>
     `;
     row.querySelector('input').addEventListener('change', async (e) => {
-      await supabase.from('social_posts').update({ is_selected: e.target.checked }).eq('id', post.id);
+      await supabaseClient.from('social_posts').update({ is_selected: e.target.checked }).eq('id', post.id);
     });
     row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      await supabase.from('social_posts').delete().eq('id', post.id);
+      await supabaseClient.from('social_posts').delete().eq('id', post.id);
       loadSocial();
     });
     list.appendChild(row);
@@ -153,7 +153,7 @@ document.getElementById('social-form').addEventListener('submit', async (e) => {
   const platform = document.getElementById('social-platform').value;
   const external_url = document.getElementById('social-url').value.trim();
   if (!external_url) return;
-  const { error } = await supabase.from('social_posts').insert({ platform, external_url });
+  const { error } = await supabaseClient.from('social_posts').insert({ platform, external_url });
   if (error) return alert(error.message);
   e.target.reset();
   loadSocial();
@@ -161,7 +161,7 @@ document.getElementById('social-form').addEventListener('submit', async (e) => {
 
 // ---------- Enquiries ----------
 async function loadEnquiries() {
-  const { data, error } = await supabase.from('enquiries').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabaseClient.from('enquiries').select('*').order('created_at', { ascending: false });
   if (error) return console.error(error);
   const list = document.getElementById('enquiry-list');
   list.innerHTML = '';
