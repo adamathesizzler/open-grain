@@ -561,15 +561,24 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
 
 // ============================================================
 // Galería de cliente (por proyecto) — proofing: el cliente ve fotos
-// reducidas, marca favoritas, y descarga (directamente o vía un
-// enlace externo a las originales, para no gastar espacio de pago
-// en Supabase Storage con archivos a tamaño completo).
+// reducidas, marca favoritas, y descarga. Cada foto puede llevar
+// opcionalmente su archivo original a tamaño completo (subido a
+// Supabase Storage) — eso es lo que se descarga individualmente y lo
+// que entra en el ZIP de "descargar todo" en gallery.html. Si una
+// foto no tiene original adjunto, el enlace externo (Drive/WeTransfer)
+// configurado arriba sirve de respaldo.
 // ============================================================
 let currentGalleryProjectId = null;
 let currentGalleryRow = null;
 
 function galleryShareUrl(token) {
   return `${window.location.origin}/gallery.html?g=${encodeURIComponent(token)}`;
+}
+
+function formatFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 async function openClientGallery(projectId, projectTitle) {
@@ -619,6 +628,7 @@ async function loadClientGallery() {
 
   await renderClientGalleryPhotos();
   await renderClientGalleryFavorites();
+  await renderClientGalleryDownloads();
 }
 
 async function renderClientGalleryPhotos() {
@@ -629,11 +639,41 @@ async function renderClientGalleryPhotos() {
     <div class="media-item" style="position:relative;">
       <img src="${p.image_url}" alt="" loading="lazy">
       <button data-action="delete-photo" data-id="${p.id}" title="Eliminar" style="position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:.7rem; line-height:1;">✕</button>
+      <div style="padding:6px 4px 2px; font-size:.7rem; color:var(--og-muted);">
+        ${p.original_url
+          ? `<span style="color:var(--og-accent);">✓ Original: ${escapeHtml(p.original_filename || 'archivo')} (${formatFileSize(p.original_bytes)})</span>
+             <button type="button" data-action="remove-original" data-id="${p.id}" class="link-btn" style="font-size:.7rem; display:block; margin-top:2px;">Quitar original</button>`
+          : `<label class="link-btn" style="cursor:pointer;">Adjuntar original
+               <input type="file" data-action="upload-original" data-id="${p.id}" hidden>
+             </label>`
+        }
+      </div>
     </div>
   `).join('') : '<p class="panel-sub">Todavía no has subido fotos a esta galería.</p>';
   grid.querySelectorAll('[data-action="delete-photo"]').forEach(btn => {
     btn.addEventListener('click', async () => {
       await supabaseClient.from('gallery_photos').delete().eq('id', btn.dataset.id);
+      renderClientGalleryPhotos();
+    });
+  });
+  grid.querySelectorAll('[data-action="upload-original"]').forEach(input => {
+    input.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = await uploadMediaFile(file, `galleries/${currentGalleryRow.id}/originals`);
+      if (url) {
+        await supabaseClient.from('gallery_photos').update({
+          original_url: url, original_filename: file.name, original_bytes: file.size,
+        }).eq('id', input.dataset.id);
+      }
+      renderClientGalleryPhotos();
+    });
+  });
+  grid.querySelectorAll('[data-action="remove-original"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await supabaseClient.from('gallery_photos').update({
+        original_url: null, original_filename: null, original_bytes: null,
+      }).eq('id', btn.dataset.id);
       renderClientGalleryPhotos();
     });
   });
@@ -646,6 +686,20 @@ async function renderClientGalleryFavorites() {
   grid.innerHTML = (favs && favs.length) ? favs.map(f => `
     <div class="media-item"><img src="${f.gallery_photos?.image_url || ''}" alt="" loading="lazy"></div>
   `).join('') : '<p class="panel-sub">El cliente todavía no ha marcado ninguna favorita.</p>';
+}
+
+async function renderClientGalleryDownloads() {
+  const list = document.getElementById('cg-downloads');
+  if (!currentGalleryRow) { list.innerHTML = ''; return; }
+  const { data: downloads, error } = await supabaseClient.from('gallery_downloads')
+    .select('*, gallery_photos(original_filename)').eq('gallery_id', currentGalleryRow.id).order('created_at', { ascending: false }).limit(50);
+  if (error) { list.innerHTML = '<p class="panel-sub">No se pudo cargar el registro de descargas (¿has ejecutado supabase/migration_gallery_downloads.sql?).</p>'; return; }
+  if (!downloads || !downloads.length) { list.innerHTML = '<p class="panel-sub">Todavía no se ha descargado nada de esta galería.</p>'; return; }
+  list.innerHTML = downloads.map(d => {
+    const label = d.download_type === 'zip_all' ? 'Descargó todas las fotos (ZIP)' : `Descargó: ${escapeHtml(d.gallery_photos?.original_filename || 'una foto')}`;
+    const when = new Date(d.created_at).toLocaleString();
+    return `<div class="list-row"><span>${label}</span><small style="color:var(--og-muted);">${when}</small></div>`;
+  }).join('');
 }
 
 document.getElementById('cg-save').addEventListener('click', async () => {

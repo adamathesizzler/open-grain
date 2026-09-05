@@ -387,7 +387,7 @@
             <span>Enlace de descarga de las fotos originales (Drive, WeTransfer…)</span>
             <input type="url" id="cg-download-url" placeholder="https://…" style="min-width:240px; flex:1; padding:9px 12px; border-radius:12px; border:1px solid var(--og-line); background:var(--og-bg); color:var(--og-fg); font-family:inherit;">
           </div>
-          <p class="panel-sub" style="margin:10px 0 0;">Sube aquí solo fotos ya reducidas para que el cliente las vea y elija — las originales a tamaño completo mándalas por el enlace de arriba, así no ocupan espacio de pago en Supabase.</p>
+          <p class="panel-sub" style="margin:10px 0 0;">Sube aquí fotos de vista previa para que el cliente las vea y elija. Si además adjuntas el archivo original a una foto (abajo), el cliente podrá descargarla en calidad completa, una a una o todas juntas en un ZIP. El enlace externo de arriba solo se usa como respaldo cuando una foto no tiene original adjunto.</p>
           <button type="button" class="og-btn og-btn-solid" id="cg-save" style="margin-top:14px;">Guardar ajustes</button>
           <p id="cg-status" class="panel-sub" hidden style="margin:10px 0 0;"></p>
         </div>
@@ -401,11 +401,16 @@
             </label>
           </div>
         </div>
+        <p class="panel-sub">Para cada foto puedes adjuntar su archivo original a tamaño completo — así el cliente la podrá descargar en calidad real y entrará en el ZIP de "descargar todo".</p>
         <div id="cg-photo-grid" class="media-grid"></div>
 
         <h3 class="panel-mt">Favoritas del cliente</h3>
         <p class="panel-sub">Lo que el cliente ha marcado con el corazón en su galería.</p>
         <div id="cg-favorites" class="media-grid"></div>
+
+        <h3 class="panel-mt">Descargas del cliente</h3>
+        <p class="panel-sub">Registro de qué ha descargado el cliente y cuándo.</p>
+        <div id="cg-downloads"></div>
       </section>
 
       <!-- ============ GALERÍAS ============ -->

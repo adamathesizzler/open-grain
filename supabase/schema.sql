@@ -308,3 +308,40 @@ create policy "public manage favorites on active galleries" on gallery_favorites
   with check (
     exists (select 1 from client_galleries g where g.id = gallery_favorites.gallery_id and g.is_active = true)
   );
+
+-- ============================================================
+-- Original files + download log (2026): per-photo full-resolution
+-- originals now live in Supabase Storage (accepted storage cost, in
+-- exchange for a ZIP-all download, per-file download, and a real
+-- download log) — see migration_gallery_downloads.sql for the
+-- standalone version + full rationale. `download_url` above is kept
+-- as an optional fallback (e.g. an external Drive link) for projects
+-- that don't use per-photo originals.
+-- ============================================================
+alter table gallery_photos
+  add column if not exists original_url text,
+  add column if not exists original_filename text,
+  add column if not exists original_bytes bigint;
+
+create table if not exists gallery_downloads (
+  id uuid primary key default gen_random_uuid(),
+  gallery_id uuid not null references client_galleries(id) on delete cascade,
+  photo_id uuid references gallery_photos(id) on delete set null, -- null = "download all as ZIP"
+  download_type text not null check (download_type in ('photo', 'zip_all')),
+  created_at timestamptz not null default now()
+);
+
+alter table gallery_downloads enable row level security;
+
+drop policy if exists "admin full access gallery_downloads" on gallery_downloads;
+create policy "admin full access gallery_downloads" on gallery_downloads
+  for all using (is_admin()) with check (is_admin());
+
+-- Public (anon) can only INSERT a download record (log entries are
+-- write-only for visitors — never readable or editable by them),
+-- scoped to galleries that are actually active.
+drop policy if exists "public log downloads on active galleries" on gallery_downloads;
+create policy "public log downloads on active galleries" on gallery_downloads
+  for insert with check (
+    exists (select 1 from client_galleries g where g.id = gallery_downloads.gallery_id and g.is_active = true)
+  );
