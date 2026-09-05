@@ -379,13 +379,16 @@
 
             <div class="og-card og-card-pad">
               <div class="cg-cover-row">
-                <div class="cg-cover-preview" id="cg-cover-preview"><span>Sin portada</span></div>
-                <div style="flex:1; min-width:200px;">
-                  <label class="og-btn og-btn-outline og-btn-sm" style="cursor:pointer;">
+                <div class="cg-cover-box">
+                  <div class="cg-cover-preview" id="cg-cover-preview"><span id="cg-cover-empty">Sin portada</span></div>
+                  <label class="cg-cover-edit">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     Cambiar portada
                     <input type="file" id="cg-cover-input" accept="image/*" hidden>
                   </label>
-                  <p class="panel-sub" style="margin:8px 0 0;">Se usa como cabecera en la galería del cliente. También puedes marcar una foto de la cuadrícula con la estrella ★ para usarla como portada.</p>
+                </div>
+                <div style="flex:1; min-width:200px;">
+                  <p class="panel-sub" style="margin:0;">Se usa como cabecera en la galería del cliente. También puedes marcar una foto de la cuadrícula con la estrella ★ para usarla como portada.</p>
                 </div>
               </div>
 

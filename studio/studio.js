@@ -598,6 +598,12 @@ function ratioLabel(w, h) {
 function extIcon(filename) {
   return ((filename || '').split('.').pop() || 'ARC').toUpperCase().slice(0, 4);
 }
+const EXT_COLORS = {
+  PDF: '#e5484d', DOC: '#2f6fed', DOCX: '#2f6fed', XLS: '#1a9c6b', XLSX: '#1a9c6b',
+  CSV: '#1a9c6b', ZIP: '#8a63d2', RAR: '#8a63d2', MP3: '#e0902c', WAV: '#e0902c',
+  M4A: '#e0902c', MP4: '#2f6fed', MOV: '#2f6fed',
+};
+function extColor(ext) { return EXT_COLORS[ext] || '#807c73'; }
 
 function readImageDimensions(file) {
   return new Promise((resolve) => {
@@ -743,7 +749,8 @@ async function loadClientGallery() {
   document.getElementById('cg-link').textContent = currentGalleryRow.share_token ? galleryShareUrl(currentGalleryRow.share_token) : '—';
   const coverPreview = document.getElementById('cg-cover-preview');
   coverPreview.style.backgroundImage = currentGalleryRow.cover_url ? `url('${currentGalleryRow.cover_url}')` : '';
-  coverPreview.innerHTML = currentGalleryRow.cover_url ? '' : '<span>Sin portada</span>';
+  const coverEmptyLabel = document.getElementById('cg-cover-empty');
+  if (coverEmptyLabel) coverEmptyLabel.hidden = !!currentGalleryRow.cover_url;
   renderStatusPill();
   refreshPreviewFrame();
 
@@ -799,7 +806,8 @@ document.getElementById('cg-cover-input').addEventListener('change', async (e) =
     currentGalleryRow.cover_url = url;
     const coverPreview = document.getElementById('cg-cover-preview');
     coverPreview.style.backgroundImage = `url('${url}')`;
-    coverPreview.innerHTML = '';
+    const coverEmptyLabel = document.getElementById('cg-cover-empty');
+    if (coverEmptyLabel) coverEmptyLabel.hidden = true;
     refreshPreviewFrame();
   }
   e.target.value = '';
@@ -917,6 +925,10 @@ async function renderClientGalleryPhotos() {
         <span class="cg-media-check">${isSelected ? '✓' : ''}</span>
       </div>
       <div class="cg-media-body">
+        <div class="cg-media-name" title="${escapeAttr(p.original_filename || '')}">
+          ${escapeHtml(p.original_filename || (isVideo ? 'Vídeo' : 'Foto'))}
+          <span class="cg-media-status-text ${statusClass}">${statusClass === 'ready' ? 'Listo' : statusClass === 'processing' ? 'Procesando…' : 'Error'}</span>
+        </div>
         <div class="cg-media-cats">
           ${GALLERY_CATEGORIES.map(c => `
             <label class="${cats.includes(c.key) ? 'on' : ''}">
@@ -957,7 +969,8 @@ async function renderClientGalleryPhotos() {
       currentGalleryRow.cover_url = photo.poster_url || photo.image_url;
       const coverPreview = document.getElementById('cg-cover-preview');
       coverPreview.style.backgroundImage = `url('${currentGalleryRow.cover_url}')`;
-      coverPreview.innerHTML = '';
+      const coverEmptyLabel = document.getElementById('cg-cover-empty');
+      if (coverEmptyLabel) coverEmptyLabel.hidden = true;
       refreshPreviewFrame();
       renderClientGalleryPhotos();
     });
@@ -1046,7 +1059,7 @@ async function renderClientGalleryAttachments() {
   if (!atts || !atts.length) { container.innerHTML = '<p class="panel-sub">Todavía no has añadido archivos adjuntos.</p>'; return; }
   container.innerHTML = atts.map(a => `
     <div class="cg-attachment-row">
-      <span class="cg-att-icon">${extIcon(a.filename)}</span>
+      <span class="cg-att-icon" style="background:${extColor(extIcon(a.filename))};">${extIcon(a.filename)}</span>
       <input class="cg-att-name" data-id="${a.id}" value="${escapeAttr(a.filename)}" readonly>
       <span class="cg-att-size">${formatFileSize(a.size_bytes)}</span>
       <div class="cg-att-actions">
