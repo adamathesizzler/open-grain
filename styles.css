@@ -1,0 +1,262 @@
+/* ---------- Design tokens ---------- */
+:root{
+  --header-h: 76px;
+  --bg-dark: #17120f;
+  --bg-dark-2: #201a16;
+  --bg-light: #f2ede4;
+  --text-dark-bg: #f5efe4;
+  --text-dark-bg-muted: #b9ada0;
+  --text-light-bg: #201a16;
+  --text-light-bg-muted: #6b6058;
+  --accent: #e0562f;
+  --radius: 14px;
+  --maxw: 1200px;
+  font-size: 16px;
+}
+
+*, *::before, *::after{ box-sizing: border-box; }
+html{ scroll-behavior: smooth; }
+body{
+  margin:0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-dark-bg);
+  line-height: 1.4;
+  overflow-x: hidden; /* belt-and-braces: nothing should rely on this, but guards against stray overflow */
+}
+img{ max-width:100%; display:block; }
+a{ color: inherit; }
+h1,h2,h3{ margin:0; font-weight:600; letter-spacing:-0.02em; }
+p{ margin:0; }
+
+/* Every anchored section clears the fixed header instead of hiding behind it (Bug #2) */
+section[id], header#top{
+  scroll-margin-top: var(--header-h);
+}
+
+/* ---------- Header ---------- */
+.site-header{
+  position: sticky; top:0; z-index: 50;
+  background: rgba(23,18,15,0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.header-inner{
+  max-width: var(--maxw); margin:0 auto;
+  height: var(--header-h);
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 20px;
+}
+.logo{ font-weight:700; letter-spacing:-0.01em; text-decoration:none; font-size:1.05rem; }
+.main-nav{ display:none; gap:28px; font-size:0.9rem; }
+.main-nav a{ text-decoration:none; opacity:0.85; }
+.main-nav a:hover{ opacity:1; }
+.header-actions{ display:flex; gap:8px; align-items:center; }
+.header-actions button{
+  border:1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.05);
+  color: inherit;
+  border-radius: 999px;
+  height:38px; padding:0 14px;
+  font-size:0.85rem; cursor:pointer;
+}
+.menu-toggle{ width:38px; padding:0; }
+.mobile-menu{ display:flex; flex-direction:column; padding: 8px 20px 16px; gap:4px; }
+.mobile-menu a{ text-decoration:none; padding:10px 4px; border-bottom:1px solid rgba(255,255,255,0.06); font-size:0.95rem; }
+.mobile-menu[hidden]{ display:none; }
+
+@media (min-width: 860px){
+  .main-nav{ display:flex; }
+  .menu-toggle{ display:none; }
+  .mobile-menu{ display:none !important; }
+}
+
+/* ---------- Sections ---------- */
+.section{ padding: 72px 20px; max-width: var(--maxw); margin: 0 auto; }
+.section--dark{ background: var(--bg-dark); color: var(--text-dark-bg); }
+.section--light{ background: var(--bg-light); color: var(--text-light-bg); }
+.section--light .eyebrow{ color: var(--text-light-bg-muted); }
+.section--tight{ padding-top: 24px; padding-bottom: 24px; }
+.eyebrow{
+  text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;
+  color: var(--text-dark-bg-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin-bottom: 14px;
+}
+.section h2{ font-size: clamp(1.8rem, 4vw + 1rem, 3rem); margin-bottom: 16px; }
+.section-lede{ max-width: 46ch; color: var(--text-dark-bg-muted); font-size:1.05rem; }
+.section--light .section-lede{ color: var(--text-light-bg-muted); }
+
+/* ---------- Placeholder photo blocks ----------
+   Deterministic hue per label (set as --hue by main.js) so every project
+   reads as a distinct image instead of the same stock photo reused (Bug: duplicate images).
+   Swap these for real photography — each is clearly labelled so nothing gets missed. */
+.placeholder-photo{
+  --hue: 24;
+  position:relative;
+  border-radius: var(--radius);
+  aspect-ratio: 4/5;
+  background:
+    linear-gradient(155deg, hsl(var(--hue) 45% 22%), hsl(calc(var(--hue) + 30) 40% 12%));
+  overflow:hidden;
+}
+.placeholder-photo::before{
+  content:"";
+  position:absolute; inset:0;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 14px);
+}
+/* Label sits absolutely so it never fights with real content placed inside
+   the same box (e.g. .service-card, which also has its own index + text). */
+.placeholder-photo::after{
+  content: attr(data-label);
+  position:absolute; top:14px; left:14px; z-index:1;
+  font-size:0.78rem;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---------- Hero ---------- */
+.hero{
+  position:relative;
+  padding: 40px 20px 64px;
+  max-width: var(--maxw); margin:0 auto;
+}
+.hero-eyebrow{
+  display:flex; flex-direction:column; gap:2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:0.8rem; color: var(--text-dark-bg-muted); text-transform:uppercase;
+  margin-bottom: 20px;
+}
+.hero-media{ display:grid; grid-template-columns: 1.1fr 1fr; gap:14px; margin-bottom: -46px; }
+.hero-photo{ aspect-ratio: 4/5; }
+.hero-photo--b{ margin-top: 40px; }
+.hero-title{
+  position:relative; z-index:2;
+  font-size: clamp(2.6rem, 12vw, 7rem); /* Bug #1 fix: fluid, never wider than viewport */
+  line-height: 0.95;
+  color: var(--text-dark-bg);
+  margin: 0 0 20px;
+  word-break: keep-all;
+}
+.hero-tagline{ font-size: clamp(1.3rem, 3vw + 0.6rem, 2.1rem); font-weight:600; margin-bottom: 28px; max-width: 16ch; }
+
+.btn{
+  display:inline-flex; align-items:center; gap:10px;
+  padding: 14px 22px; border-radius: 999px; text-decoration:none;
+  font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em;
+  cursor:pointer; border:1px solid transparent;
+}
+.btn-outline{ border-color: rgba(255,255,255,0.25); color: var(--text-dark-bg); }
+.btn-outline:hover{ background: rgba(255,255,255,0.08); }
+.btn-solid{ background: var(--text-dark-bg); color: var(--bg-dark); border:none; font-weight:600; justify-content:center; }
+.btn-solid:hover{ opacity:0.9; }
+
+/* ---------- Work grid ---------- */
+.work-grid{
+  display:grid; grid-template-columns: repeat(2, 1fr); gap: 20px 16px;
+  margin-top: 36px;
+}
+.work-card h3{ margin-top:10px; font-size:1.1rem; }
+.work-index{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.75rem; color: var(--text-dark-bg-muted); margin-top:14px; }
+.work-cat{ text-transform:uppercase; font-size:0.75rem; letter-spacing:0.06em; color: var(--text-dark-bg-muted); margin-top:2px; }
+@media (min-width: 700px){
+  .work-grid{ grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ---------- Services horizontal scroller (Bug #4: visible peek + snap + dots) ---------- */
+.services-scroller{
+  display:flex; gap:16px; margin-top: 32px;
+  overflow-x:auto; scroll-snap-type:x mandatory; scroll-padding-left:20px;
+  padding-bottom: 6px; margin-inline:-20px; padding-inline:20px;
+  -webkit-overflow-scrolling:touch;
+}
+.services-scroller::-webkit-scrollbar{ height:6px; }
+.services-scroller::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.25); border-radius:99px; }
+.service-card{
+  position:relative;
+  flex: 0 0 82%; /* leaves a visible peek of the next card so it reads as scrollable */
+  scroll-snap-align:start;
+  min-height: 340px;
+}
+@media (min-width:640px){ .service-card{ flex-basis: 46%; } }
+@media (min-width:1000px){ .service-card{ flex-basis: 30%; } }
+.service-index{
+  position:absolute; top:14px; right:16px; z-index:1;
+  font-size:2rem; font-weight:700;
+  color: rgba(255,255,255,0.85);
+}
+.service-info{ position:absolute; left:16px; right:16px; bottom:16px; z-index:1; }
+.service-link{ display:inline-block; margin-top:6px; font-size:0.85rem; text-decoration:none; opacity:0.85; }
+.scroller-dots{ display:flex; gap:6px; justify-content:center; margin-top:16px; }
+.scroller-dots span{ width:6px; height:6px; border-radius:99px; background: rgba(255,255,255,0.25); }
+.scroller-dots span.active{ background: var(--accent); width:18px; transition: width .2s; }
+
+/* ---------- Studio ---------- */
+.studio-tag{ margin-top:28px; font-size:0.95rem; }
+
+/* ---------- Contact ---------- */
+.contact-grid{ display:grid; gap:32px; margin-top:36px; }
+@media (min-width: 860px){ .contact-grid{ grid-template-columns: 1.3fr 1fr; } }
+.contact-form{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+.contact-form label{ display:flex; flex-direction:column; gap:6px; font-size:0.85rem; color: var(--text-dark-bg-muted); }
+.contact-form .full-width{ grid-column: 1 / -1; }
+.contact-form input, .contact-form select, .contact-form textarea{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px; padding: 12px 14px; color: var(--text-dark-bg); font-size:0.95rem;
+  font-family:inherit;
+}
+.contact-form input::placeholder, .contact-form textarea::placeholder{ color: rgba(255,255,255,0.35); }
+@media (max-width: 560px){ .contact-form{ grid-template-columns: 1fr; } }
+.form-status{ grid-column: 1/-1; font-size:0.85rem; min-height:1.2em; }
+
+.contact-side{ display:flex; flex-direction:column; gap:18px; }
+.contact-side .placeholder-photo{ aspect-ratio: 16/10; }
+.contact-detail h3{ font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color: var(--text-dark-bg-muted); margin-bottom:4px; }
+.contact-detail a{ text-decoration:none; font-size:1rem; }
+
+/* ---------- Social ---------- */
+.social-grid{ display:grid; grid-template-columns: repeat(2,1fr); gap:16px; margin-top:28px; }
+@media (min-width:700px){ .social-grid{ grid-template-columns: repeat(3,1fr); } }
+.social-item{ position:relative; }
+.social-item .placeholder-photo{ aspect-ratio:1; }
+.social-badge{
+  position:absolute; left:14px; bottom:14px; z-index:1;
+  background: rgba(0,0,0,0.55); padding:4px 10px; border-radius:999px; font-size:0.75rem;
+}
+
+/* ---------- Light theme override ---------- */
+html.theme-light body{ background: var(--bg-light); }
+html.theme-light .site-header{ background: rgba(242,237,228,0.85); border-bottom-color: rgba(0,0,0,0.08); }
+html.theme-light .section--dark{ background: var(--bg-light); color: var(--text-light-bg); }
+html.theme-light .section--dark .eyebrow,
+html.theme-light .section--dark .section-lede{ color: var(--text-light-bg-muted); }
+html.theme-light .header-actions button{ border-color: rgba(0,0,0,0.15); background: rgba(0,0,0,0.04); color: var(--text-light-bg); }
+html.theme-light .mobile-menu a{ color: var(--text-light-bg); }
+html.theme-light .btn-outline{ border-color: rgba(0,0,0,0.2); color: var(--text-light-bg); }
+html.theme-light .btn-outline:hover{ background: rgba(0,0,0,0.05); }
+html.theme-light .contact-form input, html.theme-light .contact-form select, html.theme-light .contact-form textarea{
+  background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); color: var(--text-light-bg);
+}
+html.theme-light .site-footer{ background: #e9e2d5; }
+html.theme-light .footer-note, html.theme-light .footer-copy{ color: var(--text-light-bg-muted); }
+
+/* The hero and header sit outside .section--dark, so they need their own
+   light-theme text colours too (fixes low-contrast white-on-cream text). */
+html.theme-light .logo,
+html.theme-light .main-nav a,
+html.theme-light .hero-title,
+html.theme-light .hero-tagline,
+html.theme-light .footer-logo{ color: var(--text-light-bg); }
+html.theme-light .hero-eyebrow{ color: var(--text-light-bg-muted); }
+html.theme-light .btn-solid{ background: var(--text-light-bg); color: var(--bg-light); }
+
+/* ---------- Footer ---------- */
+.site-footer{ background: var(--bg-dark-2); padding: 56px 20px 28px; }
+.footer-top{ max-width: var(--maxw); margin:0 auto; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:20px; padding-bottom:24px; border-bottom:1px solid rgba(255,255,255,0.08); }
+.footer-logo{ font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight:700; }
+.footer-top nav{ display:flex; gap:20px; font-size:0.9rem; }
+.footer-top nav a{ text-decoration:none; opacity:0.8; }
+.footer-note, .footer-copy{ max-width: var(--maxw); margin:16px auto 0; color: var(--text-dark-bg-muted); font-size:0.85rem; }

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPEN GRAIN — Studio</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="studio.css">
+</head>
+<body class="studio-body">
+
+<!-- ---------- Sign-in screen ---------- -->
+<section id="login-screen" class="login-screen">
+  <div class="login-card">
+    <p class="login-logo">OPEN GRAIN <span>STUDIO</span></p>
+    <h1>Sign in</h1>
+    <p class="login-sub">Studio access is restricted to the business owner.</p>
+    <form id="login-form">
+      <label>Email
+        <input type="email" id="login-email" required autocomplete="username">
+      </label>
+      <label>Password
+        <input type="password" id="login-password" required autocomplete="current-password">
+      </label>
+      <button type="submit" class="btn btn-solid full-width">Sign in →</button>
+      <p id="login-error" class="login-error" role="alert"></p>
+    </form>
+    <p class="login-note">First time here? Create your user in the Supabase dashboard
+      (Authentication → Users), then add its email to the <code>admins</code> table
+      (see <code>supabase/schema.sql</code>).</p>
+  </div>
+</section>
+
+<!-- ---------- Dashboard (hidden until signed in) ---------- -->
+<div id="dashboard" hidden>
+  <header class="studio-header">
+    <a href="../index.html" class="logo">OPEN GRAIN<span class="studio-badge">STUDIO</span></a>
+    <button id="sign-out" class="btn btn-outline">Sign out</button>
+  </header>
+
+  <nav class="studio-tabs" role="tablist">
+    <button class="tab-btn active" data-tab="overview" role="tab">Overview</button>
+    <button class="tab-btn" data-tab="portfolio" role="tab">Portfolio</button>
+    <button class="tab-btn" data-tab="social" role="tab">Social posts</button>
+    <button class="tab-btn" data-tab="enquiries" role="tab">Enquiries</button>
+    <button class="tab-btn" data-tab="soon" role="tab">Clients / Calendar / Inventory / Quotes</button>
+  </nav>
+
+  <main class="studio-main">
+
+    <section data-panel="overview" class="studio-panel">
+      <h2>Overview</h2>
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><span class="stat-num" id="stat-projects">–</span><span>Published portfolio projects</span></div>
+        <div class="stat-card"><span class="stat-num" id="stat-enquiries">–</span><span>New enquiries</span></div>
+        <div class="stat-card"><span class="stat-num" id="stat-social">–</span><span>Social posts selected</span></div>
+      </div>
+    </section>
+
+    <section data-panel="portfolio" class="studio-panel" hidden>
+      <h2>Portfolio categories</h2>
+      <p class="panel-sub">Turn categories on or off without deleting their content.</p>
+      <div id="category-list" class="category-list"></div>
+
+      <h2 class="panel-mt">Projects</h2>
+      <form id="project-form" class="inline-form">
+        <input type="text" id="project-title" placeholder="Project title" required>
+        <select id="project-category"></select>
+        <label class="checkbox-label"><input type="checkbox" id="project-published"> Published</label>
+        <button type="submit" class="btn btn-solid">Add project</button>
+      </form>
+      <div id="project-list" class="project-list"></div>
+    </section>
+
+    <section data-panel="social" class="studio-panel" hidden>
+      <h2>Instagram &amp; TikTok</h2>
+      <p class="panel-sub">Toggle "selected" to show a post in the public footer (max 3 per account recommended).</p>
+      <form id="social-form" class="inline-form">
+        <select id="social-platform"><option value="instagram">Instagram</option><option value="tiktok">TikTok</option></select>
+        <input type="url" id="social-url" placeholder="Post URL" required>
+        <button type="submit" class="btn btn-solid">Add post</button>
+      </form>
+      <div id="social-list" class="project-list"></div>
+    </section>
+
+    <section data-panel="enquiries" class="studio-panel" hidden>
+      <h2>New enquiries</h2>
+      <p class="panel-sub">Submissions from the public contact form.</p>
+      <div id="enquiry-list" class="project-list"></div>
+    </section>
+
+    <section data-panel="soon" class="studio-panel" hidden>
+      <h2>Coming next</h2>
+      <p class="panel-sub">Clients, Calendar and Quotes &amp; contracts follow the same pattern as
+        Portfolio above — a Supabase table (already created by <code>schema.sql</code>) plus a
+        simple list + form here. Ask Claude to build out the next one whenever you're ready.</p>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="studio.js"></script>
+</body>
+</html>
