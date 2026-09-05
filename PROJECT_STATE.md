@@ -1,77 +1,60 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-05 (sesión de rediseño completo del panel Studio).
+Última actualización: 2026-09-05 (rediseño completo del panel Studio — terminado y commiteado).
 
 ## 1. Estado actual del proyecto
 
-- **Sitio público**: funcionando y desplegado en Vercel. Última versión publicada en `main`/producción corresponde al commit `86b7156` ("Turn Portfolio into a photo album grid"), que el usuario acaba de pedir subir con `git push origin main`.
-- **Panel Studio (admin)**: EN PLENA REESCRITURA hacia un "CMS dashboard premium" completamente nuevo, a petición explícita y muy detallada del usuario. Este rediseño **todavía no está terminado ni sincronizado ni commiteado**. Los archivos nuevos existen solo en el workspace de Claude en la nube (`/home/claude/open-grain/studio/index.html` y `studio.css`), NO en el Mac del usuario todavía.
-- **`studio/studio.js` sigue siendo la versión ANTIGUA** (687 líneas, lógica de la iteración "álbum de fotos" ya superada). No coincide con los nuevos IDs/clases de `index.html`/`studio.css`. **El panel está en un estado intermedio no funcional: no probar, sincronizar ni commitear hasta reescribir `studio.js`.**
+- **Sitio público**: funcionando en Vercel. El commit `86b7156` ("Turn Portfolio into a photo album grid") seguía sin subir a GitHub al empezar esta sesión — el usuario pidió el `git push`; ver sección 5, no se pudo ejecutar desde aquí.
+- **Panel Studio (admin)**: REDISEÑO CMS TERMINADO. `studio/index.html`, `studio/studio.css` y `studio/studio.js` fueron reescritos por completo, sincronizados al Mac del usuario y commiteados en `ec99482`. Probado con Playwright (Supabase mockeado) sin errores de JS. **Sigue pendiente el `git push` a GitHub** (ver sección 5) y, opcionalmente, ejecutar la migración SQL en Supabase (ver sección 7).
 
 ## 2. Decisiones tomadas (rediseño CMS del Studio)
 
-- Estructura de navegación definitiva (en este orden): Inicio/Resumen, Contenido del sitio, Proyectos y portfolio, Galerías y archivos multimedia, Servicios, UGC, Mensajes y solicitudes, Clientes, Reservas y calendario, Analíticas, Ajustes, Cerrar sesión.
-- Funcionalidades ya existentes que NO están en esa lista pero deben conservarse, integradas así:
-  - Asistente de IA → pestaña/sub-tab dentro de "Contenido del sitio".
-  - Inventario y Presupuestos → se mantienen como apartados extra (grupo "Más") en la navegación.
-  - Posts sociales (social_posts) → se integran dentro de la nueva sección "UGC".
-- Paleta de color: modo Día = beige/blanco cálido/gris claro + aura degradado azul eléctrico + texto negro + rojo/naranja como color "activo". Modo Noche = negro/carbón + degradados rojo/naranja + glass oscuro translúcido + texto blanco. Persistencia en `localStorage` bajo la clave `og_studio_theme`.
-- "Liquid glass" (blur + saturate + fondo translúcido) solo en la interfaz (sidebar, topbar, tarjetas), nunca sobre fotografías.
-- Editor de "Contenido del sitio": vista previa en vivo real de la página pública (iframe) a la izquierda, controles de edición a la derecha, selector de idioma ES/EN, autosave, botón fijo "Guardar y publicar", avisos de cambios sin publicar. La vista previa en vivo se implementará vía `postMessage` desde `studio.js` hacia el iframe, y un listener nuevo en `main.js` (sitio público) que fusiona esos campos en el objeto `copy` en memoria y vuelve a renderizar — sin escribir en Supabase hasta pulsar "Guardar y publicar".
-- Proyectos: tarjetas tipo álbum con fotos apiladas, filtros por categoría (gastronomía/retratos/eventos/UGC/otros), reordenar arrastrando, tres estados (borrador/publicado/oculto), botón "Nuevo proyecto".
-- Reparto de los 14 campos de `CONTENT_FIELD_ORDER` (en `assets/default-copy.js`) entre las pestañas "Hero" y "Textos" del nuevo editor: **pendiente de decidir/codificar** (candidato: `eyebrow`/`headline`/`explore` → Hero; el resto → Textos).
+- Estructura de navegación (en este orden): Inicio/Resumen, Contenido del sitio, Proyectos y portfolio, Galerías y archivos multimedia, Servicios, UGC, Mensajes y solicitudes, Clientes, Reservas y calendario, Analíticas, Ajustes, Cerrar sesión. Grupo extra "Más" con Inventario y Presupuestos (funcionalidades previas que no estaban en la lista pedida pero se conservaron).
+- Asistente de IA → integrado como sub-pestaña "Asistente IA" dentro de "Contenido del sitio". Posts sociales (social_posts) → integrados dentro de "UGC".
+- Paleta: Día = beige/blanco cálido/gris claro + aura azul eléctrico + texto negro + rojo/naranja como color activo. Noche = negro/carbón + degradados rojo/naranja + glass oscuro + texto blanco. Persistencia en `localStorage` (`og_studio_theme`), aplicado sobre `<html data-theme>` (no `<body>`, para evitar parpadeo — ver sección 5).
+- "Liquid glass" (blur+saturate) solo en sidebar/topbar/tarjetas, nunca sobre fotografías.
+- Editor de "Contenido del sitio": vista previa real del sitio público en un `<iframe src="/">`, sincronizada en vivo mediante `postMessage` (`studio.js` → listener nuevo en `main.js`) — no escribe en Supabase hasta pulsar "Guardar y publicar". Autosave de borrador en `localStorage` (`og_studio_draft`) para no perder cambios sin publicar si se recarga la página. Reparto de los 14 campos de `CONTENT_FIELD_ORDER`: Hero = `eyebrow`, `headline`, `explore`, `workBlurb`; Textos = el resto.
+- Proyectos: tarjetas "álbum" con fotos apiladas, filtros por categoría real, arrastrar para reordenar, tres estados (`draft`/`published`/`hidden`) con fallback defensivo mientras no exista la columna `status` (ver sección 7).
+- "Servicios" tiene una única fuente de datos (`site_content.serviceList`) compartida entre la pestaña dedicada del menú y la sub-pestaña dentro de "Contenido del sitio", mediante las funciones `loadServicesInto()` / `saveServiceLists()` en `studio.js`.
 
 ## 3. Funcionalidades terminadas
 
-- Análisis completo de la estructura del proyecto y del dashboard actual.
-- Revisión de las imágenes de referencia en la carpeta conectada `references:dashboard` (3 mockups: biblioteca de proyectos en modo claro, panel de control en modo oscuro, y la pantalla de inicio "Buenos días, Adama").
-- `studio/index.html`: reescrito por completo con la nueva estructura (sidebar + topbar + 13 paneles, todos los IDs nuevos).
-- `studio/studio.css`: reescrito por completo con el nuevo sistema de temas día/noche, glass, sidebar/topbar, tarjetas, editor de contenido con panel de vista previa, etc.
-- Patrón de "arrastrar para reordenar" (drag & drop nativo HTML5) ya implementado y probado en la iteración anterior (categorías y proyectos de portfolio) — se reutilizará en el nuevo diseño.
-- Patrón "propone y aprueba" del asistente de IA (`/api/ai-assist.js`) ya implementado y probado — se conserva sin cambios.
+- Rediseño completo de `studio/index.html`, `studio/studio.css` y `studio/studio.js` (shell con sidebar+topbar, tema día/noche, las 12 secciones, editor de contenido con vista previa en vivo, proyectos con estados y filtros, galerías con biblioteca de archivos real, servicios compartidos, UGC, analíticas con datos reales, ajustes con banner de configuración detectado en tiempo real).
+- Listener de `postMessage` añadido a `main.js` para la vista previa en vivo.
+- Migración SQL para `portfolio_projects.status` añadida a `supabase/schema.sql` y como archivo independiente `supabase/migration_dashboard_v2.sql`.
+- Corregido el desajuste de `data-theme` (unificado en `<html>`, CSS actualizado a `html[data-theme="night"] body.studio-body`).
+- Todas las funcionalidades previas conservadas intactas: clientes, reservas (tabla `projects`), inventario, presupuestos, mensajes/enquiries, categorías y proyectos de portfolio, contenido del sitio, asistente de IA, posts sociales, drag & drop, subida de fotos a Supabase Storage.
+- Probado con Playwright (Supabase mockeado, incluyendo `count`/`head`/`gte`/relaciones embebidas) en escritorio, tema noche y móvil: sin errores de JS, capturas de pantalla verificadas visualmente contra los mockups de referencia — coinciden.
+- Sincronizado al Mac del usuario vía `SendUserFile` + `device_commit_files` (checksums MD5 verificados iguales) y commiteado como `ec99482`.
 
-## 4. Archivos creados o modificados (en este rediseño, todavía solo en el workspace de Claude, no sincronizados al Mac)
+## 4. Archivos creados o modificados (ya sincronizados y commiteados en el Mac)
 
-- `studio/index.html` — reescrito completo (nuevo).
-- `studio/studio.css` — reescrito completo (nuevo).
-- `studio/studio.js` — **pendiente de reescribir** (sigue con la lógica antigua).
-- `main.js` — pendiente: añadir listener de `postMessage` para la vista previa en vivo.
-- `assets/default-copy.js` — sin cambios todavía; se usará para decidir el reparto Hero/Textos.
-- `supabase/schema.sql` — pendiente: añadir columna `status` (`draft`/`published`/`hidden`) a `portfolio_projects`.
-- Nuevo archivo pendiente: `supabase/migration_dashboard_v2.sql` (migración aislada para que el usuario la ejecute una vez en el editor SQL de Supabase).
-- Ahora también: `CLAUDE.md` y `PROJECT_STATE.md` (este archivo) en la raíz del repo.
+- `studio/index.html` — reescrito completo.
+- `studio/studio.css` — reescrito completo (incluye el fix del selector de tema).
+- `studio/studio.js` — reescrito completo (antes tenía la lógica antigua).
+- `main.js` — añadido el listener de `postMessage` para la vista previa en vivo.
+- `supabase/schema.sql` — añadida la migración de `status` al final.
+- `supabase/migration_dashboard_v2.sql` — nuevo archivo con esa misma migración, para ejecutar en Supabase.
+- `CLAUDE.md` y `PROJECT_STATE.md` — instrucciones permanentes y este registro de estado (commit `cf1e1fd`).
 
 ## 5. Errores encontrados y soluciones aplicadas
 
-- Ruta de la carpeta conectada de referencias tiene un carácter `:` literal (`references:dashboard`) — hay que usarla tal cual.
-- El parámetro correcto de `device_stage_files` es `paths`, no `files`.
-- Bugs propios del script de pruebas Playwright (selectores desactualizados, falta de `.limit()` en el mock de Supabase) — corregidos.
-- Desajuste pendiente de resolver: el script inline del `<head>` de `index.html` pone `data-theme` en `document.documentElement`, pero el CSS apunta a `body.studio-body[data-theme="..."]`. Hay que unificar esto (recomendado: que `studio.js` y el script inline usen `document.body.dataset.theme`) antes de que el toggle de tema funcione.
-- `git push origin main` desde la VM aislada de Cowork (vía `device_bash`) falla con `fatal: could not read Username for 'https://github.com'`: esta VM no tiene credenciales de GitHub guardadas (no hay `credential.helper` configurado ni `gh` instalado), aunque sí tiene acceso de red a github.com (test con `curl` devolvió 200). **El usuario debe ejecutar el `git push` desde su Mac real** (fuera de esta VM aislada), o configurar un credential helper/token accesible desde la VM si quiere que Claude pueda hacer push en el futuro.
+- `git push origin main` no se puede ejecutar desde la VM aislada de Cowork (`device_bash`): falla con `fatal: could not read Username for 'https://github.com'` porque esa VM no tiene credenciales de GitHub guardadas (sin `credential.helper` ni `gh` instalado), aunque sí tiene red hacia github.com. **Sigue pendiente**: el usuario debe ejecutar `git push origin main` desde una terminal en su Mac real (fuera de esta VM aislada). Hay dos commits esperando: `86b7156` y todo lo posterior hasta `ec99482` (incluye el rediseño del Studio).
+- Lock files de git (`.git/index.lock`, `.git/HEAD.lock`) aparecen repetidamente al operar desde `device_bash` — se resuelven renombrándolos (`mv -f .git/index.lock .git/index.lock.stale_$(date +%s)`) inmediatamente antes de cada `git add`/`git commit`; los avisos "unable to unlink tmp_obj_*" son inofensivos.
+- Desajuste de `data-theme` (`<html>` vs `<body>`) — resuelto: todo el tema ahora vive en `<html data-theme>`, CSS actualizado a `html[data-theme="night"] body.studio-body`.
+- Mock de Supabase en las pruebas Playwright necesitaba soporte para `count`/`head`, filtros `gte`, y relaciones embebidas (`portfolio_categories(name)`, `clients(name)`) — añadido en el script de pruebas (no afecta al código real de producción).
 
 ## 6. Pruebas realizadas
 
-- Pruebas con Playwright (Supabase mockeado) de la iteración "álbum de fotos" (anterior al rediseño CMS actual): confirmado que el drag & drop reordena el DOM y persiste `sort_order` en Supabase (mock) para categorías y proyectos; capturas de pantalla en overview, portfolio, contenido, IA y vista móvil sin errores de JS.
-- El nuevo rediseño CMS (`index.html` + `studio.css`) **todavía no se ha probado** porque `studio.js` no se ha reescrito para que coincida.
+- Playwright con Supabase mockeado: sesión iniciada, tema día/noche, las 13 pestañas cargan sin errores de JS, proyectos con 3 tarjetas y estados draft/published/hidden correctos, arrastrar-para-reordenar funciona y persiste `sort_order`, galería con biblioteca de archivos (2 archivos mockeados), servicios con 10 campos (5×2 idiomas), editor de contenido con 4 campos Hero + 10 Textos ×2 idiomas = 8+20 campos, vista previa en vivo cargó el sitio público real dentro del iframe, "Guardar y publicar" marcó el estado "dirty→saved" correctamente e hizo 1 upsert a `site_content`, banner de configuración correctamente ausente (la columna `status` existía en los datos de prueba). Capturas de pantalla en escritorio, tema noche y móvil revisadas visualmente: coinciden con los mockups de referencia.
+- No se han hecho pruebas contra la base de datos Supabase real (solo mockeada) — la primera vez que el usuario abra el panel en producción conviene revisar la pestaña Ajustes por si aparece el banner de migración pendiente.
 
 ## 7. Trabajo pendiente
 
-1. Reescribir `studio/studio.js` completo para que coincida con la nueva estructura de `index.html`/`studio.css` (ver lista detallada de requisitos en la sección "Siguiente acción recomendada").
-2. Añadir el listener de `postMessage` en `main.js` para la vista previa en vivo del editor de contenido.
-3. Crear `supabase/migration_dashboard_v2.sql` y añadir el mismo bloque a `supabase/schema.sql` (columna `status` en `portfolio_projects`).
-4. Decidir y codificar el reparto de campos Hero vs. Textos.
-5. Resolver la duplicación entre la pestaña "Servicios" del menú principal y la sub-pestaña "Servicios" dentro de "Contenido del sitio" (ambas editan `site_content.serviceList`): usar una única función de render/guardado compartida.
-6. Probar todo con Playwright (Supabase mockeado) antes de sincronizar.
-7. Sincronizar los archivos nuevos/modificados al Mac del usuario, hacer commit, y avisar de que falta el `git push` (el usuario debe hacerlo desde su Mac real, ver sección 5).
-8. Entregar al usuario el informe final que pidió explícitamente: qué archivos se modificaron, qué funcionalidades se conservaron, qué partes nuevas se añadieron, y cómo abrir/probar el dashboard.
+1. **El usuario debe ejecutar `git push origin main` desde su Mac real** (ver sección 5) para publicar el rediseño en producción.
+2. **Opcional pero recomendado**: ejecutar `supabase/migration_dashboard_v2.sql` en el editor SQL de Supabase para activar la columna `status` (borrador/publicado/oculto) en `portfolio_projects`. Sin ella, Studio sigue funcionando con el campo antiguo `is_published` (fallback automático) y Ajustes mostrará un aviso.
+3. Verificar visualmente en el navegador real (no solo con datos mockeados) una vez publicado, especialmente: subida real de fotos, guardado real de contenido, y que el asistente de IA sigue funcionando con la clave de Anthropic configurada en Vercel.
 
 ## 8. Siguiente acción recomendada
 
-Reescribir `/home/claude/open-grain/studio/studio.js` en su totalidad para que:
-- Unifique el `data-theme` en `document.body` y conecte el botón `#theme-toggle` y los botones `[data-theme-pick]` de Ajustes, persistiendo en `localStorage` (`og_studio_theme`).
-- Implemente el nuevo despachador de pestañas (`data-tab`: `overview`, `content`, `projects`, `galleries`, `services`, `ugc`, `messages`, `clients`, `bookings`, `analytics`, `inventory`, `quotes`, `settings`) y los enlaces `[data-jump]` del Inicio.
-- Reescriba `loadOverview()`: saludo según hora del día, 4 acciones rápidas, 4 estadísticas reales, proyecto destacado/más reciente, dos mini-listas (mensajes/reservas), barra de estado de publicación, y tira de trabajo reciente.
-- Reescriba Proyectos: filtros por categoría reales, botón "Nuevo proyecto" que muestra el formulario oculto, y estados borrador/publicado/oculto (con fallback defensivo mientras no exista la columna `status` en Supabase).
-- Implemente Galerías, Servicios, UGC, Analíticas y Ajustes con datos reales (nunca inventados).
-- Conserve intactas todas las llamadas CRUD existentes a Supabase (clientes, reservas/"projects", inventario, presupuestos, posts sociales, mensajes/enquiries, categorías y proyectos de portfolio, contenido del sitio, y el asistente de IA).
-- Solo después de todo esto: pruebas con Playwright, sincronización al Mac, commit, y aviso del `git push` pendiente + informe final.
+Confirmar con el usuario que ha hecho el `git push` y, si quiere, guiarle para ejecutar la migración SQL en Supabase. Si pide más cambios visuales o funcionales sobre este rediseño, partir de esta base ya funcional en vez de reescribir desde cero.
