@@ -222,3 +222,16 @@ create policy "admin update media" on storage.objects
 drop policy if exists "admin delete media" on storage.objects;
 create policy "admin delete media" on storage.objects
   for delete using (bucket_id = 'media' and is_admin());
+
+-- ============================================================
+-- Studio CMS dashboard v2 (2026): draft/published/hidden project
+-- states, replacing the old boolean is_published as the primary
+-- signal (is_published is kept in sync for backward compatibility
+-- with any existing "public read published" policy/query).
+-- ============================================================
+alter table portfolio_projects
+  add column if not exists status text not null default 'draft'
+  check (status in ('draft','published','hidden'));
+
+update portfolio_projects set status = 'published'
+  where is_published = true and status = 'draft';

@@ -203,6 +203,27 @@ document.getElementById('theme-toggle').addEventListener('click', () => {
 
 renderAll();
 
+// ---------- Studio live preview bridge (postMessage) ----------
+// When this page is loaded inside the Studio "Contenido del sitio" editor's
+// preview iframe, studio.js posts { type:'og-preview', lang, fields,
+// serviceList } on every edit. This merges those values into the in-memory
+// `copy` object and re-renders — purely client-side, nothing is written to
+// Supabase from here, so nothing is actually published until the admin
+// clicks "Guardar y publicar" in Studio (which writes to site_content and
+// this same page picks it up on its next real load via the fetch below).
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin) return;
+  const msg = event.data;
+  if (!msg || msg.type !== 'og-preview') return;
+  if (msg.lang && copy[msg.lang]) {
+    if (msg.fields) Object.assign(copy[msg.lang], msg.fields);
+    if (Array.isArray(msg.serviceList) && msg.serviceList.length) copy[msg.lang].serviceList = msg.serviceList;
+    lang = msg.lang;
+    document.getElementById('lang-label').textContent = lang.toUpperCase();
+    renderAll();
+  }
+});
+
 // ---------- Pointer parallax on the floating hero photos ----------
 // Ported from open-grain.tsx: updates --mx/--my custom properties via rAF,
 // respects prefers-reduced-motion.
