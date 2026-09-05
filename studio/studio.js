@@ -285,14 +285,32 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
 
 // ---------- Overview ----------
 async function loadOverview() {
-  const [{ count: projectCount }, { count: enquiryCount }, { count: socialCount }] = await Promise.all([
+  const [{ count: projectCount }, { count: enquiryCount }, { count: socialCount }, { data: recent }] = await Promise.all([
     supabaseClient.from('portfolio_projects').select('*', { count: 'exact', head: true }).eq('is_published', true),
     supabaseClient.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'),
     supabaseClient.from('social_posts').select('*', { count: 'exact', head: true }).eq('is_selected', true),
+    supabaseClient.from('portfolio_projects').select('id, title, cover_image_url').order('sort_order').limit(4),
   ]);
   document.getElementById('stat-projects').textContent = projectCount ?? '0';
   document.getElementById('stat-enquiries').textContent = enquiryCount ?? '0';
   document.getElementById('stat-social').textContent = socialCount ?? '0';
+
+  const recentEl = document.getElementById('recent-work');
+  if (recentEl) {
+    const items = recent || [];
+    recentEl.innerHTML = items.length ? items.map(p => `
+      <div class="album-card album-card-compact">
+        <div class="album-stack">
+          <span class="album-ghost album-ghost-1"></span>
+          <span class="album-ghost album-ghost-2"></span>
+          ${p.cover_image_url
+            ? `<img class="album-photo" src="${p.cover_image_url}" alt="">`
+            : `<span class="album-photo album-photo-empty"><span>–</span></span>`}
+        </div>
+        <div class="album-info"><span class="album-title">${p.title}</span></div>
+      </div>
+    `).join('') : '<p class="panel-sub">Todavía no hay proyectos — añade el primero desde Portfolio.</p>';
+  }
 }
 
 // ---------- Portfolio ----------
@@ -333,21 +351,37 @@ async function loadPortfolio() {
   projList.innerHTML = '';
   projects.forEach(p => {
     const row = document.createElement('div');
-    row.className = 'list-row project-card';
+    row.className = 'album-card';
     row.draggable = true;
     row.dataset.id = p.id;
     row.innerHTML = `
-      ${dragHandleSvg}
-      ${p.cover_image_url ? `<img class="project-thumb" src="${p.cover_image_url}" alt="" draggable="false">` : '<span class="project-thumb project-thumb-empty">Sin foto</span>'}
-      <span class="project-row-title">${p.title} <small>${p.portfolio_categories?.name ?? 'Uncategorised'}</small></span>
-      <select data-field="layout" class="layout-select">
-        <option value="tall">Vertical</option>
-        <option value="wide">Horizontal</option>
-        <option value="square">Cuadrada</option>
-      </select>
-      <label class="checkbox-label"><input type="checkbox" data-field="published" ${p.is_published ? 'checked' : ''}> Published</label>
-      <label class="link-btn file-label">Cambiar foto<input type="file" accept="image/*" data-field="photo" hidden></label>
-      <button class="link-btn" data-action="delete">Delete</button>
+      <div class="album-stack">
+        <span class="album-drag-handle">${dragHandleSvg}</span>
+        <span class="album-ghost album-ghost-1"></span>
+        <span class="album-ghost album-ghost-2"></span>
+        ${p.cover_image_url
+          ? `<img class="album-photo" src="${p.cover_image_url}" alt="" draggable="false">`
+          : `<label class="album-photo album-photo-empty" title="Añadir foto">
+               <span>+</span>
+               <input type="file" accept="image/*" data-field="photo-empty" hidden>
+             </label>`}
+      </div>
+      <div class="album-info">
+        <span class="album-title">${p.title}</span>
+        <small class="album-sub">${p.portfolio_categories?.name ?? 'Sin categoría'}</small>
+      </div>
+      <div class="album-controls">
+        <select data-field="layout" class="layout-select">
+          <option value="tall">Vertical</option>
+          <option value="wide">Horizontal</option>
+          <option value="square">Cuadrada</option>
+        </select>
+        <label class="checkbox-label"><input type="checkbox" data-field="published" ${p.is_published ? 'checked' : ''}> Publicado</label>
+      </div>
+      <div class="album-controls">
+        <label class="link-btn file-label">Cambiar foto<input type="file" accept="image/*" data-field="photo" hidden></label>
+        <button class="link-btn" data-action="delete">Eliminar</button>
+      </div>
     `;
     row.querySelector('[data-field="layout"]').value = p.layout_class || 'tall';
     row.querySelector('[data-field="layout"]').addEventListener('change', async (e) => {
@@ -356,22 +390,25 @@ async function loadPortfolio() {
     row.querySelector('[data-field="published"]').addEventListener('change', async (e) => {
       await supabaseClient.from('portfolio_projects').update({ is_published: e.target.checked }).eq('id', p.id);
     });
-    row.querySelector('[data-field="photo"]').addEventListener('change', async (e) => {
+    const handlePhotoChange = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const url = await uploadMediaFile(file);
       if (!url) return;
       await supabaseClient.from('portfolio_projects').update({ cover_image_url: url }).eq('id', p.id);
       loadPortfolio();
-    });
+    };
+    row.querySelector('[data-field="photo"]').addEventListener('change', handlePhotoChange);
+    const emptyPhotoInput = row.querySelector('[data-field="photo-empty"]');
+    if (emptyPhotoInput) emptyPhotoInput.addEventListener('change', handlePhotoChange);
     row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      if (!confirm(`Delete "${p.title}"?`)) return;
+      if (!confirm(`¿Eliminar "${p.title}"?`)) return;
       await supabaseClient.from('portfolio_projects').delete().eq('id', p.id);
       loadPortfolio();
     });
     projList.appendChild(row);
   });
-  enableDragReorder(projList, '.project-card', () => persistOrder(projList, '.project-card', 'portfolio_projects'));
+  enableDragReorder(projList, '.album-card', () => persistOrder(projList, '.album-card', 'portfolio_projects'));
 }
 
 // Uploads a file to the public `media` Storage bucket and returns its

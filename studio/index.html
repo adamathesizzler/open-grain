@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OPEN GRAIN — Studio</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/studio/studio.css">
 </head>
@@ -126,6 +129,10 @@
           <span class="stat-num" id="stat-social">–</span><span>Social posts selected</span>
         </div>
       </div>
+
+      <h2 class="panel-mt">Últimos trabajos</h2>
+      <p class="panel-sub">Las fotos más recientes del portfolio.</p>
+      <div id="recent-work" class="album-grid album-grid-compact"></div>
     </section>
 
     <section data-panel="ai" class="studio-panel" hidden>
@@ -171,7 +178,7 @@
         <label class="file-label">Foto<input type="file" id="project-photo" accept="image/*"></label>
         <button type="submit" class="btn btn-solid">Add project</button>
       </form>
-      <div id="project-list" class="project-list"></div>
+      <div id="project-list" class="album-grid"></div>
     </section>
 
     <section data-panel="social" class="studio-panel" hidden>
