@@ -99,17 +99,14 @@ Vercel te da los registros DNS exactos que tienes que añadir en tu proveedor
 del dominio. Una vez propagado (minutos a pocas horas), tu web vive en tu
 propio dominio.
 
-## Lo que falta por construir en el panel Studio
+## Lo que funciona en el panel Studio
 
-Ya funcionan: inicio de sesión, Overview (contadores), Portfolio (categorías
-+ proyectos, con publicar/despublicar), Social posts (añadir enlaces de
-Instagram/TikTok y marcarlos como seleccionados), y ver las Enquiries que
-llegan del formulario público.
-
-Pendiente, siguiendo el mismo patrón (tabla en `schema.sql` ya creada +
-lista/formulario en `studio.js`): **Clients**, **Calendar**, **Inventory**,
-**Quotes & contracts**. Pídeme que construya cualquiera de estas cuando
-quieras seguir.
+Inicio de sesión, Overview (contadores), Portfolio (categorías + proyectos,
+publicar/despublicar), Social posts (añadir enlaces de Instagram/TikTok y
+marcarlos como seleccionados), Enquiries (leer las que llegan del formulario
+público), Clients, Calendar, Inventory e Quotes & contracts — las ocho
+pestañas están conectadas a Supabase (tabla en `schema.sql` + lista/formulario
+en `studio.js`).
 
 **Nota sobre Instagram/TikTok**: conectar las cuentas de verdad (para que los
 posts se sincronicen solos) requeriría solicitar acceso a las APIs oficiales
@@ -117,19 +114,23 @@ de Meta y TikTok, que exigen un proceso de revisión de la app — por eso aquí
 se añaden los posts a mano pegando el enlace, que es lo realista para
 empezar.
 
-## Sustituir las fotos de marcador de posición
+## Diseño y fotos reales
 
-Cada bloque de color con una etiqueta (ej. "Son Brut") es un placeholder.
-Para poner tu foto real, sustituye en el HTML:
+El diseño público (`index.html` + `styles.css` + `main.js`) está portado
+1:1 desde el código real que tenía ChatGPT: mismo layout, misma tipografía,
+mismo gradiente de marca (azul de día / rojo anaranjado de noche), Liquid
+Glass sólo en navbar/botones, grid masonry, parallax con el puntero en el
+Hero y cambio automático día/noche según la hora local.
 
-```html
-<div class="placeholder-photo" data-label="Son Brut"></div>
-```
+Las 4 fotos que se ven ahora mismo (`assets/portfolio/*.jpg`) son las
+mismas imágenes provisionales que ya usaba la web de ChatGPT — siguen
+siendo provisionales hasta que subas material real. Para sustituir una:
 
-por:
+1. Añade tu foto en `assets/portfolio/` (o cualquier ruta dentro del proyecto).
+2. Edita el array `projects` al principio de `main.js` y cambia el campo
+   `image` del proyecto correspondiente por la ruta de tu foto.
 
-```html
-<img src="assets/son-brut.jpg" alt="Son Brut — Gastronomy" class="work-photo">
-```
-
-(y añade en `styles.css` la clase `.work-photo{ border-radius: var(--radius); aspect-ratio: 4/5; object-fit: cover; }`).
+En cuanto publiques proyectos reales desde Studio → Portfolio (marcados como
+"Published"), la sección "Selected work" de la web pública los usará
+automáticamente en vez de estos provisionales — lo mismo pasa con Social
+posts en cuanto marques publicaciones reales como "seleccionadas".

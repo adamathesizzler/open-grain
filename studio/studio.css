@@ -1,4 +1,4 @@
-.studio-body{ background: var(--bg-light); color: var(--text-light-bg); }
+.studio-body{ background: var(--bg); color: var(--fg); }
 
 /* ---------- Login ---------- */
 .login-screen{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
