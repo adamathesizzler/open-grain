@@ -105,6 +105,7 @@ html[data-theme="night"] body.studio-body{
 
 /* ---------- Shell layout ---------- */
 .studio-shell{ display:flex; align-items:stretch; min-height:100vh; }
+.studio-shell[hidden]{ display:none; }
 
 .og-sidebar{
   width:246px; flex:0 0 246px; display:flex; flex-direction:column; gap:4px;
@@ -150,6 +151,7 @@ html[data-theme="night"] body.studio-body{
   border-radius:999px; display:flex; align-items:center; justify-content:center; padding:0 5px;
 }
 .og-nav-item.active .og-nav-badge{ background:rgba(255,255,255,.3); }
+.og-nav-badge[hidden]{ display:none; }
 
 .og-sidebar-foot{ border-top:1px solid var(--og-line); padding-top:12px; margin-top:8px; display:flex; flex-direction:column; gap:2px; }
 .og-signout{
@@ -393,6 +395,7 @@ html[data-theme="night"] body.studio-body{
   display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; align-items:center;
   background:var(--og-card); border:1px solid var(--og-line); border-radius:20px; padding:14px;
 }
+.inline-form[hidden]{ display:none; }
 .inline-form input, .inline-form select{
   padding:11px 13px; border-radius:14px; border:1px solid var(--og-line); font-size:0.88rem; font-family:inherit;
   background:var(--og-bg); color:var(--og-fg);
