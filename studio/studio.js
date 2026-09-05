@@ -581,6 +581,23 @@ function formatFileSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function readImageDimensions(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve({ width: null, height: null }); };
+    img.src = url;
+  });
+}
+
+const GALLERY_CATEGORIES = [
+  { key: 'stories', label: 'Stories' },
+  { key: 'post', label: 'Publicación' },
+  { key: 'reel', label: 'Reel' },
+  { key: 'texto', label: 'Envío directo' },
+];
+
 async function openClientGallery(projectId, projectTitle) {
   currentGalleryProjectId = projectId;
   document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === 'projects'));
@@ -629,15 +646,18 @@ async function loadClientGallery() {
   await renderClientGalleryPhotos();
   await renderClientGalleryFavorites();
   await renderClientGalleryDownloads();
+  await renderClientGalleryRevisions();
 }
 
 async function renderClientGalleryPhotos() {
   const grid = document.getElementById('cg-photo-grid');
   if (!currentGalleryRow) { grid.innerHTML = ''; return; }
   const { data: photos } = await supabaseClient.from('gallery_photos').select('*').eq('gallery_id', currentGalleryRow.id).order('sort_order');
-  grid.innerHTML = (photos && photos.length) ? photos.map(p => `
-    <div class="media-item" style="position:relative;">
-      <img src="${p.image_url}" alt="" loading="lazy">
+  grid.innerHTML = (photos && photos.length) ? photos.map(p => {
+    const cats = p.categories || [];
+    return `
+    <div class="media-item" style="position:relative; aspect-ratio:auto;">
+      <img src="${p.image_url}" alt="" loading="lazy" style="aspect-ratio:1; width:100%; object-fit:cover; display:block;">
       <button data-action="delete-photo" data-id="${p.id}" title="Eliminar" style="position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:.7rem; line-height:1;">✕</button>
       <div style="padding:6px 4px 2px; font-size:.7rem; color:var(--og-muted);">
         ${p.original_url
@@ -647,9 +667,18 @@ async function renderClientGalleryPhotos() {
                <input type="file" data-action="upload-original" data-id="${p.id}" hidden>
              </label>`
         }
+        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
+          ${GALLERY_CATEGORIES.map(c => `
+            <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 6px; border-radius:999px; border:1px solid var(--og-line); ${cats.includes(c.key) ? 'background:var(--og-accent); color:#fff; border-color:var(--og-accent);' : ''}">
+              <input type="checkbox" data-action="toggle-category" data-id="${p.id}" data-key="${c.key}" ${cats.includes(c.key) ? 'checked' : ''} style="width:11px; height:11px; margin:0;">
+              ${c.label}
+            </label>
+          `).join('')}
+        </div>
       </div>
     </div>
-  `).join('') : '<p class="panel-sub">Todavía no has subido fotos a esta galería.</p>';
+  `;
+  }).join('') : '<p class="panel-sub">Todavía no has subido fotos a esta galería.</p>';
   grid.querySelectorAll('[data-action="delete-photo"]').forEach(btn => {
     btn.addEventListener('click', async () => {
       await supabaseClient.from('gallery_photos').delete().eq('id', btn.dataset.id);
@@ -677,6 +706,15 @@ async function renderClientGalleryPhotos() {
       renderClientGalleryPhotos();
     });
   });
+  grid.querySelectorAll('[data-action="toggle-category"]').forEach(input => {
+    input.addEventListener('change', async (e) => {
+      const photo = (photos || []).find(p => p.id === input.dataset.id);
+      const current = new Set(photo?.categories || []);
+      if (e.target.checked) current.add(input.dataset.key); else current.delete(input.dataset.key);
+      await supabaseClient.from('gallery_photos').update({ categories: [...current] }).eq('id', input.dataset.id);
+      renderClientGalleryPhotos();
+    });
+  });
 }
 
 async function renderClientGalleryFavorites() {
@@ -700,6 +738,55 @@ async function renderClientGalleryDownloads() {
     const when = new Date(d.created_at).toLocaleString();
     return `<div class="list-row"><span>${label}</span><small style="color:var(--og-muted);">${when}</small></div>`;
   }).join('');
+}
+
+async function renderClientGalleryRevisions() {
+  const container = document.getElementById('cg-revisions');
+  if (!currentGalleryRow) { container.innerHTML = ''; return; }
+  const { data: revisions, error } = await supabaseClient.from('gallery_revisions').select('*').eq('gallery_id', currentGalleryRow.id).order('created_at', { ascending: false });
+  if (error) { container.innerHTML = '<p class="panel-sub">No se pudo cargar las revisiones (¿has ejecutado supabase/migration_gallery_revisions.sql?).</p>'; return; }
+  if (!revisions || !revisions.length) { container.innerHTML = '<p class="panel-sub">Todavía no hay peticiones de revisión.</p>'; return; }
+
+  const { data: photos } = await supabaseClient.from('gallery_photos').select('*').eq('gallery_id', currentGalleryRow.id);
+  const photoById = Object.fromEntries((photos || []).map(p => [p.id, p]));
+
+  container.innerHTML = '';
+  for (const rev of revisions) {
+    const { data: links } = await supabaseClient.from('gallery_revision_photos').select('*').eq('revision_id', rev.id);
+    const thumbs = (links || []).map(l => photoById[l.photo_id]).filter(Boolean);
+    const isResolved = rev.status === 'resolved';
+    const card = document.createElement('div');
+    card.className = 'og-card og-card-pad';
+    card.style.marginBottom = '10px';
+    card.innerHTML = `
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        ${thumbs.map(p => `<img src="${p.image_url}" alt="" style="width:48px; height:48px; object-fit:cover; border-radius:8px;">`).join('') || '<span class="panel-sub" style="margin:0;">(foto eliminada)</span>'}
+      </div>
+      <p style="margin:0 0 8px;">${escapeHtml(rev.comment)}</p>
+      <span style="font-size:.72rem; font-weight:600; padding:3px 10px; border-radius:999px; ${isResolved ? 'background:rgba(70,180,110,.18); color:#2f9e5c;' : 'background:rgba(255,140,50,.18); color:#c96a1c;'}">${isResolved ? 'Resuelta' : 'Pendiente'}</span>
+      <div style="margin-top:10px;">
+        <textarea data-reply-for="${rev.id}" placeholder="Escribe una respuesta (opcional)" style="width:100%; min-height:60px; padding:8px 10px; border-radius:10px; border:1px solid var(--og-line); background:var(--og-bg); color:var(--og-fg); font-family:inherit; resize:vertical;">${escapeHtml(rev.reply || '')}</textarea>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button type="button" class="og-btn og-btn-outline og-btn-sm" data-action="save-reply" data-id="${rev.id}">Guardar respuesta</button>
+          ${!isResolved ? `<button type="button" class="og-btn og-btn-solid og-btn-sm" data-action="resolve-revision" data-id="${rev.id}">Marcar como resuelta</button>` : ''}
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+  container.querySelectorAll('[data-action="save-reply"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const textarea = container.querySelector(`[data-reply-for="${btn.dataset.id}"]`);
+      await supabaseClient.from('gallery_revisions').update({ reply: textarea.value.trim() || null }).eq('id', btn.dataset.id);
+      renderClientGalleryRevisions();
+    });
+  });
+  container.querySelectorAll('[data-action="resolve-revision"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await supabaseClient.from('gallery_revisions').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', btn.dataset.id);
+      renderClientGalleryRevisions();
+    });
+  });
 }
 
 document.getElementById('cg-save').addEventListener('click', async () => {
@@ -730,8 +817,11 @@ document.getElementById('cg-upload-input').addEventListener('change', async (e) 
   const files = [...e.target.files];
   if (!files.length || !currentGalleryRow) return;
   for (const file of files) {
-    const url = await uploadMediaFile(file, `galleries/${currentGalleryRow.id}`);
-    if (url) await supabaseClient.from('gallery_photos').insert({ gallery_id: currentGalleryRow.id, image_url: url });
+    const [{ width, height }, url] = await Promise.all([
+      readImageDimensions(file),
+      uploadMediaFile(file, `galleries/${currentGalleryRow.id}`),
+    ]);
+    if (url) await supabaseClient.from('gallery_photos').insert({ gallery_id: currentGalleryRow.id, image_url: url, width, height });
   }
   e.target.value = '';
   renderClientGalleryPhotos();

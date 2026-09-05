@@ -51,7 +51,9 @@
 
   .g-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; margin-top:10px; }
   .g-photo{ position:relative; border-radius:18px; overflow:hidden; background:var(--card); border:1px solid var(--line); }
-  .g-photo img{ width:100%; aspect-ratio:1; object-fit:cover; display:block; }
+  .g-photo.selectable{ cursor:pointer; }
+  .g-photo.selected{ outline:3px solid var(--accent); outline-offset:2px; }
+  .g-photo img{ width:100%; aspect-ratio:var(--ratio, 1); object-fit:cover; display:block; }
   .g-fav-btn{
     position:absolute; top:10px; right:10px; width:36px; height:36px; border-radius:50%; border:none;
     background:rgba(20,20,18,.55); backdrop-filter:blur(6px); color:#fff; cursor:pointer;
@@ -60,9 +62,64 @@
   .g-fav-btn:active{ transform:scale(.9); }
   .g-fav-btn svg{ width:17px; height:17px; }
   .g-fav-btn.active svg{ fill:#ff4b6a; stroke:#ff4b6a; }
-  .g-photo-actions{ display:flex; justify-content:flex-end; padding:8px 10px; }
+  .g-select-check{
+    position:absolute; top:10px; left:10px; width:26px; height:26px; border-radius:50%;
+    border:2px solid #fff; background:rgba(20,20,18,.4); display:none; align-items:center; justify-content:center; color:#fff;
+  }
+  .g-photo.selectable .g-select-check{ display:flex; }
+  .g-photo.selected .g-select-check{ background:var(--accent); border-color:var(--accent); }
+  .g-pending-badge{
+    position:absolute; bottom:8px; left:8px; font-size:.65rem; font-weight:700; padding:3px 9px; border-radius:999px;
+    background:rgba(255,140,50,.9); color:#fff;
+  }
+  .g-photo-actions{ display:flex; justify-content:space-between; align-items:center; padding:8px 10px; gap:6px; flex-wrap:wrap; }
   .g-photo-actions a{ font-size:.72rem; color:var(--muted); text-decoration:none; background:none; border:none; font-family:inherit; cursor:pointer; }
   .g-photo-actions a:hover{ color:var(--fg); }
+  .g-cat-tags{ display:flex; gap:4px; flex-wrap:wrap; }
+  .g-cat-tag{ font-size:.65rem; padding:2px 8px; border-radius:999px; background:var(--bg); border:1px solid var(--line); color:var(--muted); }
+
+  .g-outline-btn{
+    border:1px solid var(--line); border-radius:999px; background:var(--card); color:var(--fg); font-weight:700; font-size:.82rem;
+    padding:10px 18px; cursor:pointer; font-family:inherit;
+  }
+  .g-filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 4px; }
+  .g-filter-row[hidden]{ display:none; }
+  .g-filter-chip{
+    padding:6px 14px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg);
+    font-size:.78rem; cursor:pointer; font-family:inherit;
+  }
+  .g-filter-chip.active{ background:var(--fg); color:var(--bg); border-color:var(--fg); }
+
+  .g-select-bar{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--fg); color:var(--bg);
+    padding:12px 20px; border-radius:999px; display:flex; align-items:center; gap:16px; box-shadow:0 10px 30px rgba(0,0,0,.28); z-index:50;
+    font-size:.85rem;
+  }
+  .g-select-bar[hidden]{ display:none; }
+  .g-select-bar button{ border:none; border-radius:999px; padding:8px 16px; font-size:.8rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .g-select-bar .primary{ background:var(--accent); color:#fff; }
+  .g-select-bar .ghost{ background:transparent; color:var(--bg); text-decoration:underline; }
+
+  .g-modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index:60; padding:20px; }
+  .g-modal-backdrop[hidden]{ display:none; }
+  .g-modal{ background:var(--card); color:var(--fg); border-radius:18px; padding:24px; max-width:420px; width:100%; }
+  .g-modal h3{ margin:0 0 6px; }
+  .g-modal textarea{
+    width:100%; min-height:90px; margin-top:12px; padding:10px 12px; border-radius:12px; border:1px solid var(--line);
+    background:var(--bg); color:var(--fg); font-family:inherit; resize:vertical;
+  }
+  .g-modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+  .g-modal-actions button{ border:none; border-radius:999px; padding:10px 20px; font-size:.85rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .g-modal-actions .primary{ background:var(--accent); color:#fff; }
+  .g-modal-actions .ghost{ background:none; color:var(--muted); }
+
+  .g-revision-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .g-revision-thumbs{ display:flex; gap:6px; margin-bottom:10px; }
+  .g-revision-thumbs img{ width:44px; height:44px; object-fit:cover; border-radius:8px; }
+  .g-revision-status{ font-size:.7rem; font-weight:700; padding:3px 10px; border-radius:999px; display:inline-block; margin-top:8px; }
+  .g-revision-status.open{ background:rgba(255,140,50,.18); color:#c96a1c; }
+  .g-revision-status.resolved{ background:rgba(70,180,110,.18); color:#2f9e5c; }
+  .g-revision-reply{ margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:.85rem; color:var(--muted); }
 
   .g-empty, .g-loading{ padding:80px 0; text-align:center; color:var(--muted); }
   .g-footer{ text-align:center; padding:40px 0 10px; color:var(--muted); font-size:.78rem; }
@@ -102,16 +159,44 @@
   </div>
 
   <div id="gallery-screen" hidden>
-    <div class="g-head">
-      <p class="g-eyebrow">GALERÍA PRIVADA</p>
-      <h1 class="g-title" id="gallery-title">—</h1>
-      <p class="g-sub">Toca el corazón para marcar tus favoritas. El estudio las verá.</p>
+    <div class="g-head" style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+      <div>
+        <p class="g-eyebrow">GALERÍA PRIVADA</p>
+        <h1 class="g-title" id="gallery-title">—</h1>
+        <p class="g-sub">Toca el corazón para marcar tus favoritas. Selecciona fotos si quieres pedir un cambio.</p>
+      </div>
+      <button type="button" id="select-mode-btn" class="g-outline-btn">Seleccionar fotos</button>
     </div>
+    <div id="category-filters" class="g-filter-row" hidden></div>
     <div id="photo-grid" class="g-grid"></div>
+
+    <div class="g-head" style="padding-top:36px;">
+      <h2 class="g-title" style="font-size:1.3rem; margin-bottom:4px;">Mis revisiones</h2>
+      <p class="g-sub">Peticiones de cambios que has pedido sobre tus fotos.</p>
+    </div>
+    <div id="revisions-list"></div>
   </div>
 
   <p class="g-footer">OPEN GRAIN — Mallorca, ES</p>
 </main>
+
+<div id="select-bar" class="g-select-bar" hidden>
+  <span id="select-count">0 fotos seleccionadas</span>
+  <button type="button" class="primary" id="request-revision-btn">Pedir revisión</button>
+  <button type="button" class="ghost" id="cancel-select-btn">Cancelar</button>
+</div>
+
+<div id="revision-modal" class="g-modal-backdrop" hidden>
+  <div class="g-modal">
+    <h3>Pedir revisión</h3>
+    <p class="g-sub" style="margin:0;">Cuéntanos qué quieres que cambiemos en la(s) foto(s) seleccionada(s).</p>
+    <textarea id="revision-comment" placeholder="Ej: esta la quiero más clara"></textarea>
+    <div class="g-modal-actions">
+      <button type="button" class="ghost" id="revision-cancel">Cancelar</button>
+      <button type="button" class="primary" id="revision-submit">Enviar</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -140,9 +225,15 @@
     [gateScreen, loadingScreen, missingScreen, galleryScreen].forEach(s => { s.hidden = s !== el; });
   }
 
+  const CATEGORY_LABELS = { stories: 'Stories', post: 'Publicación', reel: 'Reel', texto: 'Envío directo' };
+
   let gallery = null;
   let favoriteIds = new Set();
   let currentPhotos = [];
+  let openRevisionPhotoIds = new Set();
+  let activeCategoryFilter = null;
+  let selectMode = false;
+  let selectedIds = new Set();
 
   async function boot() {
     if (!token) { show(missingScreen); return; }
@@ -174,12 +265,19 @@
 
   async function renderGallery() {
     show(loadingScreen);
-    const [{ data: photos }, { data: favs }] = await Promise.all([
+    const [{ data: photos }, { data: favs }, { data: openRevs }] = await Promise.all([
       supabaseClient.from('gallery_photos').select('*').eq('gallery_id', gallery.id).order('sort_order'),
       supabaseClient.from('gallery_favorites').select('photo_id').eq('gallery_id', gallery.id),
+      supabaseClient.from('gallery_revisions').select('*').eq('gallery_id', gallery.id).eq('status', 'open'),
     ]);
     favoriteIds = new Set((favs || []).map(f => f.photo_id));
     currentPhotos = photos || [];
+
+    openRevisionPhotoIds = new Set();
+    for (const rev of (openRevs || [])) {
+      const { data: links } = await supabaseClient.from('gallery_revision_photos').select('*').eq('revision_id', rev.id);
+      (links || []).forEach(l => openRevisionPhotoIds.add(l.photo_id));
+    }
 
     document.getElementById('gallery-title').textContent = gallery.title || 'Tu galería';
 
@@ -202,29 +300,141 @@
       downloadBtn.hidden = true;
     }
 
+    renderCategoryFilters();
+    renderPhotoGrid();
+    await renderRevisionsList();
+    show(galleryScreen);
+  }
+
+  function renderCategoryFilters() {
+    const row = document.getElementById('category-filters');
+    const allCats = [...new Set(currentPhotos.flatMap(p => p.categories || []))];
+    if (!allCats.length) { row.hidden = true; row.innerHTML = ''; return; }
+    row.hidden = false;
+    const chips = [{ key: null, label: 'Todas' }, ...allCats.map(key => ({ key, label: CATEGORY_LABELS[key] || key }))];
+    row.innerHTML = chips.map(c => `<button type="button" class="g-filter-chip${activeCategoryFilter === c.key ? ' active' : ''}" data-key="${c.key || ''}">${c.label}</button>`).join('');
+    row.querySelectorAll('.g-filter-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeCategoryFilter = btn.dataset.key || null;
+        renderCategoryFilters();
+        renderPhotoGrid();
+      });
+    });
+  }
+
+  function renderPhotoGrid() {
     const grid = document.getElementById('photo-grid');
     grid.innerHTML = '';
-    if (!currentPhotos.length) {
+    const visible = activeCategoryFilter
+      ? currentPhotos.filter(p => (p.categories || []).includes(activeCategoryFilter))
+      : currentPhotos;
+    if (!visible.length) {
       grid.innerHTML = '<p style="color:var(--muted);">Todavía no hay fotos en esta galería.</p>';
-    } else {
-      currentPhotos.forEach(p => {
-        const isFav = favoriteIds.has(p.id);
-        const card = document.createElement('div');
-        card.className = 'g-photo';
-        card.innerHTML = `
-          <img src="${p.image_url}" alt="" loading="lazy">
-          <button class="g-fav-btn${isFav ? ' active' : ''}" data-id="${p.id}" title="Marcar como favorita">
-            <svg viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
-          </button>
-          ${p.original_url ? `<div class="g-photo-actions"><a href="${p.original_url}" download="${p.original_filename || ''}" target="_blank" rel="noopener" data-id="${p.id}">Descargar</a></div>` : ''}
-        `;
-        card.querySelector('.g-fav-btn').addEventListener('click', () => toggleFavorite(p.id));
-        const dl = card.querySelector('.g-photo-actions a');
-        if (dl) dl.addEventListener('click', () => logDownload('photo', p.id));
-        grid.appendChild(card);
-      });
+      return;
     }
-    show(galleryScreen);
+    visible.forEach(p => {
+      const isFav = favoriteIds.has(p.id);
+      const isSelected = selectedIds.has(p.id);
+      const ratio = (p.width && p.height) ? `${p.width} / ${p.height}` : '1';
+      const cats = p.categories || [];
+      const card = document.createElement('div');
+      card.className = `g-photo${selectMode ? ' selectable' : ''}${isSelected ? ' selected' : ''}`;
+      card.innerHTML = `
+        <div class="g-select-check">${isSelected ? '✓' : ''}</div>
+        <img src="${p.image_url}" alt="" loading="lazy" style="--ratio:${ratio};">
+        <button class="g-fav-btn${isFav ? ' active' : ''}" data-id="${p.id}" title="Marcar como favorita">
+          <svg viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        </button>
+        ${openRevisionPhotoIds.has(p.id) ? '<span class="g-pending-badge">Revisión pendiente</span>' : ''}
+        ${(cats.length || p.original_url) ? `<div class="g-photo-actions">
+          <div class="g-cat-tags">${cats.map(k => `<span class="g-cat-tag">${CATEGORY_LABELS[k] || k}</span>`).join('')}</div>
+          ${p.original_url ? `<a href="${p.original_url}" download="${p.original_filename || ''}" target="_blank" rel="noopener" data-id="${p.id}">Descargar</a>` : ''}
+        </div>` : ''}
+      `;
+      card.querySelector('.g-fav-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleFavorite(p.id); });
+      const dl = card.querySelector('.g-photo-actions a');
+      if (dl) dl.addEventListener('click', (e) => { e.stopPropagation(); logDownload('photo', p.id); });
+      card.addEventListener('click', () => { if (selectMode) toggleSelect(p.id); });
+      grid.appendChild(card);
+    });
+  }
+
+  function toggleSelect(photoId) {
+    if (selectedIds.has(photoId)) selectedIds.delete(photoId); else selectedIds.add(photoId);
+    renderPhotoGrid();
+    updateSelectBar();
+  }
+
+  function updateSelectBar() {
+    const bar = document.getElementById('select-bar');
+    bar.hidden = !selectMode || selectedIds.size === 0;
+    document.getElementById('select-count').textContent = `${selectedIds.size} foto${selectedIds.size === 1 ? '' : 's'} seleccionada${selectedIds.size === 1 ? '' : 's'}`;
+  }
+
+  document.getElementById('select-mode-btn').addEventListener('click', () => {
+    selectMode = !selectMode;
+    document.getElementById('select-mode-btn').textContent = selectMode ? 'Cancelar selección' : 'Seleccionar fotos';
+    if (!selectMode) selectedIds.clear();
+    renderPhotoGrid();
+    updateSelectBar();
+  });
+
+  document.getElementById('cancel-select-btn').addEventListener('click', () => {
+    selectMode = false;
+    selectedIds.clear();
+    document.getElementById('select-mode-btn').textContent = 'Seleccionar fotos';
+    renderPhotoGrid();
+    updateSelectBar();
+  });
+
+  const revisionModal = document.getElementById('revision-modal');
+  document.getElementById('request-revision-btn').addEventListener('click', () => {
+    if (!selectedIds.size) return;
+    document.getElementById('revision-comment').value = '';
+    revisionModal.hidden = false;
+  });
+  document.getElementById('revision-cancel').addEventListener('click', () => { revisionModal.hidden = true; });
+  document.getElementById('revision-submit').addEventListener('click', async () => {
+    const comment = document.getElementById('revision-comment').value.trim();
+    if (!comment || !selectedIds.size) return;
+    const { data: created, error } = await supabaseClient.from('gallery_revisions')
+      .insert({ gallery_id: gallery.id, comment }).select();
+    const revision = (created || [])[0];
+    if (!error && revision) {
+      await supabaseClient.from('gallery_revision_photos')
+        .insert([...selectedIds].map(photoId => ({ revision_id: revision.id, photo_id: photoId })));
+    }
+    revisionModal.hidden = true;
+    selectMode = false;
+    selectedIds.clear();
+    document.getElementById('select-mode-btn').textContent = 'Seleccionar fotos';
+    updateSelectBar();
+    await renderGallery();
+  });
+
+  async function renderRevisionsList() {
+    const list = document.getElementById('revisions-list');
+    const { data: revisions, error } = await supabaseClient.from('gallery_revisions')
+      .select('*').eq('gallery_id', gallery.id).order('created_at', { ascending: false });
+    if (error || !revisions || !revisions.length) {
+      list.innerHTML = '<p style="color:var(--muted);">Todavía no has pedido ninguna revisión.</p>';
+      return;
+    }
+    const photoById = Object.fromEntries(currentPhotos.map(p => [p.id, p]));
+    list.innerHTML = '';
+    for (const rev of revisions) {
+      const { data: links } = await supabaseClient.from('gallery_revision_photos').select('*').eq('revision_id', rev.id);
+      const thumbs = (links || []).map(l => photoById[l.photo_id]).filter(Boolean);
+      const card = document.createElement('div');
+      card.className = 'g-revision-card';
+      card.innerHTML = `
+        <div class="g-revision-thumbs">${thumbs.map(p => `<img src="${p.image_url}" alt="">`).join('')}</div>
+        <p style="margin:0;">${rev.comment.replace(/</g, '&lt;')}</p>
+        <span class="g-revision-status ${rev.status}">${rev.status === 'resolved' ? 'Resuelta' : 'Pendiente'}</span>
+        ${rev.reply ? `<div class="g-revision-reply">${rev.reply.replace(/</g, '&lt;')}</div>` : ''}
+      `;
+      list.appendChild(card);
+    }
   }
 
   async function logDownload(downloadType, photoId) {
