@@ -27,27 +27,20 @@ const serviceImages = [
   'assets/portfolio/hospitality.jpg', 'assets/portfolio/portrait.jpg',
 ];
 
+// Editable marketing copy (headline, about text, etc.) lives in
+// assets/default-copy.js as the fallback, and can be overridden per
+// field from Studio → Site content (or via the AI assistant) — see
+// the `applyContentOverrides()` call near the Supabase section below.
+const defaults = window.DEFAULT_COPY || { en: {}, es: {} };
+
 const copy = {
   en: {
     work: 'Work', services: 'Services', studio: 'Studio', contact: 'Contact',
-    eyebrow: 'Creative production studio · Mallorca',
-    headline: 'Ideas without limits. Stories with texture.',
-    explore: 'Explore work', selected: 'Selected work',
-    workBlurb: 'Photography, stories and campaigns created in Mallorca.',
-    intro: 'Creating what words can’t explain.',
-    introBody: 'Photography, film and digital content shaped around people, places and brands.',
-    capabilities: 'What we create',
-    serviceList: ['Photography', 'Film & Reels', 'UGC', 'Events', 'Social Content'],
+    ...defaults.en,
+    selected: 'Selected work',
     viewService: 'View service',
-    about: 'Made with intention. Told with feeling.',
-    aboutBody: 'OPEN GRAIN is an independent creative studio based in Mallorca. We build visual stories with an honest eye, careful craft and a little grain.',
-    studioTag: 'Visuals with something to say.',
-    cta: 'Tell us what you want to create.',
-    ctaLede: 'Tell us what you need and we’ll reply with availability and next steps.',
     start: 'Send request', sent: 'Request sent. We’ll be in touch soon.',
-    based: 'Based in Mallorca · Available across the island',
     social: 'Latest from the studio',
-    socialLede: 'Posts can be selected from the studio panel.',
     fName: 'Name', fPhone: 'Phone', fService: 'Service', fServicePh: 'Choose a service',
     fDate: 'Preferred date', fBudget: 'Approx. budget', fMessage: 'Tell us about your idea',
     fMessagePh: 'Project, location, references…',
@@ -55,24 +48,11 @@ const copy = {
   },
   es: {
     work: 'Proyectos', services: 'Servicios', studio: 'Estudio', contact: 'Contacto',
-    eyebrow: 'Estudio de producción creativa · Mallorca',
-    headline: 'Ideas sin límites. Historias con textura.',
-    explore: 'Ver proyectos', selected: 'Trabajos seleccionados',
-    workBlurb: 'Fotografía, historias y campañas creadas en Mallorca.',
-    intro: 'Creamos lo que las palabras no pueden explicar.',
-    introBody: 'Fotografía, vídeo y contenido digital creado alrededor de personas, lugares y marcas.',
-    capabilities: 'Lo que creamos',
-    serviceList: ['Fotografía', 'Vídeo y reels', 'UGC', 'Eventos', 'Contenido para redes'],
+    ...defaults.es,
+    selected: 'Trabajos seleccionados',
     viewService: 'Ver servicio',
-    about: 'Hecho con intención. Contado con emoción.',
-    aboutBody: 'OPEN GRAIN es un estudio creativo independiente de Mallorca. Construimos historias visuales con una mirada honesta, oficio y un poco de grano.',
-    studioTag: 'Visuales con algo que contar.',
-    cta: 'Cuéntanos qué quieres crear.',
-    ctaLede: 'Dinos qué necesitas y te responderemos con disponibilidad y próximos pasos.',
     start: 'Enviar solicitud', sent: 'Solicitud enviada. Os responderemos pronto.',
-    based: 'En Mallorca · Disponibles en toda la isla',
     social: 'Lo último del estudio',
-    socialLede: 'Las publicaciones podrán elegirse desde el panel.',
     fName: 'Nombre', fPhone: 'Teléfono', fService: 'Servicio', fServicePh: 'Selecciona un servicio',
     fDate: 'Fecha aproximada', fBudget: 'Presupuesto aproximado', fMessage: 'Cuéntanos tu idea',
     fMessagePh: 'Proyecto, lugar, referencias…',
@@ -241,6 +221,34 @@ const supabaseClient = (window.supabase && window.SUPABASE_URL && !window.SUPABA
   ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
   : null;
 
+// ---------- Editable site content overrides (Studio → Site content / AI assistant) ----------
+// site_content stores one row per (key, lang). Whatever is saved there wins
+// over the defaults in assets/default-copy.js — same graceful-fallback
+// pattern as the portfolio/social fetches below.
+if (supabaseClient) {
+  supabaseClient
+    .from('site_content')
+    .select('key, lang, value')
+    .then(({ data }) => {
+      if (!data || !data.length) return;
+      let changed = false;
+      data.forEach(row => {
+        if (!copy[row.lang]) return;
+        if (row.key === 'serviceList') {
+          try {
+            const list = JSON.parse(row.value);
+            if (Array.isArray(list) && list.length) { copy[row.lang].serviceList = list; changed = true; }
+          } catch (e) { /* ignore malformed override */ }
+        } else {
+          copy[row.lang][row.key] = row.value;
+          changed = true;
+        }
+      });
+      if (changed) renderAll();
+    })
+    .catch(() => {});
+}
+
 // ---------- Contact form → Supabase `enquiries` ----------
 const form = document.getElementById('contact-form');
 form.addEventListener('submit', async (e) => {
@@ -283,15 +291,15 @@ form.addEventListener('submit', async (e) => {
 if (supabaseClient) {
   supabaseClient
     .from('portfolio_projects')
-    .select('title, subtitle, cover_image_url, sort_order')
+    .select('title, subtitle, cover_image_url, layout_class, sort_order')
     .eq('is_published', true)
     .order('sort_order')
     .then(({ data }) => {
       if (data && data.length) {
-        const ratios = ['tall', 'wide', 'square', 'tall crop-two', 'wide crop-two', 'square crop-two'];
+        const fallbackRatios = ['tall', 'wide', 'square', 'tall crop-two', 'wide crop-two', 'square crop-two'];
         const grid = document.getElementById('masonry-grid');
         grid.innerHTML = data.map((p, i) => `
-          <article class="project-tile ${ratios[i % ratios.length]}">
+          <article class="project-tile ${p.layout_class || fallbackRatios[i % fallbackRatios.length]}">
             <img src="${p.cover_image_url || 'assets/portfolio/portrait.jpg'}" alt="${p.title}">
             <div><span>/ ${String(i + 1).padStart(2, '0')}</span><h3>${p.title}</h3><p>${p.subtitle || ''}</p></div>
           </article>`).join('');

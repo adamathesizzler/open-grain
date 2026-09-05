@@ -68,6 +68,14 @@
         <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         <span>Overview</span>
       </button>
+      <button class="tab-btn" data-tab="ai" role="tab">
+        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l1.7 5.1L19 9l-5.3 1.9L12 16l-1.7-5.1L5 9l5.3-1.9L12 2z"/><path d="M19 14l.8 2.3L22 17l-2.2.7L19 20l-.8-2.3L16 17l2.2-.7L19 14z"/></svg>
+        <span>Asistente IA</span>
+      </button>
+      <button class="tab-btn" data-tab="content" role="tab">
+        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <span>Contenido del sitio</span>
+      </button>
       <button class="tab-btn" data-tab="portfolio" role="tab">
         <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
         <span>Portfolio</span>
@@ -112,6 +120,29 @@
       </div>
     </section>
 
+    <section data-panel="ai" class="studio-panel" hidden>
+      <h2>Asistente IA</h2>
+      <p class="panel-sub">Pídele cambios de texto o fotos en tu propio idioma. Te enseña el cambio antes de tocar nada — no se publica hasta que le des a "Aplicar".</p>
+      <form id="ai-form" class="ai-form">
+        <textarea id="ai-prompt" rows="3" placeholder="Ej: cambia el titular de la portada a algo más cercano, o cambia el tamaño de la foto Son Brut a cuadrada"></textarea>
+        <button type="submit" class="btn btn-solid" id="ai-submit">Preguntar</button>
+      </form>
+      <p id="ai-status" class="panel-sub" hidden></p>
+      <div id="ai-changes" class="ai-changes"></div>
+    </section>
+
+    <section data-panel="content" class="studio-panel" hidden>
+      <h2>Contenido del sitio</h2>
+      <p class="panel-sub">Edita los textos que ve el cliente en la web. Los cambios se publican al darle a "Guardar cambios".</p>
+      <div id="content-fields" class="content-fields"></div>
+
+      <h2 class="panel-mt">Servicios (lista de 5)</h2>
+      <div id="content-services" class="content-fields"></div>
+
+      <button type="button" id="content-save" class="btn btn-solid panel-mt">Guardar cambios</button>
+      <p id="content-status" class="panel-sub" hidden></p>
+    </section>
+
     <section data-panel="portfolio" class="studio-panel" hidden>
       <h2>Portfolio categories</h2>
       <p class="panel-sub">Turn categories on or off without deleting their content.</p>
@@ -121,7 +152,13 @@
       <form id="project-form" class="inline-form">
         <input type="text" id="project-title" placeholder="Project title" required>
         <select id="project-category"></select>
+        <select id="project-layout">
+          <option value="tall">Vertical</option>
+          <option value="wide">Horizontal</option>
+          <option value="square">Cuadrada</option>
+        </select>
         <label class="checkbox-label"><input type="checkbox" id="project-published"> Published</label>
+        <label class="file-label">Foto<input type="file" id="project-photo" accept="image/*"></label>
         <button type="submit" class="btn btn-solid">Add project</button>
       </form>
       <div id="project-list" class="project-list"></div>
@@ -209,6 +246,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/studio/config.js"></script>
+<script src="/assets/default-copy.js"></script>
 <script src="/studio/studio.js"></script>
 </body>
 </html>
