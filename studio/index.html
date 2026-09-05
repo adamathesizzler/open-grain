@@ -12,23 +12,42 @@
 
 <!-- ---------- Sign-in screen ---------- -->
 <section id="login-screen" class="login-screen">
-  <div class="login-card">
-    <p class="login-logo">OPEN GRAIN <span>STUDIO</span></p>
-    <h1>Sign in</h1>
-    <p class="login-sub">Studio access is restricted to the business owner.</p>
-    <form id="login-form">
-      <label>Email
-        <input type="email" id="login-email" required autocomplete="username">
-      </label>
-      <label>Password
-        <input type="password" id="login-password" required autocomplete="current-password">
-      </label>
-      <button type="submit" class="btn btn-solid full-width">Sign in →</button>
-      <p id="login-error" class="login-error" role="alert"></p>
-    </form>
-    <p class="login-note">First time here? Create your user in the Supabase dashboard
-      (Authentication → Users), then add its email to the <code>admins</code> table
-      (see <code>supabase/schema.sql</code>).</p>
+  <div class="login-shell">
+
+    <div class="login-visual">
+      <div class="login-visual-top">
+        <span class="login-visual-brand">OPEN GRAIN<span>®</span></span>
+      </div>
+      <div class="login-visual-copy">
+        <h2>Bienvenido de vuelta al estudio.</h2>
+        <p>Gestiona portfolio, clientes, calendario y presupuestos desde un único lugar.</p>
+      </div>
+      <div class="login-visual-features">
+        <div><span>01</span>Portfolio &amp; redes sociales</div>
+        <div><span>02</span>Clientes &amp; calendario</div>
+        <div><span>03</span>Inventario &amp; presupuestos</div>
+      </div>
+    </div>
+
+    <div class="login-form-panel">
+      <p class="login-logo">OPEN GRAIN <span>STUDIO</span></p>
+      <h1>Sign in</h1>
+      <p class="login-sub">Studio access is restricted to the business owner.</p>
+      <form id="login-form">
+        <label>Email
+          <input type="email" id="login-email" required autocomplete="username" placeholder="you@opengrain.studio">
+        </label>
+        <label>Password
+          <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••">
+        </label>
+        <button type="submit" class="btn btn-solid full-width">Sign in →</button>
+        <p id="login-error" class="login-error" role="alert"></p>
+      </form>
+      <p class="login-note">First time here? Create your user in the Supabase dashboard
+        (Authentication → Users), then add its email to the <code>admins</code> table
+        (see <code>supabase/schema.sql</code>).</p>
+    </div>
+
   </div>
 </section>
 
@@ -44,7 +63,10 @@
     <button class="tab-btn" data-tab="portfolio" role="tab">Portfolio</button>
     <button class="tab-btn" data-tab="social" role="tab">Social posts</button>
     <button class="tab-btn" data-tab="enquiries" role="tab">Enquiries</button>
-    <button class="tab-btn" data-tab="soon" role="tab">Clients / Calendar / Inventory / Quotes</button>
+    <button class="tab-btn" data-tab="clients" role="tab">Clients</button>
+    <button class="tab-btn" data-tab="calendar" role="tab">Calendar</button>
+    <button class="tab-btn" data-tab="inventory" role="tab">Inventory</button>
+    <button class="tab-btn" data-tab="quotes" role="tab">Quotes</button>
   </nav>
 
   <main class="studio-main">
@@ -90,11 +112,64 @@
       <div id="enquiry-list" class="project-list"></div>
     </section>
 
-    <section data-panel="soon" class="studio-panel" hidden>
-      <h2>Coming next</h2>
-      <p class="panel-sub">Clients, Calendar and Quotes &amp; contracts follow the same pattern as
-        Portfolio above — a Supabase table (already created by <code>schema.sql</code>) plus a
-        simple list + form here. Ask Claude to build out the next one whenever you're ready.</p>
+    <section data-panel="clients" class="studio-panel" hidden>
+      <h2>Clients</h2>
+      <p class="panel-sub">Everyone you've worked with or talked to.</p>
+      <form id="client-form" class="inline-form">
+        <input type="text" id="client-name" placeholder="Name" required>
+        <input type="email" id="client-email" placeholder="Email">
+        <input type="tel" id="client-phone" placeholder="Phone">
+        <button type="submit" class="btn btn-solid">Add client</button>
+      </form>
+      <div id="client-list" class="project-list"></div>
+    </section>
+
+    <section data-panel="calendar" class="studio-panel" hidden>
+      <h2>Calendar</h2>
+      <p class="panel-sub">Bookings and jobs, soonest first.</p>
+      <form id="job-form" class="inline-form">
+        <input type="text" id="job-title" placeholder="Job title" required>
+        <select id="job-client"><option value="">No client</option></select>
+        <input type="date" id="job-date">
+        <select id="job-status">
+          <option value="enquiry">Enquiry</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="in_progress">In progress</option>
+          <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button type="submit" class="btn btn-solid">Add job</button>
+      </form>
+      <div id="job-list" class="project-list"></div>
+    </section>
+
+    <section data-panel="inventory" class="studio-panel" hidden>
+      <h2>Inventory</h2>
+      <p class="panel-sub">Gear you own and how much of it is currently reserved.</p>
+      <form id="inventory-form" class="inline-form">
+        <input type="text" id="inventory-name" placeholder="Item name" required>
+        <input type="text" id="inventory-category" placeholder="Category (e.g. Camera)">
+        <input type="number" id="inventory-quantity" placeholder="Quantity" min="0" value="1">
+        <button type="submit" class="btn btn-solid">Add item</button>
+      </form>
+      <div id="inventory-list" class="project-list"></div>
+    </section>
+
+    <section data-panel="quotes" class="studio-panel" hidden>
+      <h2>Quotes &amp; contracts</h2>
+      <p class="panel-sub">Track what you've quoted and whether it's been accepted.</p>
+      <form id="quote-form" class="inline-form">
+        <select id="quote-client"><option value="">No client</option></select>
+        <input type="text" id="quote-amount" placeholder="Amount (€)" inputmode="decimal">
+        <select id="quote-status">
+          <option value="draft">Draft</option>
+          <option value="sent">Sent</option>
+          <option value="accepted">Accepted</option>
+          <option value="declined">Declined</option>
+        </select>
+        <button type="submit" class="btn btn-solid">Add quote</button>
+      </form>
+      <div id="quote-list" class="project-list"></div>
     </section>
 
   </main>
