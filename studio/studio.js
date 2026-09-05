@@ -560,16 +560,17 @@ document.getElementById('project-form').addEventListener('submit', async (e) => 
 });
 
 // ============================================================
-// Galería de cliente (por proyecto) — proofing: el cliente ve fotos
-// reducidas, marca favoritas, y descarga. Cada foto puede llevar
-// opcionalmente su archivo original a tamaño completo (subido a
-// Supabase Storage) — eso es lo que se descarga individualmente y lo
-// que entra en el ZIP de "descargar todo" en gallery.html. Si una
-// foto no tiene original adjunto, el enlace externo (Drive/WeTransfer)
-// configurado arriba sirve de respaldo.
+// Galería de cliente (por proyecto) — editor completo: portada, cliente,
+// enlace + PIN (validado en servidor, ver migration_gallery_v2.sql),
+// caducidad, borrador/publicada, fotos Y vídeos con badges de formato,
+// categorías (5), portada por estrella, "calidad completa", selección
+// múltiple + acciones en bloque, archivos adjuntos, actividad del
+// cliente y vista previa en vivo (móvil/escritorio).
 // ============================================================
 let currentGalleryProjectId = null;
 let currentGalleryRow = null;
+let cgSelectedIds = new Set();
+let cgPreviewMode = 'mobile';
 
 function galleryShareUrl(token) {
   return `${window.location.origin}/gallery.html?g=${encodeURIComponent(token)}`;
@@ -579,6 +580,23 @@ function formatFileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDuration(sec) {
+  if (!sec && sec !== 0) return '';
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function gcdNum(a, b) { return b === 0 ? a : gcdNum(b, a % b); }
+function ratioLabel(w, h) {
+  if (!w || !h) return null;
+  const d = gcdNum(Math.round(w), Math.round(h)) || 1;
+  return `${Math.round(w / d)}:${Math.round(h / d)}`;
+}
+
+function extIcon(filename) {
+  return ((filename || '').split('.').pop() || 'ARC').toUpperCase().slice(0, 4);
 }
 
 function readImageDimensions(file) {
@@ -591,18 +609,94 @@ function readImageDimensions(file) {
   });
 }
 
+// Reads real video dimensions + duration, and grabs a real frame (at ~10%
+// into the clip) as a poster JPEG — all client-side, no server transcoding.
+function readVideoMeta(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    video.src = url;
+    video.addEventListener('loadedmetadata', () => {
+      const seekTo = Math.min(video.duration * 0.1, 1);
+      const meta = { width: video.videoWidth, height: video.videoHeight, duration: video.duration };
+      const finish = (posterBlob) => { URL.revokeObjectURL(url); resolve({ ...meta, posterBlob }); };
+      video.addEventListener('seeked', () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+          canvas.getContext('2d').drawImage(video, 0, 0);
+          canvas.toBlob((blob) => finish(blob), 'image/jpeg', 0.82);
+        } catch (e) { finish(null); }
+      }, { once: true });
+      try { video.currentTime = seekTo; } catch (e) { finish(null); }
+    });
+    video.addEventListener('error', () => { URL.revokeObjectURL(url); resolve({ width: null, height: null, duration: null, posterBlob: null }); });
+  });
+}
+
+// Uploads with a real byte-level progress callback (Supabase-js doesn't
+// expose XHR progress, so this one path talks to the Storage REST API
+// directly with the admin's own session token).
+async function uploadFileWithProgress(file, path, onProgress) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const token = session?.access_token || window.SUPABASE_ANON_KEY;
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${window.SUPABASE_URL}/storage/v1/object/media/${path}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.setRequestHeader('apikey', window.SUPABASE_ANON_KEY);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.setRequestHeader('x-upsert', 'false');
+    xhr.upload.addEventListener('progress', (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); });
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const { data } = supabaseClient.storage.from('media').getPublicUrl(path);
+        resolve(data?.publicUrl || null);
+      } else {
+        console.error('Upload failed', xhr.status, xhr.responseText);
+        resolve(null);
+      }
+    };
+    xhr.onerror = () => resolve(null);
+    xhr.send(file);
+  });
+}
+function mediaPath(folder, file) {
+  return `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+}
+
 const GALLERY_CATEGORIES = [
   { key: 'stories', label: 'Stories' },
   { key: 'post', label: 'Publicación' },
   { key: 'reel', label: 'Reel' },
-  { key: 'texto', label: 'Envío directo' },
+  { key: 'mensajes', label: 'Mensajes' },
+  { key: 'web', label: 'Web' },
 ];
+
+const GALLERY_STATUS_LABELS = { draft: 'Borrador', published: 'Publicada', disabled: 'Desactivada', expired: 'Caducada', archived: 'Archivada' };
+const GALLERY_STATUS_PILL = { draft: 'og-pill-draft', published: 'og-pill-live', disabled: 'og-pill-hidden', expired: 'og-pill-expired', archived: 'og-pill-archived' };
+
+function effectiveGalleryStatus(row) {
+  if (row.status === 'published' && row.expires_at && new Date(row.expires_at) < new Date()) return 'expired';
+  return row.status || 'draft';
+}
+function renderStatusPill() {
+  const pill = document.getElementById('cg-status-pill');
+  const status = effectiveGalleryStatus(currentGalleryRow);
+  pill.textContent = GALLERY_STATUS_LABELS[status] || 'Borrador';
+  pill.className = `og-pill ${GALLERY_STATUS_PILL[status] || 'og-pill-draft'}`;
+}
 
 async function openClientGallery(projectId, projectTitle) {
   currentGalleryProjectId = projectId;
+  cgSelectedIds = new Set();
   document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === 'projects'));
   document.querySelectorAll('.studio-panel').forEach(p => { p.hidden = p.dataset.panel !== 'client-gallery'; });
   document.getElementById('cg-title').textContent = `Galería de cliente — ${projectTitle}`;
+  document.getElementById('cg-crumb').textContent = projectTitle;
   await loadClientGallery();
 }
 
@@ -617,18 +711,18 @@ async function loadClientGallery() {
   const { data, error } = await supabaseClient.from('client_galleries').select('*').eq('project_id', currentGalleryProjectId);
   if (error) {
     statusEl.hidden = false;
-    statusEl.textContent = 'No se pudo cargar la galería: ' + error.message + ' (¿has ejecutado supabase/migration_client_galleries.sql en Supabase?)';
+    statusEl.textContent = 'No se pudo cargar la galería: ' + error.message + ' (¿has ejecutado supabase/migration_gallery_v2.sql en Supabase?)';
     document.getElementById('cg-link').textContent = '—';
     return;
   }
   currentGalleryRow = (data || [])[0] || null;
 
   if (!currentGalleryRow) {
-    // First time opening this project's gallery: create it (inactive by
-    // default, so nothing is shareable until the admin explicitly saves).
+    // First time opening this project's gallery: create it as a draft, so
+    // nothing is shareable until the admin explicitly publishes it.
     const title = document.getElementById('cg-title').textContent.replace('Galería de cliente — ', '');
     const { data: created, error: createErr } = await supabaseClient.from('client_galleries')
-      .insert({ project_id: currentGalleryProjectId, title, is_active: false })
+      .insert({ project_id: currentGalleryProjectId, title, is_active: false, status: 'draft' })
       .select();
     if (createErr) {
       statusEl.hidden = false;
@@ -638,58 +732,251 @@ async function loadClientGallery() {
     currentGalleryRow = (created || [])[0];
   }
 
-  document.getElementById('cg-active').checked = !!currentGalleryRow.is_active;
-  document.getElementById('cg-pin').value = currentGalleryRow.pin || '';
+  document.getElementById('cg-active').checked = effectiveGalleryStatus(currentGalleryRow) === 'published';
+  document.getElementById('cg-client-name').value = currentGalleryRow.client_name || '';
+  document.getElementById('cg-pin-toggle').checked = !!currentGalleryRow.has_pin;
+  document.getElementById('cg-pin-row').style.display = currentGalleryRow.has_pin ? 'flex' : 'none';
+  document.getElementById('cg-pin').value = '';
+  document.getElementById('cg-pin-hint').textContent = currentGalleryRow.has_pin ? 'Ya hay un PIN guardado — escribe uno nuevo solo si quieres cambiarlo.' : '';
+  document.getElementById('cg-expires').value = currentGalleryRow.expires_at ? currentGalleryRow.expires_at.slice(0, 10) : '';
   document.getElementById('cg-download-url').value = currentGalleryRow.download_url || '';
   document.getElementById('cg-link').textContent = currentGalleryRow.share_token ? galleryShareUrl(currentGalleryRow.share_token) : '—';
+  const coverPreview = document.getElementById('cg-cover-preview');
+  coverPreview.style.backgroundImage = currentGalleryRow.cover_url ? `url('${currentGalleryRow.cover_url}')` : '';
+  coverPreview.innerHTML = currentGalleryRow.cover_url ? '' : '<span>Sin portada</span>';
+  renderStatusPill();
+  refreshPreviewFrame();
 
   await renderClientGalleryPhotos();
-  await renderClientGalleryFavorites();
-  await renderClientGalleryDownloads();
+  await renderClientGalleryAttachments();
+  await renderClientGalleryActivity();
   await renderClientGalleryRevisions();
+}
+
+function refreshPreviewFrame() {
+  const frame = document.getElementById('cg-preview-frame');
+  if (currentGalleryRow?.share_token) {
+    frame.src = `/gallery.html?g=${encodeURIComponent(currentGalleryRow.share_token)}`;
+  } else {
+    frame.removeAttribute('src');
+  }
+}
+document.getElementById('cg-preview-refresh').addEventListener('click', refreshPreviewFrame);
+document.querySelectorAll('.cg-preview-tabs [data-preview-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    cgPreviewMode = btn.dataset.previewMode;
+    document.querySelectorAll('.cg-preview-tabs button').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('cg-preview-frame-wrap').className = `cg-preview-frame-wrap ${cgPreviewMode}`;
+  });
+});
+document.getElementById('cg-preview-btn').addEventListener('click', () => {
+  if (currentGalleryRow?.share_token) window.open(galleryShareUrl(currentGalleryRow.share_token), '_blank', 'noopener');
+});
+document.getElementById('cg-publish-btn').addEventListener('click', async () => {
+  if (!currentGalleryRow) return;
+  const { error } = await supabaseClient.from('client_galleries').update({ status: 'published', is_active: true }).eq('id', currentGalleryRow.id);
+  const statusEl = document.getElementById('cg-status');
+  statusEl.hidden = false;
+  statusEl.textContent = error ? ('Error: ' + error.message) : 'Publicada — el cliente ya puede ver la galería.';
+  if (!error) {
+    currentGalleryRow = { ...currentGalleryRow, status: 'published', is_active: true };
+    document.getElementById('cg-active').checked = true;
+    renderStatusPill();
+    refreshPreviewFrame();
+  }
+});
+
+document.getElementById('cg-pin-toggle').addEventListener('change', (e) => {
+  document.getElementById('cg-pin-row').style.display = e.target.checked ? 'flex' : 'none';
+});
+
+document.getElementById('cg-cover-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file || !currentGalleryRow) return;
+  const url = await uploadFileWithProgress(file, mediaPath(`galleries/${currentGalleryRow.id}/cover`, file));
+  if (url) {
+    await supabaseClient.from('client_galleries').update({ cover_url: url }).eq('id', currentGalleryRow.id);
+    currentGalleryRow.cover_url = url;
+    const coverPreview = document.getElementById('cg-cover-preview');
+    coverPreview.style.backgroundImage = `url('${url}')`;
+    coverPreview.innerHTML = '';
+    refreshPreviewFrame();
+  }
+  e.target.value = '';
+});
+
+// ---------- Upload (drag-drop + click), photos and videos ----------
+const cgDropzone = document.getElementById('cg-dropzone');
+['dragover', 'dragenter'].forEach(evt => cgDropzone.addEventListener(evt, (e) => { e.preventDefault(); cgDropzone.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(evt => cgDropzone.addEventListener(evt, (e) => { e.preventDefault(); cgDropzone.classList.remove('dragover'); }));
+cgDropzone.addEventListener('drop', (e) => { if (e.dataTransfer.files.length) handleGalleryUploads([...e.dataTransfer.files]); });
+document.getElementById('cg-upload-input').addEventListener('change', (e) => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length) handleGalleryUploads(files);
+});
+
+async function handleGalleryUploads(files) {
+  if (!currentGalleryRow) return;
+  const progressWrap = document.getElementById('cg-upload-progress');
+  const fill = document.getElementById('cg-upload-progress-fill');
+  const label = document.getElementById('cg-upload-progress-label');
+  progressWrap.hidden = false;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const isVideo = file.type.startsWith('video/');
+    label.textContent = `Subiendo ${i + 1}/${files.length} — ${file.name}`;
+    fill.style.width = '0%';
+    const onProgress = (frac) => {
+      const overall = ((i + frac) / files.length) * 100;
+      fill.style.width = `${overall.toFixed(0)}%`;
+    };
+    if (isVideo) {
+      const meta = await readVideoMeta(file);
+      const path = mediaPath(`galleries/${currentGalleryRow.id}`, file);
+      const url = await uploadFileWithProgress(file, path, onProgress);
+      let posterUrl = null;
+      if (meta.posterBlob) {
+        const posterPath = mediaPath(`galleries/${currentGalleryRow.id}/posters`, { name: file.name.replace(/\.[^.]+$/, '.jpg') });
+        posterUrl = await uploadFileWithProgress(meta.posterBlob, posterPath, null);
+      }
+      if (url) {
+        await supabaseClient.from('gallery_photos').insert({
+          gallery_id: currentGalleryRow.id, image_url: posterUrl || url, original_url: url,
+          original_filename: file.name, original_bytes: file.size, type: 'video',
+          poster_url: posterUrl, duration_seconds: meta.duration, width: meta.width, height: meta.height,
+          processing_status: 'ready',
+        });
+      }
+    } else {
+      const [{ width, height }, url] = await Promise.all([
+        readImageDimensions(file),
+        uploadFileWithProgress(file, mediaPath(`galleries/${currentGalleryRow.id}`, file), onProgress),
+      ]);
+      if (url) await supabaseClient.from('gallery_photos').insert({ gallery_id: currentGalleryRow.id, image_url: url, width, height, type: 'photo' });
+    }
+  }
+  label.textContent = 'Listo.';
+  fill.style.width = '100%';
+  setTimeout(() => { progressWrap.hidden = true; }, 1200);
+  await renderClientGalleryPhotos();
+  refreshPreviewFrame();
+}
+
+// ---------- Media grid: badges, categories, star cover, quality, selection ----------
+function updateBulkBar() {
+  const bar = document.getElementById('cg-bulk-bar');
+  bar.hidden = cgSelectedIds.size === 0;
+  document.getElementById('cg-bulk-count').textContent = `${cgSelectedIds.size} seleccionado${cgSelectedIds.size === 1 ? '' : 's'}`;
 }
 
 async function renderClientGalleryPhotos() {
   const grid = document.getElementById('cg-photo-grid');
   if (!currentGalleryRow) { grid.innerHTML = ''; return; }
   const { data: photos } = await supabaseClient.from('gallery_photos').select('*').eq('gallery_id', currentGalleryRow.id).order('sort_order');
-  grid.innerHTML = (photos && photos.length) ? photos.map(p => {
+  const list = photos || [];
+
+  const bulkChips = document.getElementById('cg-bulk-categories');
+  if (!bulkChips.childElementCount) {
+    bulkChips.innerHTML = GALLERY_CATEGORIES.map(c => `<button type="button" data-key="${c.key}">${c.label}</button>`).join('');
+    bulkChips.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await Promise.all([...cgSelectedIds].map(async (id) => {
+          const photo = list.find(p => p.id === id);
+          const cats = new Set(photo?.categories || []);
+          cats.add(btn.dataset.key);
+          await supabaseClient.from('gallery_photos').update({ categories: [...cats] }).eq('id', id);
+        }));
+        await renderClientGalleryPhotos();
+      });
+    });
+  }
+
+  if (!list.length) {
+    grid.innerHTML = '<p class="panel-sub">Todavía no has subido fotos o vídeos a esta galería.</p>';
+    updateBulkBar();
+    return;
+  }
+
+  grid.innerHTML = list.map(p => {
     const cats = p.categories || [];
+    const isVideo = p.type === 'video';
+    const label = ratioLabel(p.width, p.height);
+    const isSelected = cgSelectedIds.has(p.id);
+    const statusClass = p.processing_status || 'ready';
+    const thumb = p.poster_url || p.image_url;
     return `
-    <div class="media-item" style="position:relative; aspect-ratio:auto;">
-      <img src="${p.image_url}" alt="" loading="lazy" style="aspect-ratio:1; width:100%; object-fit:cover; display:block;">
-      <button data-action="delete-photo" data-id="${p.id}" title="Eliminar" style="position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:.7rem; line-height:1;">✕</button>
-      <div style="padding:6px 4px 2px; font-size:.7rem; color:var(--og-muted);">
-        ${p.original_url
-          ? `<span style="color:var(--og-accent);">✓ Original: ${escapeHtml(p.original_filename || 'archivo')} (${formatFileSize(p.original_bytes)})</span>
-             <button type="button" data-action="remove-original" data-id="${p.id}" class="link-btn" style="font-size:.7rem; display:block; margin-top:2px;">Quitar original</button>`
-          : `<label class="link-btn" style="cursor:pointer;">Adjuntar original
-               <input type="file" data-action="upload-original" data-id="${p.id}" hidden>
-             </label>`
-        }
-        <div style="display:flex; flex-wrap:wrap; gap:4px; margin-top:4px;">
+    <div class="cg-media-item${isSelected ? ' selected' : ''}" data-id="${p.id}">
+      <div class="cg-media-thumb-wrap" data-action="toggle-select" data-id="${p.id}">
+        <img src="${thumb}" alt="" loading="lazy">
+        ${label ? `<span class="cg-badge cg-badge-ratio">${label}</span>` : ''}
+        <span class="cg-badge cg-badge-status ${statusClass}"><span class="dot"></span>${statusClass === 'ready' ? 'Listo' : statusClass === 'processing' ? 'Procesando…' : 'Error'}</span>
+        <button type="button" class="cg-star-btn${p.is_cover ? ' active' : ''}" data-action="set-cover" data-id="${p.id}" title="Usar como portada">★</button>
+        ${isVideo ? `<span class="cg-play-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>` : ''}
+        ${isVideo && p.duration_seconds ? `<span class="cg-duration-badge">${formatDuration(p.duration_seconds)}</span>` : ''}
+        <span class="cg-media-check">${isSelected ? '✓' : ''}</span>
+      </div>
+      <div class="cg-media-body">
+        <div class="cg-media-cats">
           ${GALLERY_CATEGORIES.map(c => `
-            <label style="display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 6px; border-radius:999px; border:1px solid var(--og-line); ${cats.includes(c.key) ? 'background:var(--og-accent); color:#fff; border-color:var(--og-accent);' : ''}">
-              <input type="checkbox" data-action="toggle-category" data-id="${p.id}" data-key="${c.key}" ${cats.includes(c.key) ? 'checked' : ''} style="width:11px; height:11px; margin:0;">
+            <label class="${cats.includes(c.key) ? 'on' : ''}">
+              <input type="checkbox" data-action="toggle-category" data-id="${p.id}" data-key="${c.key}" ${cats.includes(c.key) ? 'checked' : ''}>
               ${c.label}
             </label>
           `).join('')}
         </div>
+        ${p.original_url
+          ? `<span class="cg-original-note">✓ Original (${formatFileSize(p.original_bytes)})</span>`
+          : `<label class="link-btn" style="cursor:pointer; color:var(--og-accent);">Adjuntar original<input type="file" data-action="upload-original" data-id="${p.id}" hidden></label>`
+        }
+        <div class="cg-media-actions">
+          <label class="cg-quality-toggle"><input type="checkbox" data-action="toggle-quality" data-id="${p.id}" ${p.full_quality ? 'checked' : ''}> Calidad completa</label>
+          <button type="button" class="link-btn" data-action="delete-photo" data-id="${p.id}">Eliminar</button>
+        </div>
       </div>
     </div>
   `;
-  }).join('') : '<p class="panel-sub">Todavía no has subido fotos a esta galería.</p>';
+  }).join('');
+
+  grid.querySelectorAll('[data-action="toggle-select"]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="set-cover"]')) return;
+      const id = el.dataset.id;
+      if (cgSelectedIds.has(id)) cgSelectedIds.delete(id); else cgSelectedIds.add(id);
+      renderClientGalleryPhotos();
+    });
+  });
+  grid.querySelectorAll('[data-action="set-cover"]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const photo = list.find(p => p.id === btn.dataset.id);
+      if (!photo) return;
+      await supabaseClient.from('gallery_photos').update({ is_cover: false }).eq('gallery_id', currentGalleryRow.id);
+      await supabaseClient.from('gallery_photos').update({ is_cover: true }).eq('id', photo.id);
+      await supabaseClient.from('client_galleries').update({ cover_url: photo.poster_url || photo.image_url }).eq('id', currentGalleryRow.id);
+      currentGalleryRow.cover_url = photo.poster_url || photo.image_url;
+      const coverPreview = document.getElementById('cg-cover-preview');
+      coverPreview.style.backgroundImage = `url('${currentGalleryRow.cover_url}')`;
+      coverPreview.innerHTML = '';
+      refreshPreviewFrame();
+      renderClientGalleryPhotos();
+    });
+  });
   grid.querySelectorAll('[data-action="delete-photo"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('¿Eliminar este archivo de la galería?')) return;
       await supabaseClient.from('gallery_photos').delete().eq('id', btn.dataset.id);
+      cgSelectedIds.delete(btn.dataset.id);
       renderClientGalleryPhotos();
     });
   });
   grid.querySelectorAll('[data-action="upload-original"]').forEach(input => {
+    input.addEventListener('click', (e) => e.stopPropagation());
     input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const url = await uploadMediaFile(file, `galleries/${currentGalleryRow.id}/originals`);
+      const url = await uploadFileWithProgress(file, mediaPath(`galleries/${currentGalleryRow.id}/originals`, file));
       if (url) {
         await supabaseClient.from('gallery_photos').update({
           original_url: url, original_filename: file.name, original_bytes: file.size,
@@ -698,46 +985,117 @@ async function renderClientGalleryPhotos() {
       renderClientGalleryPhotos();
     });
   });
-  grid.querySelectorAll('[data-action="remove-original"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      await supabaseClient.from('gallery_photos').update({
-        original_url: null, original_filename: null, original_bytes: null,
-      }).eq('id', btn.dataset.id);
-      renderClientGalleryPhotos();
-    });
-  });
   grid.querySelectorAll('[data-action="toggle-category"]').forEach(input => {
+    input.addEventListener('click', (e) => e.stopPropagation());
     input.addEventListener('change', async (e) => {
-      const photo = (photos || []).find(p => p.id === input.dataset.id);
+      const photo = list.find(p => p.id === input.dataset.id);
       const current = new Set(photo?.categories || []);
       if (e.target.checked) current.add(input.dataset.key); else current.delete(input.dataset.key);
       await supabaseClient.from('gallery_photos').update({ categories: [...current] }).eq('id', input.dataset.id);
       renderClientGalleryPhotos();
     });
   });
+  grid.querySelectorAll('[data-action="toggle-quality"]').forEach(input => {
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('change', async (e) => {
+      await supabaseClient.from('gallery_photos').update({ full_quality: e.target.checked }).eq('id', input.dataset.id);
+    });
+  });
+
+  updateBulkBar();
 }
 
-async function renderClientGalleryFavorites() {
-  const grid = document.getElementById('cg-favorites');
-  if (!currentGalleryRow) { grid.innerHTML = ''; return; }
-  const { data: favs } = await supabaseClient.from('gallery_favorites').select('*, gallery_photos(image_url)').eq('gallery_id', currentGalleryRow.id);
-  grid.innerHTML = (favs && favs.length) ? favs.map(f => `
-    <div class="media-item"><img src="${f.gallery_photos?.image_url || ''}" alt="" loading="lazy"></div>
-  `).join('') : '<p class="panel-sub">El cliente todavía no ha marcado ninguna favorita.</p>';
+document.getElementById('cg-bulk-clear').addEventListener('click', () => { cgSelectedIds = new Set(); renderClientGalleryPhotos(); });
+document.getElementById('cg-bulk-delete').addEventListener('click', async () => {
+  if (!cgSelectedIds.size || !confirm(`¿Eliminar ${cgSelectedIds.size} archivo(s)?`)) return;
+  await supabaseClient.from('gallery_photos').delete().in('id', [...cgSelectedIds]);
+  cgSelectedIds = new Set();
+  await renderClientGalleryPhotos();
+});
+document.getElementById('cg-bulk-quality').addEventListener('change', async (e) => {
+  if (!cgSelectedIds.size) return;
+  await supabaseClient.from('gallery_photos').update({ full_quality: e.target.checked }).in('id', [...cgSelectedIds]);
+  await renderClientGalleryPhotos();
+});
+
+// ---------- Attachments ----------
+document.getElementById('cg-attachment-input').addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (!files.length || !currentGalleryRow) return;
+  const { count } = await supabaseClient.from('gallery_attachments').select('*', { count: 'exact', head: true }).eq('gallery_id', currentGalleryRow.id);
+  let sortOrder = count || 0;
+  for (const file of files) {
+    const url = await uploadFileWithProgress(file, mediaPath(`galleries/${currentGalleryRow.id}/attachments`, file));
+    if (url) {
+      await supabaseClient.from('gallery_attachments').insert({
+        gallery_id: currentGalleryRow.id, file_url: url, filename: file.name,
+        mime_type: file.type || null, size_bytes: file.size, sort_order: sortOrder++,
+      });
+    }
+  }
+  await renderClientGalleryAttachments();
+  refreshPreviewFrame();
+});
+
+async function renderClientGalleryAttachments() {
+  const container = document.getElementById('cg-attachments-list');
+  if (!currentGalleryRow) { container.innerHTML = ''; return; }
+  const { data: atts, error } = await supabaseClient.from('gallery_attachments').select('*').eq('gallery_id', currentGalleryRow.id).order('sort_order');
+  if (error) { container.innerHTML = '<p class="panel-sub">No se pudo cargar los archivos adjuntos (¿has ejecutado supabase/migration_gallery_v2.sql?).</p>'; return; }
+  if (!atts || !atts.length) { container.innerHTML = '<p class="panel-sub">Todavía no has añadido archivos adjuntos.</p>'; return; }
+  container.innerHTML = atts.map(a => `
+    <div class="cg-attachment-row">
+      <span class="cg-att-icon">${extIcon(a.filename)}</span>
+      <input class="cg-att-name" data-id="${a.id}" value="${escapeAttr(a.filename)}" readonly>
+      <span class="cg-att-size">${formatFileSize(a.size_bytes)}</span>
+      <div class="cg-att-actions">
+        <button type="button" data-action="rename" data-id="${a.id}" title="Renombrar">✎</button>
+        <a href="${a.file_url}" download="${escapeAttr(a.filename)}" title="Descargar">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
+        <button type="button" data-action="delete-attachment" data-id="${a.id}" title="Eliminar" style="color:var(--og-bad);">✕</button>
+      </div>
+    </div>
+  `).join('');
+  container.querySelectorAll('[data-action="rename"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = container.querySelector(`.cg-att-name[data-id="${btn.dataset.id}"]`);
+      input.readOnly = false;
+      input.focus();
+      input.select();
+    });
+  });
+  container.querySelectorAll('.cg-att-name').forEach(input => {
+    const save = async () => {
+      input.readOnly = true;
+      const val = input.value.trim();
+      if (val) await supabaseClient.from('gallery_attachments').update({ filename: val }).eq('id', input.dataset.id);
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
+  });
+  container.querySelectorAll('[data-action="delete-attachment"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar este archivo adjunto?')) return;
+      await supabaseClient.from('gallery_attachments').delete().eq('id', btn.dataset.id);
+      renderClientGalleryAttachments();
+    });
+  });
 }
 
-async function renderClientGalleryDownloads() {
-  const list = document.getElementById('cg-downloads');
-  if (!currentGalleryRow) { list.innerHTML = ''; return; }
-  const { data: downloads, error } = await supabaseClient.from('gallery_downloads')
-    .select('*, gallery_photos(original_filename)').eq('gallery_id', currentGalleryRow.id).order('created_at', { ascending: false }).limit(50);
-  if (error) { list.innerHTML = '<p class="panel-sub">No se pudo cargar el registro de descargas (¿has ejecutado supabase/migration_gallery_downloads.sql?).</p>'; return; }
-  if (!downloads || !downloads.length) { list.innerHTML = '<p class="panel-sub">Todavía no se ha descargado nada de esta galería.</p>'; return; }
-  list.innerHTML = downloads.map(d => {
-    const label = d.download_type === 'zip_all' ? 'Descargó todas las fotos (ZIP)' : `Descargó: ${escapeHtml(d.gallery_photos?.original_filename || 'una foto')}`;
-    const when = new Date(d.created_at).toLocaleString();
-    return `<div class="list-row"><span>${label}</span><small style="color:var(--og-muted);">${when}</small></div>`;
-  }).join('');
+// ---------- Activity (favoritas, descargas, última visita) ----------
+async function renderClientGalleryActivity() {
+  if (!currentGalleryRow) return;
+  const [{ count: favCount }, { count: dlCount }, { data: lastVisit }] = await Promise.all([
+    supabaseClient.from('gallery_favorites').select('*', { count: 'exact', head: true }).eq('gallery_id', currentGalleryRow.id),
+    supabaseClient.from('gallery_downloads').select('*', { count: 'exact', head: true }).eq('gallery_id', currentGalleryRow.id),
+    supabaseClient.from('gallery_visits').select('created_at').eq('gallery_id', currentGalleryRow.id).order('created_at', { ascending: false }).limit(1),
+  ]);
+  document.getElementById('cg-stat-favorites').textContent = String(favCount || 0);
+  document.getElementById('cg-stat-downloads').textContent = String(dlCount || 0);
+  const last = (lastVisit || [])[0];
+  document.getElementById('cg-stat-last-visit').textContent = last ? new Date(last.created_at).toLocaleString() : 'Sin visitas todavía';
 }
 
 async function renderClientGalleryRevisions() {
@@ -760,7 +1118,7 @@ async function renderClientGalleryRevisions() {
     card.style.marginBottom = '10px';
     card.innerHTML = `
       <div style="display:flex; gap:8px; margin-bottom:8px;">
-        ${thumbs.map(p => `<img src="${p.image_url}" alt="" style="width:48px; height:48px; object-fit:cover; border-radius:8px;">`).join('') || '<span class="panel-sub" style="margin:0;">(foto eliminada)</span>'}
+        ${thumbs.map(p => `<img src="${p.poster_url || p.image_url}" alt="" style="width:48px; height:48px; object-fit:cover; border-radius:8px;">`).join('') || '<span class="panel-sub" style="margin:0;">(foto eliminada)</span>'}
       </div>
       <p style="margin:0 0 8px;">${escapeHtml(rev.comment)}</p>
       <span style="font-size:.72rem; font-weight:600; padding:3px 10px; border-radius:999px; ${isResolved ? 'background:rgba(70,180,110,.18); color:#2f9e5c;' : 'background:rgba(255,140,50,.18); color:#c96a1c;'}">${isResolved ? 'Resuelta' : 'Pendiente'}</span>
@@ -791,14 +1149,35 @@ async function renderClientGalleryRevisions() {
 
 document.getElementById('cg-save').addEventListener('click', async () => {
   if (!currentGalleryRow) return;
-  const is_active = document.getElementById('cg-active').checked;
-  const pin = document.getElementById('cg-pin').value.trim() || null;
-  const download_url = document.getElementById('cg-download-url').value.trim() || null;
-  const { error } = await supabaseClient.from('client_galleries').update({ is_active, pin, download_url }).eq('id', currentGalleryRow.id);
   const statusEl = document.getElementById('cg-status');
+  const is_active = document.getElementById('cg-active').checked;
+  const status = is_active ? 'published' : (currentGalleryRow.status === 'draft' ? 'draft' : 'disabled');
+  const client_name = document.getElementById('cg-client-name').value.trim() || null;
+  const download_url = document.getElementById('cg-download-url').value.trim() || null;
+  const expiresVal = document.getElementById('cg-expires').value;
+  const expires_at = expiresVal ? new Date(`${expiresVal}T23:59:59`).toISOString() : null;
+  const pinEnabled = document.getElementById('cg-pin-toggle').checked;
+  const pinValue = document.getElementById('cg-pin').value.trim();
+
+  const { error } = await supabaseClient.from('client_galleries')
+    .update({ is_active, status, client_name, download_url, expires_at }).eq('id', currentGalleryRow.id);
+
+  let pinError = null;
+  if (!pinEnabled) {
+    ({ error: pinError } = await supabaseClient.rpc('gallery_set_pin', { p_gallery_id: currentGalleryRow.id, p_pin: null }));
+  } else if (pinValue) {
+    ({ error: pinError } = await supabaseClient.rpc('gallery_set_pin', { p_gallery_id: currentGalleryRow.id, p_pin: pinValue }));
+  }
+
   statusEl.hidden = false;
-  statusEl.textContent = error ? ('Error: ' + error.message) : 'Guardado.';
-  if (!error) currentGalleryRow = { ...currentGalleryRow, is_active, pin, download_url };
+  statusEl.textContent = (error || pinError) ? ('Error: ' + (error || pinError).message) : 'Guardado.';
+  if (!error) {
+    currentGalleryRow = { ...currentGalleryRow, is_active, status, client_name, download_url, expires_at, has_pin: pinEnabled };
+    renderStatusPill();
+    document.getElementById('cg-pin').value = '';
+    document.getElementById('cg-pin-hint').textContent = pinEnabled ? 'Ya hay un PIN guardado — escribe uno nuevo solo si quieres cambiarlo.' : '';
+    refreshPreviewFrame();
+  }
 });
 
 document.getElementById('cg-copy-link').addEventListener('click', async () => {
@@ -811,20 +1190,6 @@ document.getElementById('cg-copy-link').addEventListener('click', async () => {
     btn.textContent = '¡Copiado!';
     setTimeout(() => { btn.textContent = original; }, 1500);
   } catch (e) { alert(url); }
-});
-
-document.getElementById('cg-upload-input').addEventListener('change', async (e) => {
-  const files = [...e.target.files];
-  if (!files.length || !currentGalleryRow) return;
-  for (const file of files) {
-    const [{ width, height }, url] = await Promise.all([
-      readImageDimensions(file),
-      uploadMediaFile(file, `galleries/${currentGalleryRow.id}`),
-    ]);
-    if (url) await supabaseClient.from('gallery_photos').insert({ gallery_id: currentGalleryRow.id, image_url: url, width, height });
-  }
-  e.target.value = '';
-  renderClientGalleryPhotos();
 });
 
 // ============================================================
