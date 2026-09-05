@@ -927,6 +927,9 @@ async function renderClientGalleryPhotos() {
         ${label ? `<span class="cg-badge cg-badge-ratio">${label}</span>` : ''}
         <span class="cg-badge cg-badge-status ${statusClass}"><span class="dot"></span>${statusClass === 'ready' ? 'Listo' : statusClass === 'processing' ? 'Procesando…' : 'Error'}</span>
         <button type="button" class="cg-star-btn${p.is_cover ? ' active' : ''}" data-action="set-cover" data-id="${p.id}" title="Usar como portada">★</button>
+        <button type="button" class="cg-delete-btn" data-action="delete-photo" data-id="${p.id}" title="Eliminar" aria-label="Eliminar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
         ${isVideo ? `<span class="cg-play-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>` : ''}
         ${isVideo && p.duration_seconds ? `<span class="cg-duration-badge">${formatDuration(p.duration_seconds)}</span>` : ''}
         <span class="cg-media-check">${isSelected ? '✓' : ''}</span>
@@ -950,7 +953,6 @@ async function renderClientGalleryPhotos() {
         }
         <div class="cg-media-actions">
           <label class="cg-quality-toggle"><input type="checkbox" data-action="toggle-quality" data-id="${p.id}" ${p.full_quality ? 'checked' : ''}> Calidad completa</label>
-          <button type="button" class="link-btn" data-action="delete-photo" data-id="${p.id}">Eliminar</button>
         </div>
       </div>
     </div>
@@ -959,7 +961,7 @@ async function renderClientGalleryPhotos() {
 
   grid.querySelectorAll('[data-action="toggle-select"]').forEach(el => {
     el.addEventListener('click', (e) => {
-      if (e.target.closest('[data-action="set-cover"]')) return;
+      if (e.target.closest('[data-action="set-cover"]') || e.target.closest('[data-action="delete-photo"]')) return;
       const id = el.dataset.id;
       if (cgSelectedIds.has(id)) cgSelectedIds.delete(id); else cgSelectedIds.add(id);
       renderClientGalleryPhotos();
