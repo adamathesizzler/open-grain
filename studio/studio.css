@@ -63,82 +63,91 @@
   .login-form-panel{ padding:40px 28px; }
 }
 
-/* ---------- Dashboard shell: floating "sticker" cards on a dark backdrop ---------- */
+/* ---------- Dashboard shell: floating pill dock + colorful sticker cards ---------- */
 .studio-body:has(#dashboard:not([hidden])){
   background:
-    radial-gradient(ellipse 70% 50% at 10% 0%, rgba(255,75,36,.16), transparent 65%),
-    radial-gradient(ellipse 50% 40% at 95% 15%, rgba(255,116,61,.08), transparent 70%),
-    linear-gradient(160deg,#101111 0%,#171514 55%,#111212 100%);
+    radial-gradient(ellipse 60% 40% at 15% 0%, rgba(255,75,36,.08), transparent 65%),
+    radial-gradient(ellipse 50% 35% at 90% 10%, rgba(255,116,61,.06), transparent 70%),
+    var(--bg);
 }
 .studio-shell{
-  display:flex; align-items:flex-start; gap:18px; min-height:100vh;
-  padding:18px; box-sizing:border-box;
+  display:flex; flex-direction:column; align-items:center; min-height:100vh;
+  padding:18px 18px 60px; box-sizing:border-box; gap:20px;
 }
 
-.studio-sidebar{
-  width:252px; flex:0 0 252px; display:flex; flex-direction:column;
-  gap:20px; padding:22px 16px; color:#f3efe8; border-radius:28px;
-  position:sticky; top:18px; align-self:flex-start; height:calc(100vh - 36px); overflow-y:auto;
-  box-shadow:0 24px 60px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.04);
+/* Floating pill nav, fused with the dark login palette */
+.studio-dock{
+  display:flex; align-items:center; gap:4px; padding:7px; border-radius:999px;
+  color:#f3efe8; position:sticky; top:14px; z-index:20; max-width:100%;
+  box-shadow:0 18px 40px rgba(23,23,20,.28), inset 0 1px 0 rgba(255,255,255,.05);
   background:
-    radial-gradient(ellipse 90% 60% at 8% 0%, rgba(255,75,36,.24), transparent 60%),
+    radial-gradient(ellipse 80% 100% at 0% 0%, rgba(255,75,36,.28), transparent 65%),
     linear-gradient(180deg,#1c1a17 0%,#141312 100%);
 }
-
-.sidebar-brand{
-  text-decoration:none; color:#f3efe8; font-weight:800; font-size:15px; letter-spacing:-.02em;
-  display:flex; align-items:center; gap:8px; padding:2px 6px 6px;
+.dock-brand{
+  text-decoration:none; color:#f3efe8; font-weight:800; font-size:13px; letter-spacing:-.02em;
+  display:flex; align-items:center; gap:6px; padding:0 12px 0 14px; flex-shrink:0;
 }
-.sidebar-brand .studio-badge{ font-size:0.6rem; background:rgba(255,255,255,.12); color:#f3efe8; padding:3px 9px; border-radius:999px; letter-spacing:.05em; font-weight:600; }
+.dock-brand .studio-badge{ font-size:0.58rem; background:rgba(255,255,255,.12); color:#f3efe8; padding:3px 8px; border-radius:999px; letter-spacing:.05em; font-weight:600; }
 
-.studio-tabs{ display:flex; flex-direction:column; gap:3px; flex:1; }
+.studio-tabs{ display:flex; align-items:center; gap:2px; overflow-x:auto; scrollbar-width:none; }
+.studio-tabs::-webkit-scrollbar{ display:none; }
 .tab-btn{
-  display:flex; align-items:center; gap:11px; border:none; background:none; cursor:pointer;
-  padding:8px 12px 8px 8px; border-radius:999px; font-size:0.85rem; color:rgba(243,239,232,.6);
-  text-align:left; white-space:nowrap; font-family:inherit; transition:background .15s,color .15s;
+  display:flex; align-items:center; gap:8px; border:none; background:none; cursor:pointer;
+  padding:9px; border-radius:999px; font-size:0.83rem; color:rgba(243,239,232,.6);
+  text-align:left; white-space:nowrap; font-family:inherit; transition:background .15s,color .15s,padding .15s;
+  flex-shrink:0;
 }
-.tab-btn:hover{ background:rgba(255,255,255,.07); color:#f3efe8; }
-.tab-btn.active{ background:rgba(255,255,255,.09); color:#fff; font-weight:600; }
+.tab-btn:hover{ background:rgba(255,255,255,.08); color:#f3efe8; }
+.tab-btn.active{ background:#ff4b24; color:#fff; font-weight:600; padding:9px 16px 9px 9px; }
+.tab-btn span:last-child{ display:none; }
+.tab-btn.active span:last-child{ display:inline; }
 
 .icon-badge{
-  flex-shrink:0; width:28px; height:28px; border-radius:50%;
+  flex-shrink:0; width:26px; height:26px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
-  background:rgba(255,255,255,.07); color:rgba(243,239,232,.65);
+  background:rgba(255,255,255,.08); color:rgba(243,239,232,.7);
   transition:background .15s, color .15s;
 }
-.tab-btn:hover .icon-badge{ background:rgba(255,255,255,.13); color:#f3efe8; }
-.tab-btn.active .icon-badge{ background:#ff4b24; color:#fff; box-shadow:0 4px 14px rgba(255,75,36,.45); }
+.tab-btn:hover .icon-badge{ background:rgba(255,255,255,.15); color:#f3efe8; }
+.tab-btn.active .icon-badge{ background:rgba(255,255,255,.22); color:#fff; }
 
-.sidebar-signout{
-  justify-content:center; background:transparent; border-radius:999px;
-  border:1px solid rgba(255,255,255,.14); color:rgba(243,239,232,.75);
+.dock-quick-add{
+  flex-shrink:0; width:34px; height:34px; border-radius:50%; margin-left:4px;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:#f3efe8; color:#171514; border:none; box-shadow:0 4px 14px rgba(0,0,0,.25);
+  transition:transform .12s;
 }
-.sidebar-signout:hover{ background:rgba(255,255,255,.07); }
+.dock-quick-add:hover{ transform:scale(1.08); }
+.dock-signout{
+  flex-shrink:0; width:34px; height:34px; border-radius:50%; margin-left:2px;
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  background:transparent; color:rgba(243,239,232,.75); border:1px solid rgba(255,255,255,.16);
+}
+.dock-signout:hover{ background:rgba(255,255,255,.08); }
 
 /* ---------- Main content ---------- */
-.studio-main{
-  flex:1; min-width:0; border-radius:28px; background:var(--bg);
-  box-shadow:0 24px 60px rgba(0,0,0,.3); min-height:calc(100vh - 36px);
-}
-.studio-main>.studio-panel{ max-width:1000px; margin:0 auto; padding:44px 40px 100px; }
-.studio-panel h2{ font-size:1.5rem; margin-bottom:6px; letter-spacing:-.02em; }
+.studio-main{ width:100%; max-width:1100px; }
+.studio-main>.studio-panel{ padding:8px 4px 60px; }
+.studio-panel h2{ font-size:1.6rem; margin-bottom:6px; letter-spacing:-.02em; }
 .panel-sub{ color:var(--muted); font-size:0.9rem; margin-bottom:24px; }
 .panel-mt{ margin-top:40px; }
 
-.stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; }
+.stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
 .stat-card{
-  background:color-mix(in srgb,var(--bg),white 55%); border:1px solid var(--line); border-radius:24px;
-  padding:22px; display:flex; flex-direction:column; gap:8px; font-size:0.85rem; color:var(--muted);
-  box-shadow:0 1px 2px rgba(23,23,20,.04), 0 10px 24px rgba(23,23,20,.05);
+  border-radius:26px; padding:24px; display:flex; flex-direction:column; gap:8px;
+  font-size:0.88rem; box-shadow:0 14px 30px rgba(23,23,20,.08);
 }
+.stat-card-a{ background:linear-gradient(135deg,#ff6a3d,#ff4b24); color:#fff; }
+.stat-card-b{ background:#171514; color:#f3efe8; }
+.stat-card-c{ background:#ffe3d1; color:#171514; }
+.stat-card-a span:not(.stat-icon), .stat-card-b span:not(.stat-icon){ color:inherit; opacity:.85; }
 .stat-icon{
-  width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  margin-bottom:2px;
+  width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  margin-bottom:2px; background:rgba(255,255,255,.22);
 }
-.stat-icon-a{ background:#ff4b24; color:#fff; }
-.stat-icon-b{ background:#171514; color:#f3efe8; }
-.stat-icon-c{ background:rgba(255,116,61,.18); color:#c23b22; }
-.stat-num{ font-size:2.1rem; font-weight:800; color:var(--fg); letter-spacing:-.02em; }
+.stat-card-c .stat-icon{ background:rgba(255,255,255,.6); color:#c23b22; }
+.stat-num{ font-size:2.2rem; font-weight:800; letter-spacing:-.02em; }
 
 .category-list, .project-list{ display:flex; flex-direction:column; gap:9px; }
 .project-grid{ display:flex; flex-direction:column; gap:12px; }
@@ -148,9 +157,23 @@
   padding:14px 18px; font-size:0.9rem; box-shadow:0 1px 2px rgba(23,23,20,.03);
 }
 .category-row small, .list-row small{ color:var(--muted); margin-left:8px; }
-.checkbox-label{ display:flex; align-items:center; gap:6px; font-size:0.82rem; color:var(--muted); white-space:nowrap; }
+.checkbox-label{ display:flex; align-items:center; gap:8px; font-size:0.82rem; color:var(--muted); white-space:nowrap; cursor:pointer; }
 .link-btn{ border:none; background:none; color:#c23b22; cursor:pointer; font-size:0.82rem; font-family:inherit; }
 .status-pill{ font-size:0.75rem; text-transform:uppercase; background:color-mix(in srgb,var(--bg),black 5%); padding:4px 11px; border-radius:999px; letter-spacing:.03em; }
+
+/* Chunky, toy-like toggle switch instead of a plain checkbox — used for
+   "active"/"published"/"selected" everywhere in the panel. */
+.checkbox-label input[type="checkbox"]{
+  appearance:none; -webkit-appearance:none; margin:0; flex-shrink:0; cursor:pointer;
+  width:36px; height:22px; border-radius:999px; position:relative;
+  background:color-mix(in srgb,var(--bg),black 14%); transition:background .15s;
+}
+.checkbox-label input[type="checkbox"]::after{
+  content:''; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 3px rgba(23,23,20,.3); transition:transform .15s;
+}
+.checkbox-label input[type="checkbox"]:checked{ background:#ff4b24; }
+.checkbox-label input[type="checkbox"]:checked::after{ transform:translateX(14px); }
 
 /* ---------- Drag-to-reorder ---------- */
 .drag-handle{
@@ -236,15 +259,8 @@
 .ai-actions{ display:flex; gap:10px; margin-top:16px; }
 
 @media(max-width:860px){
-  .studio-shell{ flex-direction:column; padding:12px; gap:12px; }
-  .studio-sidebar{
-    width:100%; flex:0 0 auto; position:relative; height:auto; top:0;
-    flex-direction:row; align-items:center; gap:14px; padding:12px 14px; border-radius:22px;
-  }
-  .sidebar-brand{ display:none; }
-  .studio-tabs{ flex-direction:row; overflow-x:auto; flex:1; gap:4px; }
-  .tab-btn{ padding:8px 11px 8px 8px; }
-  .sidebar-signout{ flex-shrink:0; padding:9px 14px; }
-  .studio-main{ min-height:0; border-radius:22px; }
-  .studio-main>.studio-panel{ padding:28px 20px 60px; }
+  .studio-shell{ padding:12px 12px 40px; gap:14px; }
+  .studio-dock{ width:100%; box-sizing:border-box; }
+  .dock-brand{ display:none; }
+  .studio-main>.studio-panel{ padding:4px 0 40px; }
 }

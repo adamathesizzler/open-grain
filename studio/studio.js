@@ -54,6 +54,12 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// Dock's floating "+" button: quick-jump to Portfolio → add a project.
+document.getElementById('dock-quick-add').addEventListener('click', () => {
+  document.querySelector('.tab-btn[data-tab="portfolio"]').click();
+  setTimeout(() => document.getElementById('project-title')?.focus(), 50);
+});
+
 // ---------- Shared helper: drag-to-reorder ----------
 // Makes every `itemSelector` child of `container` draggable and lets the
 // admin drag it to a new position with the mouse (grabbing the ⠿ handle).
