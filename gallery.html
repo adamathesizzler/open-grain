@@ -57,33 +57,42 @@
   main{ padding:0 5vw 70px; max-width:1360px; margin:0 auto; }
 
   /* ---------- Hero ---------- */
-  .g-hero{ position:relative; border-radius:26px; overflow:hidden; margin-top:22px; min-height:260px; display:flex; align-items:flex-end; background:var(--card); border:1px solid var(--line); }
+  .g-hero{ position:relative; border-radius:26px; overflow:hidden; margin-top:22px; min-height:clamp(260px,34vw,400px); display:flex; align-items:flex-end; background:var(--card); border:1px solid var(--line); }
   .g-hero img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-  .g-hero-scrim{ position:absolute; inset:0; background:linear-gradient(0deg, rgba(10,10,10,.72) 0%, rgba(10,10,10,.2) 55%, rgba(10,10,10,0) 100%); }
-  .g-hero-body{ position:relative; padding:34px 30px; color:#fff; }
-  .g-eyebrow{ font-size:.72rem; text-transform:uppercase; letter-spacing:.14em; font-weight:700; margin:0 0 8px; opacity:.85; }
-  .g-title{ font-size:clamp(1.6rem,4vw,2.4rem); margin:0 0 6px; letter-spacing:-.02em; font-weight:800; }
-  .g-sub{ margin:0; opacity:.85; font-size:.94rem; max-width:60ch; }
+  .g-hero-scrim{ position:absolute; inset:0; background:linear-gradient(0deg, rgba(8,8,8,.82) 0%, rgba(8,8,8,.22) 50%, rgba(8,8,8,0) 100%); }
+  .g-hero-body{ position:relative; padding:38px 36px; color:#fff; }
+  .g-eyebrow{ font-size:.7rem; text-transform:uppercase; letter-spacing:.12em; font-weight:700; margin:0 0 8px; opacity:.8; }
+  .g-title{ font-size:clamp(1.8rem,4.2vw,2.6rem); margin:0 0 6px; letter-spacing:-.02em; font-weight:800; }
+  .g-sub{ margin:0; opacity:.88; font-size:.95rem; max-width:60ch; }
   .g-hero-noimg{ padding:44px 6vw; }
   .g-hero-noimg .g-eyebrow, .g-hero-noimg .g-title, .g-hero-noimg .g-sub{ color:var(--fg); opacity:1; }
 
   .g-head-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin:26px 0 4px; }
   .g-head-row h2{ font-size:1.15rem; margin:0; }
 
-  /* ---------- PIN / loading / missing states ---------- */
-  .g-state{ max-width:400px; margin:16vh auto; text-align:center; padding:36px 30px; border-radius:24px; }
-  .g-state h1{ font-size:1.3rem; margin:0 0 6px; }
-  .g-state p{ color:var(--muted); font-size:.9rem; margin:0 0 4px; }
-  .g-gate input{
-    width:100%; padding:14px 16px; border-radius:14px; border:1px solid var(--line); background:var(--card);
-    color:var(--fg); font-size:1.3rem; text-align:center; letter-spacing:.4em; margin:18px 0 12px; font-family:inherit;
+  /* ---------- PIN / loading / missing / empty states ---------- */
+  .g-state{ max-width:380px; margin:16vh auto; text-align:center; padding:40px 32px; border-radius:24px; background:var(--card); border:1px solid var(--line); }
+  .g-state h1{ font-size:1.25rem; margin:0 0 6px; letter-spacing:-.01em; }
+  .g-state p{ color:var(--muted); font-size:.88rem; margin:0 0 4px; }
+  .g-state-icon{
+    width:52px; height:52px; margin:0 auto 16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--muted);
   }
+  .g-state-icon-warn{ background:rgba(229,72,77,.14); color:#e5484d; }
+  .g-gate input{
+    width:100%; padding:14px 16px; border-radius:14px; border:1px solid var(--line); background:var(--bg);
+    color:var(--fg); font-size:1.3rem; text-align:center; letter-spacing:.4em; margin:18px 0 12px; font-family:inherit;
+    transition:border-color .15s;
+  }
+  .g-gate input.error{ border-color:var(--danger); background:rgba(229,72,77,.06); }
   .g-gate button{
     border:none; border-radius:999px; background:var(--fg); color:var(--bg); font-weight:700; padding:13px 28px;
     cursor:pointer; font-size:.9rem; width:100%; font-family:inherit;
   }
-  .g-gate p.error{ color:var(--danger); font-size:.85rem; font-weight:600; }
-  .g-spinner{ width:34px; height:34px; margin:0 auto 16px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  .g-gate p.error{
+    color:var(--danger); font-size:.83rem; font-weight:600; display:flex; align-items:center; justify-content:center; gap:5px;
+  }
+  .g-spinner{ width:36px; height:36px; margin:0 auto 18px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--accent); animation:spin .8s linear infinite; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
   /* ---------- Filter chips ---------- */
@@ -184,17 +193,23 @@
   .g-revision-reply{ margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:.85rem; color:var(--muted); }
 
   /* ---------- Attachments ---------- */
-  .g-attachments{ border:1px solid var(--line); border-radius:18px; background:var(--card); overflow:hidden; }
-  .g-attachments-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; cursor:pointer; }
-  .g-attachments-head h3{ margin:0; font-size:.98rem; }
-  .g-attachments-list{ border-top:1px solid var(--line); }
+  .g-attachments{ background:none; border:none; }
+  .g-attachments-head{ display:flex; align-items:center; gap:8px; padding:0 0 12px; cursor:pointer; }
+  .g-attachments-head h3{ margin:0; font-size:.92rem; font-weight:600; color:var(--muted); }
+  .g-attachments-list{ display:flex; flex-wrap:wrap; gap:10px; }
   .g-attachments-list[hidden]{ display:none !important; }
-  .g-att-row{ display:flex; align-items:center; gap:12px; padding:11px 16px; border-top:1px solid var(--line); }
-  .g-att-row:first-child{ border-top:none; }
-  .g-att-icon{ width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; flex:none; font-size:.62rem; font-weight:800; color:#fff; letter-spacing:-.02em; }
-  .g-att-name{ flex:1; min-width:0; font-size:.86rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .g-att-row{
+    display:inline-flex; align-items:center; gap:10px; padding:9px 14px 9px 9px; border-radius:14px;
+    border:1px solid var(--line); background:var(--card);
+  }
+  .g-att-icon{ width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex:none; font-size:.58rem; font-weight:800; color:#fff; letter-spacing:-.02em; }
+  .g-att-name{ font-size:.85rem; font-weight:600; white-space:nowrap; }
   .g-att-size{ font-size:.74rem; color:var(--muted); flex:none; }
-  .g-att-dl{ width:32px; height:32px; border-radius:50%; border:1px solid var(--line); background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--fg); flex:none; text-decoration:none; }
+  .g-att-dl{ width:28px; height:28px; border-radius:50%; border:none; background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--fg); flex:none; text-decoration:none; }
+  .g-att-dl-all{
+    display:inline-flex; align-items:center; gap:8px; padding:11px 18px; border-radius:999px; border:none;
+    background:var(--fg); color:var(--bg); font-weight:700; font-size:.82rem; cursor:pointer; font-family:inherit;
+  }
 
   .g-empty, .g-loading{ padding:70px 0; text-align:center; color:var(--muted); }
   .g-footer{ text-align:center; padding:44px 0 10px; color:var(--muted); font-size:.78rem; }
@@ -219,23 +234,37 @@
 
 <main>
   <div id="gate-screen" class="g-state g-gate glass" hidden>
-    <p class="g-eyebrow" style="color:var(--muted);">GALERÍA PRIVADA</p>
-    <h1>Introduce el código para ver tus fotos</h1>
+    <h1>Introduce el código</h1>
     <form id="pin-form">
-      <input type="text" id="pin-input" inputmode="numeric" autocomplete="off" placeholder="····" maxlength="12">
-      <p class="error" id="pin-error" hidden>Código incorrecto. Inténtalo de nuevo.</p>
+      <input type="text" id="pin-input" inputmode="numeric" autocomplete="off" placeholder="•••••" maxlength="12">
+      <p class="error" id="pin-error" hidden>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Código incorrecto
+      </p>
       <button type="submit">Entrar</button>
     </form>
   </div>
 
   <div id="loading-screen" class="g-state g-loading" hidden>
     <div class="g-spinner"></div>
-    <p>Cargando galería…</p>
+    <h1>Cargando…</h1>
+    <p>Un momento, por favor</p>
   </div>
 
   <div id="missing-screen" class="g-state" hidden>
+    <div class="g-state-icon g-state-icon-warn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
     <h1>Este enlace no existe o ya no está disponible</h1>
-    <p>Puede que la galería haya caducado o que el estudio la haya desactivado. Escribe a OPEN GRAIN si crees que es un error.</p>
+    <p>Puede que haya expirado o que haya sido eliminado.</p>
+  </div>
+
+  <div id="empty-gallery-screen" class="g-state" hidden>
+    <div class="g-state-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
+    <h1>Todavía no hay fotos aquí</h1>
+    <p>Cuando el fotógrafo las comparta, aparecerán en esta galería.</p>
   </div>
 
   <div id="gallery-screen" hidden>
@@ -251,10 +280,7 @@
     <div id="attachments-section" class="g-attachments g-section-gap" hidden>
       <div class="g-attachments-head" id="attachments-toggle">
         <h3 id="attachments-title">Archivos adjuntos</h3>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <button type="button" class="g-pill-btn g-outline-btn" id="download-attachments-btn" style="padding:7px 14px; font-size:.75rem;">Descargar archivos</button>
-          <svg id="attachments-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
+        <svg id="attachments-caret" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <div id="attachments-list" class="g-attachments-list"></div>
     </div>
@@ -322,10 +348,11 @@
   const gateScreen = document.getElementById('gate-screen');
   const loadingScreen = document.getElementById('loading-screen');
   const missingScreen = document.getElementById('missing-screen');
+  const emptyGalleryScreen = document.getElementById('empty-gallery-screen');
   const galleryScreen = document.getElementById('gallery-screen');
 
   function show(el) {
-    [gateScreen, loadingScreen, missingScreen, galleryScreen].forEach(s => { s.hidden = s !== el; });
+    [gateScreen, loadingScreen, missingScreen, emptyGalleryScreen, galleryScreen].forEach(s => { s.hidden = s !== el; });
   }
 
   const CATEGORY_ORDER = ['stories', 'post', 'reel', 'mensajes', 'web'];
@@ -393,35 +420,34 @@
 
   document.getElementById('pin-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const val = document.getElementById('pin-input').value.trim();
+    const pinInput = document.getElementById('pin-input');
+    const val = pinInput.value.trim();
     const { data: ok, error } = await supabaseClient.rpc('gallery_check_pin', { p_token: token, p_pin: val });
     if (!error && ok) {
       sessionStorage.setItem(`og_gallery_unlocked_${gallery.id}`, 'yes');
       document.getElementById('pin-error').hidden = true;
+      pinInput.classList.remove('error');
       await renderGallery();
     } else {
       document.getElementById('pin-error').hidden = false;
+      pinInput.classList.add('error');
     }
   });
 
   function renderHero() {
     const hero = document.getElementById('hero');
+    const eyebrow = gallery.client_name ? `<p class="g-eyebrow">Para ${escapeHtml(gallery.client_name)}</p>` : '';
+    const body = `
+      ${eyebrow}
+      <h1 class="g-title">${escapeHtml(gallery.title || 'Tu galería')}</h1>
+      <p class="g-sub">Toca el corazón para marcar tus favoritas</p>`;
     if (gallery.cover_url) {
       hero.innerHTML = `
         <img src="${gallery.cover_url}" alt="">
         <div class="g-hero-scrim"></div>
-        <div class="g-hero-body">
-          <p class="g-eyebrow">GALERÍA PRIVADA</p>
-          <h1 class="g-title">${escapeHtml(gallery.title || 'Tu galería')}</h1>
-          ${gallery.client_name ? `<p class="g-sub">Preparada para ${escapeHtml(gallery.client_name)}</p>` : ''}
-        </div>`;
+        <div class="g-hero-body">${body}</div>`;
     } else {
-      hero.innerHTML = `
-        <div class="g-hero-body g-hero-noimg">
-          <p class="g-eyebrow">GALERÍA PRIVADA</p>
-          <h1 class="g-title">${escapeHtml(gallery.title || 'Tu galería')}</h1>
-          ${gallery.client_name ? `<p class="g-sub">Preparada para ${escapeHtml(gallery.client_name)}</p>` : ''}
-        </div>`;
+      hero.innerHTML = `<div class="g-hero-body g-hero-noimg">${body}</div>`;
     }
   }
 
@@ -442,6 +468,8 @@
     favoriteIds = new Set((favs || []).map(f => f.photo_id));
     currentMedia = (media || []).filter(p => (p.processing_status || 'ready') === 'ready');
     attachments = atts || [];
+
+    if (!currentMedia.length && !attachments.length) { show(emptyGalleryScreen); return; }
 
     openRevisionPhotoIds = new Set();
     for (const rev of (openRevs || [])) {
@@ -660,10 +688,16 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </a>
       </div>
-    `).join('');
+    `).join('') + (attachments.length > 1 ? `
+      <button type="button" class="g-att-dl-all" id="download-attachments-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar archivos
+      </button>` : '');
     listEl.querySelectorAll('.g-att-dl').forEach(a => {
       a.addEventListener('click', () => logDownload('attachment', null, a.dataset.id));
     });
+    const dlAllBtn = document.getElementById('download-attachments-btn');
+    if (dlAllBtn) dlAllBtn.addEventListener('click', downloadAllAttachmentsZip);
   }
 
   let attachmentsOpen = window.innerWidth >= 640;
@@ -671,17 +705,16 @@
     document.getElementById('attachments-list').hidden = !attachmentsOpen;
     document.getElementById('attachments-caret').style.transform = attachmentsOpen ? 'rotate(180deg)' : 'none';
   }
-  document.getElementById('attachments-toggle').addEventListener('click', (e) => {
-    if (e.target.closest('#download-attachments-btn')) return;
+  document.getElementById('attachments-toggle').addEventListener('click', () => {
     attachmentsOpen = !attachmentsOpen;
     syncAttachmentsOpen();
   });
   syncAttachmentsOpen();
 
-  document.getElementById('download-attachments-btn').addEventListener('click', async () => {
+  async function downloadAllAttachmentsZip() {
     if (!attachments.length) return;
     const btn = document.getElementById('download-attachments-btn');
-    const original = btn.textContent;
+    const original = btn.innerHTML;
     btn.disabled = true;
     const zip = new JSZip();
     try {
@@ -707,9 +740,9 @@
       alert('No se pudo preparar el ZIP de archivos adjuntos.');
     } finally {
       btn.disabled = false;
-      btn.textContent = original;
+      btn.innerHTML = original;
     }
-  });
+  }
 
   async function logDownload(downloadType, photoId, attachmentId) {
     try {

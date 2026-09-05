@@ -403,26 +403,32 @@
                   <button type="button" class="og-btn og-btn-outline og-btn-sm" id="cg-copy-link">Copiar enlace</button>
                 </div>
               </div>
-              <div class="og-settings-row">
-                <span>Galería activa</span>
-                <label class="checkbox-label"><input type="checkbox" id="cg-active"></label>
-              </div>
-              <div class="og-settings-row" style="flex-wrap:wrap;">
-                <span>Proteger con PIN</span>
-                <label class="checkbox-label"><input type="checkbox" id="cg-pin-toggle"></label>
-              </div>
-              <div class="og-settings-row" id="cg-pin-row" style="flex-wrap:wrap; display:none;">
-                <span>Código PIN</span>
-                <input type="text" id="cg-pin" inputmode="numeric" maxlength="12" placeholder="Nuevo PIN" style="max-width:160px; padding:9px 12px; border-radius:12px; border:1px solid var(--og-line); background:var(--og-bg); color:var(--og-fg); font-family:inherit;">
-                <small id="cg-pin-hint" class="panel-sub" style="margin:0;"></small>
-              </div>
-              <div class="og-settings-row" style="flex-wrap:wrap;">
-                <span>Disponible hasta</span>
-                <input type="date" id="cg-expires" style="padding:9px 12px; border-radius:12px; border:1px solid var(--og-line); background:var(--og-bg); color:var(--og-fg); font-family:inherit;">
+              <div class="cg-settings-grid">
+                <div class="cg-settings-col">
+                  <div class="cg-settings-col-head">
+                    <span>Galería activa</span>
+                    <label class="checkbox-label"><input type="checkbox" id="cg-active"></label>
+                  </div>
+                  <p class="panel-sub" style="margin:6px 0 0;">Visible para el cliente con el enlace.</p>
+                </div>
+                <div class="cg-settings-col">
+                  <div class="cg-settings-col-head">
+                    <span>Proteger con PIN</span>
+                    <label class="checkbox-label"><input type="checkbox" id="cg-pin-toggle"></label>
+                  </div>
+                  <div id="cg-pin-row" style="display:none; margin-top:8px;">
+                    <input type="text" id="cg-pin" inputmode="numeric" maxlength="12" placeholder="Nuevo PIN" class="cg-inline-input" style="width:100%;">
+                    <small id="cg-pin-hint" class="panel-sub" style="margin:4px 0 0; display:block;"></small>
+                  </div>
+                </div>
+                <div class="cg-settings-col">
+                  <span class="cg-settings-col-label">Disponible hasta</span>
+                  <input type="date" id="cg-expires" class="cg-inline-input" style="margin-top:8px; width:100%;">
+                </div>
               </div>
               <div class="og-settings-row" style="flex-wrap:wrap;">
                 <span>Enlace de descarga externo (respaldo, ej. Drive/WeTransfer)</span>
-                <input type="url" id="cg-download-url" placeholder="https://…" style="min-width:220px; flex:1; padding:9px 12px; border-radius:12px; border:1px solid var(--og-line); background:var(--og-bg); color:var(--og-fg); font-family:inherit;">
+                <input type="url" id="cg-download-url" placeholder="https://…" class="cg-inline-input" style="min-width:220px; flex:1;">
               </div>
               <button type="button" class="og-btn og-btn-solid" id="cg-save" style="margin-top:14px;">Guardar ajustes</button>
               <p id="cg-status" class="panel-sub" hidden style="margin:10px 0 0;"></p>
@@ -432,14 +438,26 @@
               <div><h3 style="margin:0;">Fotos y vídeos</h3></div>
             </div>
             <label id="cg-dropzone" class="cg-dropzone">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              <span><b>Arrastra fotos o vídeos aquí</b> o haz clic para elegir archivos</span>
+              <div class="cg-dropzone-main">
+                <div class="cg-dropzone-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div class="cg-dropzone-copy">
+                  <b>Sube fotos y vídeos</b>
+                  <span>Arrastra archivos aquí o <u>selecciónalos</u></span>
+                </div>
+                <span class="og-btn og-btn-outline og-btn-sm cg-dropzone-btn">Seleccionar archivos</span>
+                <span class="cg-dropzone-formats">JPG, PNG, HEIC, MP4, MOV</span>
+              </div>
+              <div id="cg-upload-progress" class="cg-upload-progress" hidden>
+                <img id="cg-upload-progress-thumb" class="cg-upload-progress-thumb" alt="">
+                <div class="cg-upload-progress-info">
+                  <span id="cg-upload-progress-label">Subiendo…</span>
+                  <div class="cg-upload-progress-bar"><div id="cg-upload-progress-fill" style="width:0%;"></div></div>
+                </div>
+              </div>
               <input type="file" id="cg-upload-input" accept="image/*,video/*" multiple hidden>
             </label>
-            <div id="cg-upload-progress" class="cg-upload-progress" hidden>
-              <div class="cg-upload-progress-bar"><div id="cg-upload-progress-fill" style="width:0%;"></div></div>
-              <span id="cg-upload-progress-label">Subiendo…</span>
-            </div>
 
             <div id="cg-bulk-bar" class="cg-bulk-bar" hidden>
               <span id="cg-bulk-count">0 seleccionados</span>

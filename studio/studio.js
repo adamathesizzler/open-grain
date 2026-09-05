@@ -829,15 +829,21 @@ async function handleGalleryUploads(files) {
   const progressWrap = document.getElementById('cg-upload-progress');
   const fill = document.getElementById('cg-upload-progress-fill');
   const label = document.getElementById('cg-upload-progress-label');
+  const thumb = document.getElementById('cg-upload-progress-thumb');
   progressWrap.hidden = false;
+  let lastThumbUrl = null;
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const isVideo = file.type.startsWith('video/');
-    label.textContent = `Subiendo ${i + 1}/${files.length} — ${file.name}`;
+    label.textContent = `${file.name} · 0%`;
     fill.style.width = '0%';
+    if (lastThumbUrl) URL.revokeObjectURL(lastThumbUrl);
+    if (!isVideo) { lastThumbUrl = URL.createObjectURL(file); thumb.src = lastThumbUrl; thumb.hidden = false; }
+    else { thumb.hidden = true; }
     const onProgress = (frac) => {
-      const overall = ((i + frac) / files.length) * 100;
-      fill.style.width = `${overall.toFixed(0)}%`;
+      const pct = Math.round(frac * 100);
+      fill.style.width = `${pct}%`;
+      label.textContent = `${file.name} · ${pct}%`;
     };
     if (isVideo) {
       const meta = await readVideoMeta(file);
@@ -866,7 +872,8 @@ async function handleGalleryUploads(files) {
   }
   label.textContent = 'Listo.';
   fill.style.width = '100%';
-  setTimeout(() => { progressWrap.hidden = true; }, 1200);
+  if (lastThumbUrl) { URL.revokeObjectURL(lastThumbUrl); lastThumbUrl = null; }
+  setTimeout(() => { progressWrap.hidden = true; thumb.hidden = true; thumb.removeAttribute('src'); }, 1200);
   await renderClientGalleryPhotos();
   refreshPreviewFrame();
 }
