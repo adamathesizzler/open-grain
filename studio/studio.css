@@ -482,10 +482,13 @@ html[data-theme="night"] body.studio-body{
 .content-field.draggable .drag-handle{ margin-top:26px; }
 .content-field-body{ flex:1; min-width:0; }
 .content-field-label{ display:block; font-size:0.8rem; font-weight:600; color:var(--og-fg); margin-bottom:6px; }
+.content-field-row{ display:flex; gap:10px; }
+.content-field-row > *{ flex:1; min-width:0; }
 .content-field textarea, .content-field input[type="text"]{
   width:100%; box-sizing:border-box; padding:11px 13px; border-radius:14px; border:1px solid var(--og-line);
   font-size:0.88rem; font-family:inherit; background:var(--og-bg); color:var(--og-fg); resize:vertical;
 }
+@media(max-width:720px){ .content-field-row{ flex-direction:column; } }
 
 .og-save-bar{
   position:sticky; bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:14px;

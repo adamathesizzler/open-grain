@@ -1,6 +1,17 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-05 (galería de cliente v2 + segunda pasada de fidelidad visual, más profunda, contra los dos mockups originales, con capturas reales a 1440×900 y 390×844 comparadas por el usuario — ver sección 2c; pendiente `git push` + migraciones SQL).
+Última actualización: 2026-09-05 (auditoría completa de todo el código a petición del usuario — ver sección 2d — tras la galería de cliente v2 y la segunda pasada de fidelidad visual de la sección 2c).
+
+## 2d. Auditoría completa de código (misma sesión, a petición del usuario: "revisa bien y elimina los errores/inconsistencias/simulaciones")
+
+Tras publicar y migrar la base de datos real (ver sección 5 — el usuario encontró en el camino un bucket de Storage y una migración antigua, `migration_content_editor.sql`, que faltaban en su proyecto Supabase; no eran fallos de código, sino piezas de base de datos nunca ejecutadas en ese proyecto), el usuario pidió una revisión completa de `gallery.html`, `studio/index.html`, `studio.js`, `studio.css` y todas las migraciones SQL en busca de errores, inconsistencias y código simulado/falso. Se hizo con dos métodos:
+
+- **Auditoría estática**: se comparó, por script, cada tabla/columna/función RPC/bucket de Storage que el JavaScript usa contra lo que `schema.sql` realmente define — todo coincide, no hay referencias rotas. Se comparó cada `getElementById` contra los IDs reales del HTML (los 3 "huérfanos" encontrados son elementos creados dinámicamente por JS justo antes de buscarlos — no son un fallo). Se buscó código de relleno/simulado (`TODO`, `fake`, `dummy`, `placeholder`, `mock`) en todo el proyecto — no hay ninguno; toda la lógica entregada es real y está conectada a Supabase.
+- **Simulación real en navegador (Playwright)**: se cargó `gallery.html` con datos falsos en todos sus estados (galería completa en escritorio y móvil, enlace roto, sin token, con PIN correcto/incorrecto, galería vacía) y **todo el panel de Studio** (las 12 pestañas + el editor de galería de cliente completo, con interacciones reales: marcar categoría, marcar portada con estrella, selección múltiple, "Publicar cambios", vista previa) — cero errores de JavaScript reales en consola en cualquiera de esos estados.
+
+**Único fallo real encontrado y corregido**: en los paneles "Contenido del sitio" y "Servicios", los campos de español e inglés debían ir uno al lado del otro (así lo indica el propio nombre de la clase CSS, `content-field-row`) pero faltaba la regla que los pone en fila — se apilaban uno debajo del otro, ocupando el doble de alto de lo necesario. Corregido en `studio.css` (nueva regla `.content-field-row{ display:flex; gap:10px }`, con vuelta a apilado en móvil estrecho). Este fallo es anterior a esta sesión (viene del rediseño del CMS de sesiones pasadas), no está relacionado con la galería de cliente.
+
+No se encontró ningún otro error, inconsistencia o dato simulado en el resto del código.
 
 ## 2c. Segunda pasada de fidelidad visual (misma sesión, el usuario pidió máxima fidelidad estructural)
 
