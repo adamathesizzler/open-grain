@@ -1,7 +1,24 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-12 (0e. Auditoría completa de navegación de Studio tras el rediseño — el usuario pidió que "los botones, las pestañas... lleven a una parte, cada uno con sus formularios o páginas, con su diseño visual" y se hizo trabajando sin supervisión, para revisión al día siguiente). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-12 (0f. Arreglado el bug real: las fotos del portfolio en la web pública no llevaban a ningún sitio al pulsarlas — ahora abren un lightbox). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
 
+## 0f. Fotos del portfolio sin acción al pulsarlas → lightbox (esta sesión, sin supervisión)
+
+Tras la sección 0e (auditoría de Studio), el usuario aclaró que su queja no era sobre Studio sino sobre **la web pública**: "cuando un cliente le dé a lo que sea, se le abra la página pertinente... hay cosas que pulso y no me abre nada". Confirmó que en Studio la navegación (ir a "Clientes" lleva a Clientes, etc.) sí funciona bien.
+
+**Bug real encontrado**: las fotos de "Trabajos seleccionados" (`.project-tile`, tanto las de ejemplo como las reales que vengan de Supabase) ya tenían efecto visual de "elevarse" al pasar el ratón y de "hundirse" al pulsar (`:hover`/`:active` en `styles.css`) — dan la sensación de ser clicables — pero no eran ni un enlace (`<a>`) ni tenían ningún `addEventListener`: al pulsarlas, literalmente no pasaba nada. Esto coincide exactamente con la queja del usuario.
+
+**Arreglo aplicado** (`main.js` + `styles.css` + `index.html`, sin tocar Supabase ni datos):
+- Cada `.project-tile` (en `renderWork()` con los proyectos de ejemplo, y en el bloque que los sustituye por proyectos reales publicados) ahora lleva `data-lightbox-image/title/eyebrow` y es enfocable por teclado (`tabindex="0"`).
+- Nuevo lightbox (`#lightbox` en `index.html`, estilos en `styles.css`, lógica en `main.js`): al pulsar (o con Intro/Espacio si se navega con teclado) una foto del portfolio, se abre un overlay con cristal esmerilado mostrando la foto en grande, categoría y título — con la misma paleta de movimiento del rediseño (fade + scale, `--ease-smooth`, respeta `prefers-reduced-motion`). Se cierra con la `X`, con Escape, o pulsando fuera de la foto. Sin librerías nuevas.
+- **Limitación conocida y no resuelta todavía**: el lightbox solo puede mostrar *una* foto por proyecto porque `portfolio_projects` en Supabase solo tiene `cover_image_url` (una imagen), no una galería de varias fotos por proyecto — esa infraestructura (`gallery_photos`) pertenecía a la función de "galería de cliente" ya eliminada en una sesión anterior. Si Adama quiere que cada proyecto abra una página propia con varias fotos (un "caso de estudio"), eso requeriría una tabla nueva en Supabase y una pantalla en Studio para subir esas fotos — no se ha construido porque implica cambiar la base de datos real, algo que conviene decidir y aplicar con el usuario presente, no de madrugada sin supervisión.
+- De paso, las tarjetas de "Instagram/TikTok seleccionados" del pie de página, cuando todavía no hay publicaciones reales seleccionadas en Studio (caso actual), enlazaban a `href="#"` (otro clic muerto) — ahora enlazan al perfil real de Instagram/TikTok mientras no haya publicaciones concretas seleccionadas.
+
+**Verificado con Playwright**: clic en una foto abre el lightbox con la imagen/título correctos; Escape y clic fuera lo cierran; funciona también solo con teclado (Tab + Intro); sin errores de consola; sin desbordamiento horizontal en móvil (390px) con el lightbox abierto; repetida la suite completa de verificación del rediseño y la auditoría de Studio — sin regresiones.
+
+**No se tocó**: ninguna tabla ni columna de Supabase, ningún dato real, ninguna lógica de `studio.js`.
+
+## 0e. Auditoría de navegación de Studio — botones/pestañas y su diseño (sesión anterior)
 ## 0e. Auditoría de navegación de Studio — botones/pestañas y su diseño (esta sesión, sin supervisión)
 
 El usuario, tras confirmar que el rediseño ya estaba en producción (web pública + Studio), pidió: "que los botones, las pestañas y tal llevaran a una parte, cada uno con sus formularios o páginas, con su diseño visual y todo eso" — y dio permiso explícito para trabajar de forma autónoma y dejarlo listo para revisar al día siguiente ("te doy pleno derecho a hacer los cambios... mañana lo revisaré").

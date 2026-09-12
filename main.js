@@ -96,13 +96,15 @@ function renderHero() {
     </figure>`).join('');
 }
 
+function attrEscape(str) { return String(str ?? '').replace(/"/g, '&quot;'); }
+
 function renderWork() {
   const t = copy[lang];
   document.getElementById('work-label').textContent = t.selected;
   document.getElementById('work-lede').textContent = t.workBlurb;
   const grid = document.getElementById('masonry-grid');
   grid.innerHTML = projects.map(p => `
-    <article class="project-tile ${p.ratio}">
+    <article class="project-tile ${p.ratio}" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
       <img src="${p.image}" alt="${p.title} — ${p.type}">
       <div><span>/ ${p.id}</span><h3>${p.title}</h3><p>${p.type}</p></div>
     </article>`).join('');
@@ -320,7 +322,7 @@ if (supabaseClient) {
         const fallbackRatios = ['tall', 'wide', 'square', 'tall crop-two', 'wide crop-two', 'square crop-two'];
         const grid = document.getElementById('masonry-grid');
         grid.innerHTML = data.map((p, i) => `
-          <article class="project-tile ${p.layout_class || fallbackRatios[i % fallbackRatios.length]}">
+          <article class="project-tile ${p.layout_class || fallbackRatios[i % fallbackRatios.length]}" tabindex="0" data-lightbox-image="${attrEscape(p.cover_image_url || 'assets/portfolio/portrait.jpg')}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.subtitle || '')}">
             <img src="${p.cover_image_url || 'assets/portfolio/portrait.jpg'}" alt="${p.title}">
             <div><span>/ ${String(i + 1).padStart(2, '0')}</span><h3>${p.title}</h3><p>${p.subtitle || ''}</p></div>
           </article>`).join('');
@@ -352,12 +354,76 @@ if (supabaseClient) {
 }
 
 function renderProvisionalSocial(grid) {
-  grid.innerHTML = projects.slice(0, 6).map((p, i) => `
-    <a class="social-post" href="#">
+  // No real posts selected yet in Studio — link each placeholder to the
+  // real profile (not a dead "#") so it isn't a dead click even before
+  // Adama adds actual selected posts.
+  grid.innerHTML = projects.slice(0, 6).map((p, i) => {
+    const isInsta = i < 3;
+    const href = isInsta ? 'https://instagram.com/opengrain.studio' : 'https://tiktok.com/@opengrain.studio';
+    return `
+    <a class="social-post" href="${href}" target="_blank" rel="noopener">
       <img src="${p.image}" alt="Selected social post">
-      <span>${i < 3 ? '@ Instagram' : '♪ TikTok'}</span>
-    </a>`).join('');
+      <span>${isInsta ? '@ Instagram' : '♪ TikTok'}</span>
+    </a>`;
+  }).join('');
 }
+
+// ============================================================
+// Portfolio lightbox — clicking a project tile used to do nothing
+// (the tile had hover/press feedback implying it was clickable, but
+// no click handler at all). This opens the project's photo larger,
+// with its title, in a simple dependency-free overlay.
+// ============================================================
+(function initLightbox() {
+  const lightbox = document.getElementById('lightbox');
+  if (!lightbox) return;
+  const imgEl = document.getElementById('lightbox-img');
+  const titleEl = document.getElementById('lightbox-title');
+  const eyebrowEl = document.getElementById('lightbox-eyebrow');
+  const closeBtn = document.getElementById('lightbox-close');
+  let lastFocused = null;
+
+  function openFromTile(tile) {
+    const image = tile.dataset.lightboxImage;
+    if (!image) return;
+    lastFocused = document.activeElement;
+    imgEl.src = image;
+    imgEl.alt = tile.dataset.lightboxTitle || '';
+    titleEl.textContent = tile.dataset.lightboxTitle || '';
+    eyebrowEl.textContent = tile.dataset.lightboxEyebrow || '';
+    lightbox.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(() => lightbox.classList.add('is-open'));
+    closeBtn.focus();
+  }
+
+  function close() {
+    lightbox.classList.remove('is-open');
+    document.body.style.overflow = '';
+    const done = () => { lightbox.hidden = true; };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
+    else lightbox.addEventListener('transitionend', done, { once: true });
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+  }
+
+  // Delegated: project tiles are re-rendered (provisional → real Supabase
+  // data), so listen on the grids themselves rather than on each tile.
+  document.addEventListener('click', (e) => {
+    const tile = e.target.closest('.project-tile');
+    if (tile) openFromTile(tile);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const tile = e.target.closest && e.target.closest('.project-tile');
+    if (tile) { e.preventDefault(); openFromTile(tile); }
+  });
+
+  closeBtn.addEventListener('click', close);
+  lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !lightbox.hidden) close();
+  });
+})();
 
 // ============================================================
 // Cookie consent + Google Analytics (only loads after "Aceptar")
