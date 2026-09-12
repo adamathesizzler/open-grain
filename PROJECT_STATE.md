@@ -1,8 +1,26 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-12 (0h. Rediseño visual de la pestaña "Analíticas" de Studio: tarjetas con variación mensual real, dos gráficas y lista de presupuestos recientes con ficha de detalle, inspirado en una referencia tipo Finnova que envió el usuario). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-12 (0i. Sistema de elevación/sombras en toda la web pública y Studio — Adama dijo que sentía la web "muy plana"). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
 
-## 0h. Pestaña "Analíticas" de Studio rediseñada estilo dashboard financiero (esta sesión)
+## 0i. Más profundidad visual (sombras/elevación) en toda la web — pública y Studio (esta sesión)
+
+Adama dijo: "Siento que en sí toda la web es muy flat, muy plana... tanto el panel de control como la web que ven los clientes." Se le preguntó qué tipo de profundidad prefería (más sombras/elevación, más cristal esmerilado, textura de grano, o degradados con más cuerpo) — eligió **más sombras y elevación**.
+
+**Diagnóstico**: casi ningún elemento tipo "tarjeta" tenía `box-shadow`. En la web pública, `.project-tile` (las fotos del grid de portfolio, el elemento más grande de toda la home), `.service-cards article`, `.contact-card` (formulario y foto) y `.social-post` no tenían ninguna sombra — solo `border-radius`, apoyados directamente sobre el fondo. En Studio, `.og-stat` (las tarjetas de estadísticas), `.list-row`/`.category-row` (las filas de Reservas, Mensajes, Inventario, Presupuestos, redes) y `.album-card` tampoco tenían sombra propia — solo un borde de 1px.
+
+**Cambios aplicados** (`styles.css` para la web pública, `studio/studio.css` para Studio — solo CSS, ningún HTML/JS ni dato tocado):
+- Se creó un sistema de 3 niveles de elevación con variables CSS, con valores distintos para modo claro y oscuro (en oscuro las sombras son más opacas para que se noten sobre un fondo ya oscuro):
+  - Web pública: `--elev-1/2/3` en `.site-shell` / `.site-shell.dark-mode`.
+  - Studio: `--og-shadow-sm` (nuevo) / `--og-shadow` (ya existía, ahora es el nivel medio) / `--og-shadow-lg` (nuevo) en `body.studio-body` / `html[data-theme="night"] body.studio-body`.
+- Web pública: sombra de reposo + sombra mayor al pasar el ratón en `.project-tile img`, `.service-cards article`, `.contact-card` (formulario, mensaje de éxito y foto), `.social-post`, `.contact-details div` (las tarjetas de Llamada/Instagram/Email) y `.submit-btn`; se reforzó también el `drop-shadow` de las fotos flotantes del hero (`.float-card`).
+- Studio: sombra de reposo (+ mayor al pasar el ratón o seleccionar) en `.og-stat` (tarjetas de estadísticas, usado en Inicio y Analíticas), `.list-row`/`.category-row` (Reservas, Mensajes, Inventario, Presupuestos, redes sociales, categorías de portfolio), `.client-card` (incluida la tarjeta activa/seleccionada), `.album-card` (Galerías), `.og-quick` (accesos rápidos de Inicio) y el botón `.og-btn-dark`.
+- No se tocó la jerarquía de botones secundarios/outline/ghost a propósito — quedan planos porque visualmente deben leerse como acción secundaria frente a los botones y tarjetas elevados.
+
+**Verificado con Playwright**: capturas de pantalla en escritorio (1440px) y móvil (390px), en modo claro y oscuro, de la home pública (hero, portfolio, servicios, contacto, redes) y de Studio (Inicio, Clientes, Reservas) — las sombras se ven correctamente en ambos temas y tamaños, sin overflow horizontal nuevo y sin errores de consola nuevos.
+
+**No se tocó**: ningún dato de Supabase, ninguna estructura HTML ni lógica de `main.js`/`studio.js` — cambio puramente visual (CSS).
+
+## 0h. Pestaña "Analíticas" de Studio rediseñada estilo dashboard financiero (sesión anterior)
 
 Justo después del rediseño de Clientes (0g), el usuario envió una tercera referencia (dashboard "Finnova" de facturas: tarjetas con variación % vs. mes anterior, gráfica de barras, gráfica de líneas, lista de facturas con panel de detalle) con el mensaje "Y analítica así".
 
