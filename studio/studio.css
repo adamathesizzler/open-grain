@@ -52,7 +52,11 @@
 }
 #login-form input::placeholder{ color:rgba(243,239,232,.3); }
 #login-form input:focus{ border-color:#ff4b24; }
-.login-form-panel .btn-solid{ background:#f3efe8; color:#171514; border-color:#f3efe8; }
+.login-submit{
+  width:100%; justify-content:center; margin-top:6px;
+  background:#f3efe8; color:#171514; border-color:#f3efe8; font-weight:700;
+}
+.login-submit:hover{ opacity:.9; }
 .login-error{ color:#ff7a5c; font-size:0.85rem; min-height:1.1em; }
 .login-note{ margin-top:20px; font-size:0.76rem; color:rgba(243,239,232,.4); line-height:1.6; }
 .login-note code{ background:rgba(255,255,255,.08); color:rgba(243,239,232,.7); padding:1px 5px; border-radius:5px; }

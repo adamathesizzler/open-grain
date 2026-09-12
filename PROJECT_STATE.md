@@ -1,6 +1,28 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-11 (0d. rediseño visual completo — web pública + Studio — inspirado en los principios de interfaz fluida de Apple: tipografía del sistema, transiciones tipo "spring", nav/topbar con efecto cristal que reacciona al scroll, scroll-reveal por sección, y arreglado un desbordamiento del titular "OPEN GRAIN" en móviles estrechos). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-12 (0e. Auditoría completa de navegación de Studio tras el rediseño — el usuario pidió que "los botones, las pestañas... lleven a una parte, cada uno con sus formularios o páginas, con su diseño visual" y se hizo trabajando sin supervisión, para revisión al día siguiente). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+
+## 0e. Auditoría de navegación de Studio — botones/pestañas y su diseño (esta sesión, sin supervisión)
+
+El usuario, tras confirmar que el rediseño ya estaba en producción (web pública + Studio), pidió: "que los botones, las pestañas y tal llevaran a una parte, cada uno con sus formularios o páginas, con su diseño visual y todo eso" — y dio permiso explícito para trabajar de forma autónoma y dejarlo listo para revisar al día siguiente ("te doy pleno derecho a hacer los cambios... mañana lo revisaré").
+
+**Interpretación asumida** (no se pudo preguntar, el usuario se había desconectado): el mensaje se refería al panel Studio, ya que venía justo después de confirmar que el rediseño de Studio estaba en producción.
+
+**Trabajo realizado — auditoría exhaustiva, no reconstrucción**:
+1. Se sincronizó el workspace con el último commit real en GitHub (incluye la limpieza de `.git_stale_locks*` hecha desde el Mac).
+2. Se listaron las 13 pestañas de `studio/index.html` (`overview, content, projects, galleries, services, ugc, messages, clients, bookings, analytics, inventory, quotes, settings`) y se confirmó en `studio.js` que **cada una ya tiene** un loader real conectado a Supabase (`tabLoaders`), su propio formulario/página, y ningún `TODO`/placeholder/"próximamente".
+3. Se montó un arnés de pruebas Playwright + mock de Supabase (tablas: `clients, enquiries, inventory_items, media, portfolio_categories, portfolio_projects, projects, quotes, site_content, social_posts`) que inicia sesión y recorre las 13 pestañas + la pantalla de login, capturando pantalla y errores de consola de cada una.
+4. Resultado: **0 errores de consola en las 13 pestañas** y en la pantalla de login. Todas las pestañas ya muestran una página/formulario propio, con el mismo lenguaje visual del rediseño (tarjetas `.og-card`, botones `.og-btn`, tipografía del sistema).
+5. Se hizo además una comprobación automática de clases CSS "huérfanas" (usadas en el HTML pero sin ninguna regla en `styles.css`/`studio.css`) en ambos `index.html`. Se encontró **un bug real**: el botón "Sign in →" de la pantalla de login de Studio usaba clases antiguas (`btn btn-solid full-width`) que ya no existen en `studio.css` desde la reescritura del panel — se veía como un botón de navegador sin estilo (sin padding correcto, sin borde redondeado, sin ancho completo, sin animación de pulsación), justo en la primera pantalla que ve cualquiera al entrar en Studio.
+6. **Arreglo aplicado**: clase cambiada a `og-btn login-submit` en `studio/index.html`, y se sustituyó la regla suelta `.login-form-panel .btn-solid{...}` por una nueva `.login-submit{...}` completa en `studio.css` (ancho completo, centrado, mismo color crema sobre panel oscuro que ya estaba pensado, con las transiciones/press-feedback del sistema `.og-btn`). Verificado por Playwright: botón ahora de 375×39px, esquinas redondeadas (999px), fondo correcto.
+7. Se revisó también el sitio público (`index.html`) buscando enlaces/botones muertos (`href="#"` sin acción, botones sin clase de estilo) — no se encontró ninguno; todos los enlaces/CTAs ya llevan a secciones reales, WhatsApp, email, redes sociales o páginas legales reales.
+8. Se volvió a correr el script de verificación del rediseño anterior (`verify_redesign.py`) para comprobar que no hay regresiones: sin errores nuevos (el único aviso, `.og-topbar` sin `.scrolled` en la pestaña "projects", es el mismo falso positivo ya diagnosticado en la sesión anterior — el viewport de prueba no genera scroll suficiente con tan poco contenido de ejemplo, no ocurre con datos reales).
+
+**Conclusión para revisar mañana**: el panel Studio **ya estaba completo** — las 13 pestañas siempre llevaron a su propia página/formulario funcional conectado a Supabase; no hicieron falta páginas nuevas. El único problema real encontrado (y corregido) fue el botón de inicio de sesión sin estilo. **Si lo que Adama tenía en mente era otra cosa** (por ejemplo, que al hacer clic en un proyecto/cliente/reserva concretos de una lista se abra una página de detalle propia, en vez de editarse en línea en la misma lista — eso no existe todavía y sería un desarrollo nuevo, no un arreglo), pedir que lo aclare con un ejemplo concreto de qué botón/pestaña no le llevaba a donde esperaba.
+
+**No se tocó**: ninguna tabla de Supabase, ningún loader/lógica de negocio en `studio.js` ni `main.js`, ningún dato real.
+
+**Archivos modificados esta sesión**: `studio/index.html` (clase del botón de login), `studio/studio.css` (regla `.login-submit`).
 
 ## 0d. Rediseño visual completo — principios de interfaz fluida de Apple (esta sesión)
 
