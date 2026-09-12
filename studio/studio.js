@@ -18,6 +18,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 function escapeAttr(str) { return String(str ?? '').replace(/"/g, '&quot;'); }
+const statusLabels = { enquiry: 'Consulta', confirmed: 'Confirmada', in_progress: 'En curso', delivered: 'Entregada', cancelled: 'Cancelada', draft: 'Borrador', sent: 'Enviado', accepted: 'Aceptado', declined: 'Rechazado', new: 'Nuevo', contacted: 'Contactado', archived: 'Archivado' };
 
 // ============================================================
 // Theme (day / night) — the inline <head> script in index.html
@@ -1143,7 +1144,6 @@ function openClientDetail(id) {
 
   const bookings = (c.projects || []).slice().sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
   const quotes = (c.quotes || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const statusLabels = { enquiry: 'Consulta', confirmed: 'Confirmada', in_progress: 'En curso', delivered: 'Entregada', cancelled: 'Cancelada', draft: 'Borrador', sent: 'Enviado', accepted: 'Aceptado', declined: 'Rechazado' };
 
   const detail = document.getElementById('client-detail');
   detail.hidden = false;
@@ -1301,39 +1301,219 @@ const icon = {
   quotes: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
 };
 
+// ---------- Helpers: meses / variación mes a mes (todo con datos reales, por created_at) ----------
+function monthBounds(offsetMonths) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() + offsetMonths, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + offsetMonths + 1, 1);
+  return { start, end };
+}
+function rowsInMonth(rows, offsetMonths) {
+  const { start, end } = monthBounds(offsetMonths);
+  return rows.filter(r => { const d = new Date(r.created_at); return d >= start && d < end; });
+}
+function deltaBadge(current, previous) {
+  if (previous === 0 && current === 0) return { cls: 'flat', text: 'Sin cambios' };
+  if (previous === 0) return { cls: 'up', text: 'Nuevo este mes' };
+  const pct = Math.round(((current - previous) / previous) * 100);
+  if (pct === 0) return { cls: 'flat', text: 'Igual que el mes anterior' };
+  return { cls: pct > 0 ? 'up' : 'down', text: `${pct > 0 ? '↑' : '↓'} ${Math.abs(pct)}% vs. mes anterior` };
+}
+const MONTH_ABBR = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+function last6MonthBuckets(rows) {
+  const now = new Date();
+  const months = [];
+  for (let i = 5; i >= 0; i--) months.push(new Date(now.getFullYear(), now.getMonth() - i, 1));
+  return months.map(m => {
+    const next = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+    const count = rows.filter(r => { const d = new Date(r.created_at); return d >= m && d < next; }).length;
+    return { label: MONTH_ABBR[m.getMonth()], count };
+  });
+}
+const eur = (n) => Number(n || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+
+let allAnalyticsQuotesCache = [];
+let currentAnalyticsQuoteFilter = 'all';
+let selectedAnalyticsQuoteId = null;
+
 async function loadAnalytics() {
   const [
-    { count: totalProjects }, { count: publishedProjects }, { count: totalClients },
-    { count: totalMessages }, { count: newMessages }, { count: totalBookings }, { count: acceptedQuotes },
+    { count: publishedProjects },
+    { data: clientsData },
+    { data: bookingsData },
+    { data: quotesData },
+    { data: enquiriesData },
   ] = await Promise.all([
-    supabaseClient.from('portfolio_projects').select('*', { count: 'exact', head: true }),
     supabaseClient.from('portfolio_projects').select('*', { count: 'exact', head: true }).eq('is_published', true),
-    supabaseClient.from('clients').select('*', { count: 'exact', head: true }),
-    supabaseClient.from('enquiries').select('*', { count: 'exact', head: true }),
-    supabaseClient.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'),
-    supabaseClient.from('projects').select('*', { count: 'exact', head: true }),
-    supabaseClient.from('quotes').select('*', { count: 'exact', head: true }).eq('status', 'accepted'),
+    supabaseClient.from('clients').select('id, created_at'),
+    supabaseClient.from('projects').select('id, status, created_at'),
+    supabaseClient.from('quotes').select('*, clients(name), projects(title, status)').order('created_at', { ascending: false }),
+    supabaseClient.from('enquiries').select('id, status, created_at'),
   ]);
 
-  const stat = (cls, svg, num, label) => `
-    <div class="og-stat">
-      <span class="og-stat-icon ${cls}">${svg}</span>
-      <span class="og-stat-num">${num ?? 0}</span>
-      <span class="og-stat-label">${label}</span>
-    </div>`;
+  const clients = clientsData || [];
+  const bookings = bookingsData || [];
+  const quotes = quotesData || [];
+  const enquiriesRows = enquiriesData || [];
+  allAnalyticsQuotesCache = quotes;
 
-  document.getElementById('analytics-grid').innerHTML = [
-    stat('a', icon.projects, totalProjects, 'Proyectos totales'),
-    stat('b', icon.projects, publishedProjects, 'Proyectos publicados'),
-    stat('c', icon.clients, totalClients, 'Clientes'),
-    stat('d', icon.messages, totalMessages, 'Mensajes recibidos'),
-    stat('a', icon.messages, newMessages, 'Mensajes sin leer'),
-    stat('b', icon.bookings, totalBookings, 'Reservas totales'),
-    stat('c', icon.quotes, acceptedQuotes, 'Presupuestos aceptados'),
-  ].join('');
+  renderAnalyticsStats({ publishedProjects, clients, bookings, quotes, enquiriesRows });
+  renderAnalyticsCharts(quotes, bookings);
+  renderAnalyticsQuotes();
 
   document.getElementById('analytics-ga-note').hidden = false;
 }
+
+function renderAnalyticsStats({ publishedProjects, clients, bookings, quotes, enquiriesRows }) {
+  const grid = document.getElementById('analytics-grid');
+  if (!grid) return;
+
+  const activeBookingsNow = bookings.filter(b => ['confirmed', 'in_progress'].includes(b.status)).length;
+  const acceptedQuotes = quotes.filter(q => q.status === 'accepted');
+  const acceptedTotal = acceptedQuotes.reduce((s, q) => s + (Number(q.amount) || 0), 0);
+  const sentNow = quotes.filter(q => q.status === 'sent').length;
+  const unreadMsgsNow = enquiriesRows.filter(e => e.status === 'new').length;
+
+  const cell = (cls, svg, num, label, delta) => `
+    <div class="og-stat">
+      <span class="og-stat-icon ${cls}">${svg}</span>
+      <span class="og-stat-num">${num}</span>
+      <span class="og-stat-label">${label}</span>
+      ${delta ? `<span class="og-stat-delta ${delta.cls}">${delta.text}</span>` : ''}
+    </div>`;
+
+  grid.innerHTML = [
+    cell('a', icon.projects, publishedProjects ?? 0, 'Proyectos publicados'),
+    cell('b', icon.clients, clients.length, 'Clientes totales', deltaBadge(rowsInMonth(clients, 0).length, rowsInMonth(clients, -1).length)),
+    cell('c', icon.bookings, activeBookingsNow, 'Reservas activas', deltaBadge(rowsInMonth(bookings, 0).length, rowsInMonth(bookings, -1).length)),
+    cell('d', icon.quotes, eur(acceptedTotal), 'Ingresos aceptados', deltaBadge(
+      rowsInMonth(acceptedQuotes, 0).reduce((s, q) => s + (Number(q.amount) || 0), 0),
+      rowsInMonth(acceptedQuotes, -1).reduce((s, q) => s + (Number(q.amount) || 0), 0)
+    )),
+    cell('a', icon.quotes, sentNow, 'Presupuestos pendientes', deltaBadge(
+      rowsInMonth(quotes.filter(q => q.status === 'sent'), 0).length,
+      rowsInMonth(quotes.filter(q => q.status === 'sent'), -1).length
+    )),
+    cell('b', icon.messages, unreadMsgsNow, 'Mensajes sin leer', deltaBadge(rowsInMonth(enquiriesRows, 0).length, rowsInMonth(enquiriesRows, -1).length)),
+  ].join('');
+}
+
+function renderAnalyticsCharts(quotes, bookings) {
+  const quoteBuckets = last6MonthBuckets(quotes);
+  const bookingBuckets = last6MonthBuckets(bookings);
+
+  const barsEl = document.getElementById('analytics-quotes-bars');
+  if (barsEl) {
+    const max = Math.max(1, ...quoteBuckets.map(b => b.count));
+    barsEl.innerHTML = quoteBuckets.map(b => `
+      <div class="analytics-bar">
+        <div class="analytics-bar-fill" style="height:${Math.max(4, Math.round((b.count / max) * 100))}%" title="${b.count}"></div>
+        <span>${b.label}</span>
+      </div>`).join('');
+  }
+
+  const lineEl = document.getElementById('analytics-bookings-line');
+  if (lineEl) {
+    const max = Math.max(1, ...bookingBuckets.map(b => b.count));
+    const w = 280, h = 90, pad = 8;
+    const stepX = (w - pad * 2) / (bookingBuckets.length - 1 || 1);
+    const pts = bookingBuckets.map((b, i) => ({
+      x: pad + stepX * i,
+      y: h - pad - ((b.count / max) * (h - pad * 2)),
+    }));
+    const pointsAttr = pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    lineEl.innerHTML = `
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <polyline points="${pointsAttr}" fill="none" stroke="var(--og-accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        ${pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--og-accent)"/>`).join('')}
+      </svg>
+      <div class="analytics-line-labels">${bookingBuckets.map(b => `<span>${b.label}</span>`).join('')}</div>
+    `;
+  }
+}
+
+function renderAnalyticsQuotes() {
+  const list = document.getElementById('analytics-quotes-list');
+  if (!list) return;
+  let quotes = allAnalyticsQuotesCache;
+  if (currentAnalyticsQuoteFilter !== 'all') quotes = quotes.filter(q => q.status === currentAnalyticsQuoteFilter);
+  quotes = quotes.slice(0, 20);
+
+  if (!quotes.length) { list.innerHTML = '<p class="og-empty">No hay presupuestos con este filtro.</p>'; return; }
+
+  list.innerHTML = '';
+  quotes.forEach(q => {
+    const clientName = q.clients?.name || 'Sin cliente';
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'analytics-quote-row' + (q.id === selectedAnalyticsQuoteId ? ' active' : '');
+    row.innerHTML = `
+      <span class="analytics-quote-row-main">
+        <span class="og-avatar">${escapeHtml(clientName.charAt(0).toUpperCase())}</span>
+        <span class="analytics-quote-row-name">${escapeHtml(clientName)}<small>${new Date(q.created_at).toLocaleDateString()}</small></span>
+      </span>
+      <span class="analytics-quote-row-amount">
+        <b>${q.amount != null ? Number(q.amount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '—'}</b>
+        <span class="status-pill ${q.status}">${statusLabels[q.status] || q.status}</span>
+      </span>
+    `;
+    row.addEventListener('click', () => openAnalyticsQuoteDetail(q.id));
+    list.appendChild(row);
+  });
+}
+
+function openAnalyticsQuoteDetail(id) {
+  const q = allAnalyticsQuotesCache.find(x => x.id === id);
+  if (!q) return;
+  selectedAnalyticsQuoteId = id;
+  document.getElementById('analytics-layout')?.classList.add('detail-open');
+  renderAnalyticsQuotes();
+
+  const detail = document.getElementById('analytics-quote-detail');
+  detail.hidden = false;
+  detail.innerHTML = `
+    <div class="analytics-detail-head">
+      <div>
+        <h3>${q.amount != null ? Number(q.amount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'Sin importe'}</h3>
+        <p>${escapeHtml(q.clients?.name || 'Sin cliente')}</p>
+      </div>
+      <button type="button" class="analytics-detail-close" id="analytics-detail-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="client-detail-section">
+      <b>Estado</b>
+      <span class="status-pill ${q.status}">${statusLabels[q.status] || q.status}</span>
+    </div>
+    <div class="client-detail-section">
+      <b>Proyecto</b>
+      <p class="panel-sub" style="margin:0;">${q.projects?.title ? escapeHtml(q.projects.title) + (q.projects.status ? ' · ' + (statusLabels[q.projects.status] || q.projects.status) : '') : 'Sin proyecto vinculado'}</p>
+    </div>
+    <div class="client-detail-section">
+      <b>Creado</b>
+      <p class="panel-sub" style="margin:0;">${new Date(q.created_at).toLocaleDateString()}</p>
+    </div>
+    ${q.document_url ? `<a class="og-btn og-btn-outline" href="${escapeAttr(q.document_url)}" target="_blank" rel="noopener">Ver documento</a>` : ''}
+    <button type="button" class="og-btn og-btn-dark" id="analytics-go-to-quotes">Abrir en Presupuestos →</button>
+  `;
+  document.getElementById('analytics-detail-close').addEventListener('click', closeAnalyticsQuoteDetail);
+  document.getElementById('analytics-go-to-quotes').addEventListener('click', () => switchTab('quotes'));
+}
+
+function closeAnalyticsQuoteDetail() {
+  selectedAnalyticsQuoteId = null;
+  document.getElementById('analytics-layout')?.classList.remove('detail-open');
+  const detail = document.getElementById('analytics-quote-detail');
+  if (detail) { detail.hidden = true; detail.innerHTML = ''; }
+  renderAnalyticsQuotes();
+}
+
+document.getElementById('analytics-quotes-filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('.og-filter-pill');
+  if (!btn) return;
+  document.querySelectorAll('#analytics-quotes-filters .og-filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentAnalyticsQuoteFilter = btn.dataset.filter;
+  renderAnalyticsQuotes();
+});
 
 // ============================================================
 // Inventario

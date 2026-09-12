@@ -500,10 +500,40 @@
           <div>
             <p class="og-eyebrow">Analíticas</p>
             <h2>Cómo va el estudio</h2>
-            <p class="panel-sub" style="margin-bottom:0;">Métricas reales de tus propios datos — sin cifras inventadas.</p>
+            <p class="panel-sub" style="margin-bottom:0;">Métricas reales de tus propios datos, comparadas con el mes anterior — sin cifras inventadas.</p>
           </div>
         </div>
+
         <div class="og-stat-grid" id="analytics-grid"></div>
+
+        <div class="analytics-charts">
+          <div class="og-card og-card-pad analytics-chart-card">
+            <b>Presupuestos creados por mes</b>
+            <div class="analytics-bars" id="analytics-quotes-bars"></div>
+          </div>
+          <div class="og-card og-card-pad analytics-chart-card">
+            <b>Reservas creadas por mes</b>
+            <div class="analytics-line-wrap" id="analytics-bookings-line"></div>
+          </div>
+        </div>
+
+        <div class="analytics-layout" id="analytics-layout">
+          <div class="og-card analytics-quotes-panel">
+            <div class="analytics-panel-head">
+              <b>Presupuestos recientes</b>
+              <div class="og-filter-row" id="analytics-quotes-filters">
+                <button type="button" class="og-filter-pill active" data-filter="all">Todos</button>
+                <button type="button" class="og-filter-pill" data-filter="draft">Borrador</button>
+                <button type="button" class="og-filter-pill" data-filter="sent">Enviados</button>
+                <button type="button" class="og-filter-pill" data-filter="accepted">Aceptados</button>
+                <button type="button" class="og-filter-pill" data-filter="declined">Rechazados</button>
+              </div>
+            </div>
+            <div id="analytics-quotes-list" class="analytics-quotes-list"></div>
+          </div>
+          <aside class="og-card og-card-pad analytics-detail" id="analytics-quote-detail" hidden></aside>
+        </div>
+
         <div id="analytics-ga-note" class="og-card og-card-pad panel-mt" hidden>
           <b>Visitas web</b>
           <p class="panel-sub" style="margin:6px 0 0;">Conecta Google Analytics (ya soportado en <code>main.js</code> vía <code>GA_MEASUREMENT_ID</code>) para ver tráfico real aquí.</p>

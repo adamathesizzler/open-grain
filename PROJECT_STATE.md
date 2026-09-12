@@ -1,8 +1,24 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-12 (0g. Rediseño visual de la pestaña "Clientes" de Studio, estilo CRM, inspirado en referencias que envió el usuario). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-12 (0h. Rediseño visual de la pestaña "Analíticas" de Studio: tarjetas con variación mensual real, dos gráficas y lista de presupuestos recientes con ficha de detalle, inspirado en una referencia tipo Finnova que envió el usuario). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
 
-## 0g. Pestaña "Clientes" de Studio rediseñada estilo CRM (esta sesión)
+## 0h. Pestaña "Analíticas" de Studio rediseñada estilo dashboard financiero (esta sesión)
+
+Justo después del rediseño de Clientes (0g), el usuario envió una tercera referencia (dashboard "Finnova" de facturas: tarjetas con variación % vs. mes anterior, gráfica de barras, gráfica de líneas, lista de facturas con panel de detalle) con el mensaje "Y analítica así".
+
+**Antes**: `analytics-grid` mostraba 7 números sueltos (proyectos, clientes, mensajes, reservas, presupuestos aceptados) sin ninguna tendencia ni gráfica — solo cifras absolutas.
+
+**Rediseño aplicado** (`studio/index.html`, `studio/studio.css`, `studio/studio.js` — sin tocar Supabase; la pestaña sigue siendo de solo lectura, la edición de presupuestos se sigue haciendo en la pestaña "Presupuestos" ya existente, para no duplicar esa lógica):
+- **6 tarjetas de estadísticas** con variación real mes a mes calculada a partir de `created_at` (nunca inventada): proyectos publicados (sin variación, es un estado no un alta), clientes totales, reservas activas, **ingresos aceptados** (suma real de `quotes.amount` con `status='accepted'` — la cifra de dinero real más parecida a las tarjetas de Finnova), presupuestos pendientes (`status='sent'`) y mensajes sin leer. Cada tarjeta con variación usa `.og-stat-delta` (ya existía en el CSS pero nunca se había usado) con tres estados: subida (verde), bajada (roja, clase `.down` añadida) o "sin cambios"/"nuevo este mes" (gris, clase `.flat` añadida).
+- **Dos gráficas de los últimos 6 meses**, hechas a mano con CSS/SVG (sin librería nueva, coherente con el resto del proyecto): barras con el número de presupuestos creados por mes, y una línea con el número de reservas creadas por mes.
+- **Lista "Presupuestos recientes"** con los mismos filtros por estado que ya se usan en otras pestañas (Todos/Borrador/Enviados/Aceptados/Rechazados) y una **ficha de detalle** al pulsar uno (columna derecha en escritorio, se apila debajo en móvil, mismo patrón que la ficha de Clientes de 0g): importe, estado, proyecto vinculado, fecha, enlace al documento si existe, y un botón "Abrir en Presupuestos →" que lleva a la pestaña de gestión real (`switchTab('quotes')`) en vez de duplicar ahí los botones de cambiar estado/eliminar.
+- Se subió `const statusLabels` (antes declarado dentro de la función de detalle de Clientes) al ámbito del módulo para reutilizarlo también aquí, sin duplicar el diccionario de traducciones de estado.
+
+**Verificado con Playwright** (mock de Supabase con datos de 4 clientes/4 reservas/5 presupuestos/3 mensajes repartidos en varios meses): las 6 estadísticas y sus porcentajes de variación calculan correctamente (comprobado a mano contra los datos de prueba); los filtros de la lista funcionan; abrir/cerrar la ficha de detalle funciona; el botón "Abrir en Presupuestos" cambia de pestaña correctamente; las dos gráficas renderizan sus 6 barras/6 puntos; probado en tema claro y oscuro, y en escritorio (1440px) y móvil (390px) sin errores de consola nuevos.
+
+**No se tocó**: ningún dato ni tabla de Supabase, ni la pestaña "Presupuestos" (sigue siendo donde se cambia el estado o se borra un presupuesto).
+
+## 0g. Pestaña "Clientes" de Studio rediseñada estilo CRM (sesión anterior)
 
 El usuario envió dos capturas de referencia (un dashboard "TaskOrbit CRM" con tarjetas de leads/tareas/videollamada, y un dashboard "Salesforce" de facturas con panel de detalle oscuro) diciendo "El apartado de clientes se podría ver algo así".
 
