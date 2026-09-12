@@ -382,6 +382,7 @@ html[data-theme="night"] body.studio-body{
 .status-pill.new{ background:var(--og-accent-soft); color:var(--og-accent); }
 .status-pill.contacted, .status-pill.confirmed, .status-pill.accepted, .status-pill.delivered{ background:rgba(31,157,85,.14); color:var(--og-good); }
 .status-pill.archived, .status-pill.cancelled, .status-pill.declined{ background:color-mix(in srgb, var(--og-muted) 22%, transparent); color:var(--og-muted); }
+.status-pill.in_progress, .status-pill.sent{ background:var(--og-accent-soft); color:var(--og-accent); }
 
 .checkbox-label input[type="checkbox"]{
   appearance:none; -webkit-appearance:none; margin:0; flex-shrink:0; cursor:pointer;
@@ -394,6 +395,50 @@ html[data-theme="night"] body.studio-body{
 }
 .checkbox-label input[type="checkbox"]:checked{ background:var(--og-accent); }
 .checkbox-label input[type="checkbox"]:checked::after{ transform:translateX(14px); }
+
+/* ---------- Clientes (tarjetas CRM) ---------- */
+.clients-layout{ display:grid; grid-template-columns:1fr; gap:18px; align-items:start; }
+.clients-layout.detail-open{ grid-template-columns:1fr 340px; }
+.clients-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(228px,1fr)); gap:14px; }
+.client-card{
+  display:flex; flex-direction:column; gap:13px; text-align:left; cursor:pointer; padding:18px;
+  background:var(--og-card); border:1px solid var(--og-line); border-radius:20px; font-family:inherit;
+  transition:transform var(--dur-fast,.2s) var(--ease-smooth,ease), box-shadow var(--dur-fast,.2s) var(--ease-smooth,ease), border-color var(--dur-fast,.2s);
+}
+.client-card:hover{ transform:translateY(-2px); box-shadow:var(--og-shadow); }
+.client-card:active{ transform:scale(.98); }
+.client-card.active{ border-color:var(--og-accent); }
+.client-card-head{ display:flex; align-items:center; gap:11px; min-width:0; }
+.client-card-head .og-avatar{ width:40px; height:40px; font-size:0.9rem; flex-shrink:0; }
+.client-card-name{ font-weight:700; font-size:0.95rem; line-height:1.3; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.client-card-name small{ display:block; color:var(--og-muted); font-weight:500; font-size:0.78rem; margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.client-card-tags{ display:flex; gap:6px; flex-wrap:wrap; }
+.client-tag{
+  font-size:0.68rem; font-weight:700; padding:4px 10px; border-radius:999px;
+  background:color-mix(in srgb, var(--og-muted) 16%, transparent); color:var(--og-muted);
+}
+.client-tag.has-bookings{ background:rgba(31,157,85,.14); color:var(--og-good); }
+.client-tag.is-new{ background:var(--og-accent-soft); color:var(--og-accent); }
+
+.client-detail{ display:flex; flex-direction:column; gap:16px; position:sticky; top:14px; }
+.client-detail[hidden]{ display:none; }
+.client-detail-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.client-detail-head h3{ margin:0 0 3px; font-size:1.1rem; letter-spacing:-.01em; }
+.client-detail-head p{ margin:0; color:var(--og-muted); font-size:0.82rem; word-break:break-word; }
+.client-detail-close{ background:none; border:none; color:var(--og-muted); cursor:pointer; font-size:1.2rem; line-height:1; padding:4px; flex-shrink:0; }
+.client-detail-close:hover{ color:var(--og-fg); }
+.client-detail-section b{ display:block; font-size:0.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--og-muted); margin-bottom:8px; }
+.client-detail-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 0; border-top:1px solid var(--og-line); font-size:0.84rem; }
+.client-detail-row:first-of-type{ border-top:none; }
+.client-detail textarea{
+  width:100%; min-height:70px; border-radius:14px; border:1px solid var(--og-line); background:var(--og-bg);
+  color:var(--og-fg); font-family:inherit; font-size:0.85rem; padding:11px 13px; resize:vertical; box-sizing:border-box;
+}
+.client-detail-save-hint{ font-size:0.72rem; color:var(--og-muted); margin:6px 0 0; }
+
+@media (max-width: 860px){
+  .clients-layout.detail-open{ grid-template-columns:1fr; }
+}
 
 /* ---------- Drag-to-reorder ---------- */
 .drag-handle{

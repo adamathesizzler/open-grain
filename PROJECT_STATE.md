@@ -1,8 +1,28 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-12 (0f. Arreglado el bug real: las fotos del portfolio en la web pública no llevaban a ningún sitio al pulsarlas — ahora abren un lightbox). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-12 (0g. Rediseño visual de la pestaña "Clientes" de Studio, estilo CRM, inspirado en referencias que envió el usuario). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
 
-## 0f. Fotos del portfolio sin acción al pulsarlas → lightbox (esta sesión, sin supervisión)
+## 0g. Pestaña "Clientes" de Studio rediseñada estilo CRM (esta sesión)
+
+El usuario envió dos capturas de referencia (un dashboard "TaskOrbit CRM" con tarjetas de leads/tareas/videollamada, y un dashboard "Salesforce" de facturas con panel de detalle oscuro) diciendo "El apartado de clientes se podría ver algo así".
+
+**Antes**: la pestaña Clientes era solo un formulario en línea (nombre/email/teléfono) y una lista plana de filas de texto con un botón "Eliminar" — la única vista más simple de todo Studio, sin estadísticas ni forma de ver el historial de un cliente.
+
+**Rediseño aplicado** (`studio/index.html`, `studio/studio.css`, `studio/studio.js` — sin tocar el esquema de Supabase, usando el campo `notes` de `clients` que ya existía en la base de datos pero no se mostraba en la interfaz):
+- **Fila de estadísticas** (reutilizando `.og-stat-grid`, igual que en Analíticas): clientes totales, clientes con reservas activas, presupuestos enviados, nuevos en los últimos 30 días — todo calculado en el momento a partir de datos reales de `clients`/`projects`/`quotes`, nunca inventado.
+- **Filtros** (`.og-filter-row`, mismo patrón que en Proyectos): Todos / Con reservas activas / Sin reservas / Nuevos (30 días).
+- **Tarjetas en vez de filas** (`.client-card`, en rejilla): avatar con inicial, nombre, email/teléfono, y etiquetas ("X reservas activas" o "Sin reservas", "Nuevo"). Se integran con la búsqueda global (⌘K) igual que el resto de listas de Studio.
+- **Panel de ficha de cliente** al pulsar una tarjeta (columna derecha en escritorio, se apila debajo en móvil <860px, igual que el panel de detalle de la referencia de Salesforce pero con la paleta cálida/oscura propia de OPEN GRAIN): contacto completo, notas editables (se guardan solas al salir del campo, usando la columna `notes` ya existente en `clients`), lista de sus reservas (`projects` por `client_id`, con la misma pastilla de estado `.status-pill` que ya se usaba en Reservas), lista de sus presupuestos (`quotes` por `client_id`, con importe y estado), y botón "Eliminar cliente".
+- El formulario de alta (nombre/email/teléfono/notas) ahora se abre/cierra con un botón "+ Nuevo cliente" en vez de estar siempre visible, siguiendo el mismo patrón que "Nuevo proyecto" en la pestaña Proyectos.
+- Bug encontrado y arreglado durante la propia verificación: `.client-detail{ display:flex }` pisaba la regla del navegador `[hidden]{ display:none }` (una regla de autor con selector de clase gana sobre la hoja de estilos por defecto del navegador aunque tengan la misma especificidad) — dejaba una caja vacía visible antes de seleccionar ningún cliente. Arreglado con `.client-detail[hidden]{ display:none }`.
+
+**Verificado con Playwright** (mock de Supabase con 4 clientes de prueba, reservas y presupuestos variados): las 4 estadísticas calculan bien: los 3 filtros muestran el subconjunto correcto de tarjetas; abrir/cerrar la ficha funciona; editar notas y salir del campo guarda (llamada `update` simulada); añadir cliente nuevo actualiza tarjetas y estadísticas al instante; eliminar cliente pedía confirmación; sin errores de consola nuevos; probado en tema claro y oscuro, y en escritorio (1440px) y móvil (390px) — el panel de ficha se apila correctamente debajo de la rejilla en móvil.
+
+**No se tocó**: ningún dato real de Supabase, ninguna otra pestaña, ni el esquema de la base de datos (solo se empezó a *mostrar y editar* la columna `notes` que ya existía pero no tenía interfaz).
+
+**Pendiente de decisión del usuario**: seguía sin confirmarse si quiere páginas de "caso de estudio" con varias fotos por proyecto en la web pública (ver sección 0f) — eso requeriría una tabla nueva en Supabase, así que no se ha tocado.
+
+## 0f. Fotos del portfolio sin acción al pulsarlas → lightbox (sesión anterior)
 
 Tras la sección 0e (auditoría de Studio), el usuario aclaró que su queja no era sobre Studio sino sobre **la web pública**: "cuando un cliente le dé a lo que sea, se le abra la página pertinente... hay cosas que pulso y no me abre nada". Confirmó que en Studio la navegación (ir a "Clientes" lleva a Clientes, etc.) sí funciona bien.
 

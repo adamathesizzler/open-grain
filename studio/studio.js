@@ -167,7 +167,7 @@ document.getElementById('global-search').addEventListener('input', (e) => {
   const q = e.target.value.trim().toLowerCase();
   const activePanel = document.querySelector('.studio-panel:not([hidden])');
   if (!activePanel) return;
-  activePanel.querySelectorAll('.list-row, .album-card, .category-row').forEach(row => {
+  activePanel.querySelectorAll('.list-row, .album-card, .category-row, .client-card').forEach(row => {
     row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
   });
 });
@@ -1054,39 +1054,187 @@ async function loadEnquiries() {
 }
 
 // ============================================================
-// Clientes
+// Clientes (tarjetas estilo CRM: estadísticas + ficha de detalle)
 // ============================================================
+let allClientsCache = [];
+let currentClientFilter = 'all';
+let selectedClientId = null;
+
+const clientIconNew = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M17.7 6.3l-2.5 2.5M8.8 15.2l-2.5 2.5"/></svg>';
+
+function clientActiveBookings(c) { return (c.projects || []).filter(p => ['confirmed', 'in_progress'].includes(p.status)); }
+function clientIsNew(c) { return (Date.now() - new Date(c.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000; }
+
 async function loadClients() {
-  const { data, error } = await supabaseClient.from('clients').select('*').order('created_at', { ascending: false });
+  const { data, error } = await supabaseClient
+    .from('clients')
+    .select('*, projects(id, title, status, event_date), quotes(id, amount, status, created_at)')
+    .order('created_at', { ascending: false });
   if (error) return console.error(error);
+  allClientsCache = data || [];
+  renderClientStats();
+  renderClients();
+  if (selectedClientId) {
+    const stillExists = allClientsCache.some(c => c.id === selectedClientId);
+    stillExists ? openClientDetail(selectedClientId) : closeClientDetail();
+  }
+}
+
+function renderClientStats() {
+  const grid = document.getElementById('client-stats');
+  if (!grid) return;
+  const total = allClientsCache.length;
+  const withActive = allClientsCache.filter(c => clientActiveBookings(c).length > 0).length;
+  const quotesSent = allClientsCache.reduce((sum, c) => sum + (c.quotes || []).filter(q => q.status !== 'draft').length, 0);
+  const newThisMonth = allClientsCache.filter(clientIsNew).length;
+  const cell = (cls, svg, num, label) => `
+    <div class="og-stat">
+      <span class="og-stat-icon ${cls}">${svg}</span>
+      <span class="og-stat-num">${num}</span>
+      <span class="og-stat-label">${label}</span>
+    </div>`;
+  grid.innerHTML = [
+    cell('a', icon.clients, total, 'Clientes totales'),
+    cell('b', icon.bookings, withActive, 'Con reservas activas'),
+    cell('c', icon.quotes, quotesSent, 'Presupuestos enviados'),
+    cell('d', clientIconNew, newThisMonth, 'Nuevos (30 días)'),
+  ].join('');
+}
+
+function renderClients() {
   const list = document.getElementById('client-list');
+  if (!list) return;
+  let clients = allClientsCache;
+  if (currentClientFilter === 'active') clients = clients.filter(c => clientActiveBookings(c).length > 0);
+  else if (currentClientFilter === 'none') clients = clients.filter(c => clientActiveBookings(c).length === 0);
+  else if (currentClientFilter === 'new') clients = clients.filter(clientIsNew);
+
   list.innerHTML = '';
-  if (!data.length) { list.innerHTML = '<p class="panel-sub">Todavía no hay clientes.</p>'; return; }
-  data.forEach(c => {
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    row.innerHTML = `
-      <span>${escapeHtml(c.name)} <small>${escapeHtml([c.email, c.phone].filter(Boolean).join(' · ') || '—')}</small></span>
-      <button class="link-btn" data-action="delete">Eliminar</button>
+  if (!clients.length) { list.innerHTML = '<p class="og-empty">No hay clientes que coincidan con este filtro.</p>'; return; }
+
+  clients.forEach(c => {
+    const activeCount = clientActiveBookings(c).length;
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'client-card' + (c.id === selectedClientId ? ' active' : '');
+    const tags = [];
+    if (activeCount > 0) tags.push(`<span class="client-tag has-bookings">${activeCount} reserva${activeCount === 1 ? '' : 's'} activa${activeCount === 1 ? '' : 's'}</span>`);
+    else tags.push('<span class="client-tag">Sin reservas</span>');
+    if (clientIsNew(c)) tags.push('<span class="client-tag is-new">Nuevo</span>');
+    card.innerHTML = `
+      <div class="client-card-head">
+        <span class="og-avatar">${escapeHtml((c.name || '?').charAt(0).toUpperCase())}</span>
+        <span class="client-card-name">${escapeHtml(c.name)}<small>${escapeHtml([c.email, c.phone].filter(Boolean).join(' · ') || 'Sin contacto')}</small></span>
+      </div>
+      <div class="client-card-tags">${tags.join('')}</div>
     `;
-    row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      if (!confirm(`¿Eliminar "${c.name}"?`)) return;
-      await supabaseClient.from('clients').delete().eq('id', c.id);
-      loadClients();
-    });
-    list.appendChild(row);
+    card.addEventListener('click', () => openClientDetail(c.id));
+    list.appendChild(card);
   });
 }
+
+function openClientDetail(id) {
+  const c = allClientsCache.find(x => x.id === id);
+  if (!c) return;
+  selectedClientId = id;
+  document.getElementById('clients-layout').classList.add('detail-open');
+  document.querySelectorAll('.client-card').forEach(el => el.classList.remove('active'));
+  renderClients();
+
+  const bookings = (c.projects || []).slice().sort((a, b) => (b.event_date || '').localeCompare(a.event_date || ''));
+  const quotes = (c.quotes || []).slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const statusLabels = { enquiry: 'Consulta', confirmed: 'Confirmada', in_progress: 'En curso', delivered: 'Entregada', cancelled: 'Cancelada', draft: 'Borrador', sent: 'Enviado', accepted: 'Aceptado', declined: 'Rechazado' };
+
+  const detail = document.getElementById('client-detail');
+  detail.hidden = false;
+  detail.innerHTML = `
+    <div class="client-detail-head">
+      <div>
+        <h3>${escapeHtml(c.name)}</h3>
+        <p>${escapeHtml([c.email, c.phone].filter(Boolean).join(' · ') || 'Sin datos de contacto')}</p>
+      </div>
+      <button type="button" class="client-detail-close" id="client-detail-close" aria-label="Cerrar ficha">&times;</button>
+    </div>
+
+    <div class="client-detail-section">
+      <b>Notas</b>
+      <textarea id="client-detail-notes" placeholder="Añade notas sobre este cliente…">${escapeHtml(c.notes || '')}</textarea>
+      <p class="client-detail-save-hint" id="client-notes-hint">Se guarda automáticamente al salir del campo.</p>
+    </div>
+
+    <div class="client-detail-section">
+      <b>Reservas (${bookings.length})</b>
+      ${bookings.length ? bookings.map(b => `
+        <div class="client-detail-row">
+          <span>${escapeHtml(b.title)}${b.event_date ? ' · ' + new Date(b.event_date + 'T00:00:00').toLocaleDateString() : ''}</span>
+          <span class="status-pill ${b.status}">${statusLabels[b.status] || b.status}</span>
+        </div>`).join('') : '<p class="panel-sub" style="margin:0;">Sin reservas todavía.</p>'}
+    </div>
+
+    <div class="client-detail-section">
+      <b>Presupuestos (${quotes.length})</b>
+      ${quotes.length ? quotes.map(q => `
+        <div class="client-detail-row">
+          <span>${q.amount != null ? Number(q.amount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'Sin importe'}</span>
+          <span class="status-pill ${q.status}">${statusLabels[q.status] || q.status}</span>
+        </div>`).join('') : '<p class="panel-sub" style="margin:0;">Sin presupuestos todavía.</p>'}
+    </div>
+
+    <button type="button" class="og-btn og-btn-outline" id="client-detail-delete" style="color:var(--og-bad); border-color:var(--og-bad);">Eliminar cliente</button>
+  `;
+
+  document.getElementById('client-detail-close').addEventListener('click', closeClientDetail);
+  document.getElementById('client-detail-notes').addEventListener('blur', async (e) => {
+    const hint = document.getElementById('client-notes-hint');
+    hint.textContent = 'Guardando…';
+    const { error } = await supabaseClient.from('clients').update({ notes: e.target.value.trim() || null }).eq('id', c.id);
+    hint.textContent = error ? 'No se pudo guardar.' : 'Guardado.';
+    if (!error) { c.notes = e.target.value.trim() || null; }
+    setTimeout(() => { if (hint) hint.textContent = 'Se guarda automáticamente al salir del campo.'; }, 2000);
+  });
+  document.getElementById('client-detail-delete').addEventListener('click', async () => {
+    if (!confirm(`¿Eliminar "${c.name}"? Esta acción no se puede deshacer.`)) return;
+    await supabaseClient.from('clients').delete().eq('id', c.id);
+    closeClientDetail();
+    loadClients();
+  });
+}
+
+function closeClientDetail() {
+  selectedClientId = null;
+  const layout = document.getElementById('clients-layout');
+  const detail = document.getElementById('client-detail');
+  if (layout) layout.classList.remove('detail-open');
+  if (detail) { detail.hidden = true; detail.innerHTML = ''; }
+  document.querySelectorAll('.client-card').forEach(el => el.classList.remove('active'));
+}
+
+document.getElementById('client-filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('.og-filter-pill');
+  if (!btn) return;
+  document.querySelectorAll('#client-filters .og-filter-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentClientFilter = btn.dataset.filter;
+  renderClients();
+});
+
+document.getElementById('client-add-toggle').addEventListener('click', () => {
+  const form = document.getElementById('client-form');
+  form.hidden = !form.hidden;
+  if (!form.hidden) document.getElementById('client-name').focus();
+});
 
 document.getElementById('client-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('client-name').value.trim();
   const email = document.getElementById('client-email').value.trim() || null;
   const phone = document.getElementById('client-phone').value.trim() || null;
+  const notes = document.getElementById('client-notes').value.trim() || null;
   if (!name) return;
-  const { error } = await supabaseClient.from('clients').insert({ name, email, phone });
+  const { error } = await supabaseClient.from('clients').insert({ name, email, phone, notes });
   if (error) return alert(error.message);
   e.target.reset();
+  e.target.hidden = true;
   loadClients();
 });
 

@@ -439,15 +439,34 @@
           <div>
             <p class="og-eyebrow">Clientes</p>
             <h2>Todo el mundo con quien has trabajado</h2>
+            <p class="panel-sub" style="margin-bottom:0;">Pulsa una tarjeta para ver su ficha: contacto, reservas y presupuestos.</p>
+          </div>
+          <div class="og-panel-actions">
+            <button type="button" class="og-btn og-btn-dark" id="client-add-toggle">+ Nuevo cliente</button>
           </div>
         </div>
-        <form id="client-form" class="inline-form">
+
+        <div class="og-stat-grid" id="client-stats"></div>
+
+        <form id="client-form" class="inline-form" hidden>
           <input type="text" id="client-name" placeholder="Nombre" required>
           <input type="email" id="client-email" placeholder="Email">
           <input type="tel" id="client-phone" placeholder="Teléfono">
-          <button type="submit" class="og-btn og-btn-dark">Añadir</button>
+          <input type="text" id="client-notes" placeholder="Notas (opcional)">
+          <button type="submit" class="og-btn og-btn-solid">Añadir</button>
         </form>
-        <div id="client-list" class="project-list"></div>
+
+        <div class="og-filter-row" id="client-filters">
+          <button type="button" class="og-filter-pill active" data-filter="all">Todos</button>
+          <button type="button" class="og-filter-pill" data-filter="active">Con reservas activas</button>
+          <button type="button" class="og-filter-pill" data-filter="none">Sin reservas</button>
+          <button type="button" class="og-filter-pill" data-filter="new">Nuevos (30 días)</button>
+        </div>
+
+        <div class="clients-layout" id="clients-layout">
+          <div id="client-list" class="clients-grid"></div>
+          <aside class="og-card og-card-pad client-detail" id="client-detail" hidden></aside>
+        </div>
       </section>
 
       <!-- ============ RESERVAS ============ -->
