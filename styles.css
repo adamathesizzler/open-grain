@@ -115,6 +115,14 @@ img { max-width: 100%; display: block; }
 .hero{ position:relative; min-height:100vh; padding:112px 4vw 50px; display:flex; align-items:center; justify-content:center; }
 .hero-meta{ position:absolute; left:4vw; top:115px; display:flex; flex-direction:column; gap:6px;
   font:11px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace; text-transform:uppercase; color:var(--muted); letter-spacing:.08em; }
+/* Typewriter cursor while #hero-eyebrow is being typed out (see main.js
+   renderHero) — a small nod to "loading" text animations: the eyebrow
+   types itself out once on load/relanguage instead of just appearing. */
+#hero-eyebrow.is-typing::after{
+  content:''; display:inline-block; width:6px; height:1em; margin-left:2px; vertical-align:-2px;
+  background:var(--accent); animation:og-caret-blink .85s step-end infinite;
+}
+@keyframes og-caret-blink{ 0%,100%{ opacity:1; } 50%{ opacity:0; } }
 .floating-stage{ position:absolute; inset:90px 0 0; pointer-events:none; --mx:0; --my:0; contain:layout paint; transform:translateZ(0); }
 .float-card{ position:absolute; margin:0; transition:transform .5s var(--ease-smooth), opacity .6s var(--ease-smooth); will-change:transform;
   filter:drop-shadow(0 10px 18px rgba(0,0,0,.14)) drop-shadow(0 28px 54px rgba(0,0,0,.16)); backface-visibility:hidden; contain:layout paint style;
@@ -159,6 +167,44 @@ img { max-width: 100%; display: block; }
    rule — motion never gates whether content is visible or readable. */
 [data-reveal]{ opacity:0; transform:translateY(28px); transition:opacity var(--dur-slow) var(--ease-smooth), transform var(--dur-slow) var(--ease-smooth); }
 [data-reveal].is-visible{ opacity:1; transform:translateY(0); }
+
+/* ---------- Staggered grid entrance ----------
+   Once a grid's parent section is revealed, its items cascade in one after
+   another (a per-item transition-delay) instead of popping in as one flat
+   block — the "entrance animation" idea from the reference video, kept to
+   plain CSS delays rather than a scroll-jack. Items keep their own
+   opacity/transform state gated on the ancestor's .is-visible class, so an
+   item appended after the section is already visible just renders in its
+   final state (no broken half-hidden content). */
+.work-section .project-tile,
+.services .service-cards article,
+.social-section .social-post{
+  opacity:0; transform:translateY(20px);
+  transition:opacity var(--dur-slow) var(--ease-smooth), transform var(--dur-slow) var(--ease-smooth), box-shadow var(--dur-base) var(--ease-smooth);
+}
+.work-section.is-visible .project-tile,
+.services.is-visible .service-cards article,
+.social-section.is-visible .social-post{
+  opacity:1; transform:translateY(0);
+}
+.work-section.is-visible .project-tile:nth-child(1),
+.services.is-visible .service-cards article:nth-child(1),
+.social-section.is-visible .social-post:nth-child(1){ transition-delay:.02s; }
+.work-section.is-visible .project-tile:nth-child(2),
+.services.is-visible .service-cards article:nth-child(2),
+.social-section.is-visible .social-post:nth-child(2){ transition-delay:.07s; }
+.work-section.is-visible .project-tile:nth-child(3),
+.services.is-visible .service-cards article:nth-child(3),
+.social-section.is-visible .social-post:nth-child(3){ transition-delay:.12s; }
+.work-section.is-visible .project-tile:nth-child(4),
+.services.is-visible .service-cards article:nth-child(4),
+.social-section.is-visible .social-post:nth-child(4){ transition-delay:.17s; }
+.work-section.is-visible .project-tile:nth-child(5),
+.services.is-visible .service-cards article:nth-child(5),
+.social-section.is-visible .social-post:nth-child(5){ transition-delay:.22s; }
+.work-section.is-visible .project-tile:nth-child(n+6),
+.services.is-visible .service-cards article:nth-child(n+6),
+.social-section.is-visible .social-post:nth-child(n+6){ transition-delay:.27s; }
 
 /* ---------- Sections ---------- */
 .section-pad{ padding:clamp(80px,14vw,140px) 5vw; }
@@ -209,7 +255,19 @@ img { max-width: 100%; display: block; }
 .service-cards h3{ font-size:19px; margin:0; letter-spacing:-.01em; }
 .service-cards p{ font:10px ui-monospace,SFMono-Regular,Menlo,monospace; text-transform:uppercase; margin:7px 0 0; }
 
-.studio-section{ display:grid; grid-template-columns:1fr 2fr; gap:7vw; background:var(--fg); color:var(--bg); }
+.studio-section{ position:relative; overflow:hidden; display:grid; grid-template-columns:1fr 2fr; gap:7vw; background:var(--fg); color:var(--bg); --sy:0; }
+/* Scroll-linked aura: two soft glows drift and brighten as the section
+   passes through the viewport (assets/motion.js drives --sy from 0→1),
+   so the "camera" seems to move through the background instead of a
+   static flat fill sitting behind the copy. */
+.studio-section::before{
+  content:''; position:absolute; inset:-15% -10%; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse 55% 60% at calc(18% + var(--sy) * 14%) calc(6% + var(--sy) * 55%), color-mix(in srgb, var(--accent), transparent 74%), transparent 65%),
+    radial-gradient(ellipse 42% 50% at calc(88% - var(--sy) * 18%) calc(88% - var(--sy) * 40%), color-mix(in srgb, var(--accent), transparent 82%), transparent 70%);
+  opacity:calc(.45 + var(--sy) * .5);
+}
+.studio-section>*{ position:relative; z-index:1; }
 .studio-section .section-label{ color:var(--bg); }
 .studio-section h2{ font-size:clamp(44px,7vw,100px); line-height:.98; letter-spacing:-.03em; max-width:900px; margin:0; }
 .studio-section>div>p{ font-size:20px; line-height:1.6; max-width:610px; color:color-mix(in srgb,var(--bg),transparent 25%); }
@@ -248,7 +306,8 @@ img { max-width: 100%; display: block; }
 .contact-details{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:60px; text-align:center; }
 .contact-details div{ padding:26px; border-radius:20px; box-shadow:var(--elev-1); transition:background var(--dur-fast) var(--ease-smooth), box-shadow var(--dur-fast) var(--ease-smooth), transform var(--dur-fast) var(--ease-smooth); }
 .contact-details div:hover{ background:color-mix(in srgb,var(--bg),white 25%); box-shadow:var(--elev-2); transform:translateY(-2px); }
-.contact-details svg{ width:22px; }
+.contact-details svg{ width:22px; transition:transform var(--dur-fast) var(--ease-smooth); }
+.contact-details div:hover svg{ transform:scale(1.12); }
 .contact-details h3{ font-size:16px; margin:13px 0 5px; }
 .contact-details p{ font-size:13px; color:var(--muted); margin:0; }
 .contact-details a{ text-decoration:none; }
@@ -312,6 +371,9 @@ img { max-width: 100%; display: block; }
   .float-card, .project-tile img, .glass-cta, .hero-copy h1, .hero-copy h2, .scroll-cue, .mobile-menu a{ animation:none !important; opacity:1 !important; transform:none !important; transition:opacity var(--dur-fast) linear !important; }
   [data-reveal]{ transform:none !important; transition:opacity var(--dur-fast) linear !important; }
   .lightbox, .lightbox-figure{ transition:opacity var(--dur-fast) linear !important; transform:none !important; }
+  .project-tile, .service-cards article, .social-post{ opacity:1 !important; transform:none !important; transition:opacity var(--dur-fast) linear !important; transition-delay:0s !important; }
+  .studio-section{ --sy:0.5 !important; }
+  #hero-eyebrow.is-typing::after{ display:none !important; }
 }
 
 @media(max-width:1050px){

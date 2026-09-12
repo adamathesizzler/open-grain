@@ -84,7 +84,7 @@ function renderNav() {
 
 function renderHero() {
   const t = copy[lang];
-  document.getElementById('hero-eyebrow').textContent = t.eyebrow;
+  typewriter(document.getElementById('hero-eyebrow'), t.eyebrow);
   document.getElementById('hero-headline').textContent = t.headline;
   const cta = document.getElementById('hero-cta');
   cta.innerHTML = `${t.explore}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg>`;
@@ -97,6 +97,30 @@ function renderHero() {
 }
 
 function attrEscape(str) { return String(str ?? '').replace(/"/g, '&quot;'); }
+
+// ---------- Typewriter (hero eyebrow) ----------
+// A small "loading animation" nod: the eyebrow line types itself out once
+// instead of just appearing. Skips entirely under reduced-motion, and
+// skips re-typing if the text hasn't actually changed (renderAll() can
+// run again after a language toggle or a Supabase content override).
+function typewriter(el, text, speed) {
+  if (!el) return;
+  if (el.dataset.typedText === text) return;
+  el.dataset.typedText = text;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = text; return; }
+  clearInterval(el._typeTimer);
+  el.textContent = '';
+  el.classList.add('is-typing');
+  let i = 0;
+  el._typeTimer = setInterval(() => {
+    i++;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) {
+      clearInterval(el._typeTimer);
+      el.classList.remove('is-typing');
+    }
+  }, speed || 26);
+}
 
 function renderWork() {
   const t = copy[lang];

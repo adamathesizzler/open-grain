@@ -47,4 +47,78 @@
     }, { passive: true });
     updateNav();
   }
+
+  // Studio-section aura: as the dark "Studio" section travels through the
+  // viewport, drive --sy from 0 -> 1 so the two glows in its ::before
+  // (see styles.css) drift and brighten — the "camera moves through the
+  // background" effect asked for, instead of a static flat fill. Reduced
+  // motion gets a fixed mid-value aura (still visible, never animating).
+  var studioSection = document.querySelector('.studio-section');
+  if (studioSection) {
+    if (reduced) {
+      studioSection.style.setProperty('--sy', '0.5');
+    } else {
+      var syTicking = false;
+      var updateStudioAura = function () {
+        var rect = studioSection.getBoundingClientRect();
+        var vh = window.innerHeight || document.documentElement.clientHeight;
+        // progress 0 when the section's top just enters the bottom of the
+        // viewport, 1 when its bottom reaches the top — covers the whole
+        // time it's on screen, not just a narrow band.
+        var total = rect.height + vh;
+        var traveled = vh - rect.top;
+        var progress = total > 0 ? traveled / total : 0;
+        progress = Math.max(0, Math.min(1, progress));
+        studioSection.style.setProperty('--sy', progress.toFixed(4));
+        syTicking = false;
+      };
+      window.addEventListener('scroll', function () {
+        if (!syTicking) { requestAnimationFrame(updateStudioAura); syTicking = true; }
+      }, { passive: true });
+      window.addEventListener('resize', function () {
+        if (!syTicking) { requestAnimationFrame(updateStudioAura); syTicking = true; }
+      }, { passive: true });
+      updateStudioAura();
+    }
+  }
+
+  // Magnetic buttons: primary CTAs nudge toward the pointer while hovered
+  // (a subtle nod to the reference video's mouse-driven interactions), and
+  // still snap back on leave. Combines the magnetic translate with the
+  // existing CSS :active press-scale by writing both into one inline
+  // transform, so the two never fight each other. Skipped entirely on
+  // touch/coarse pointers (no hover to drive it) and under reduced motion.
+  function initMagnetic(el, strength) {
+    if (!el || reduced) return;
+    if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    strength = strength || 0.28;
+    var pressed = false;
+    var raf = null;
+    var applyTransform = function (tx, ty) {
+      var scale = pressed ? 0.96 : 1;
+      el.style.transform = 'translate(' + tx.toFixed(1) + 'px, ' + ty.toFixed(1) + 'px) scale(' + scale + ')';
+    };
+    el.addEventListener('mousemove', function (e) {
+      var rect = el.getBoundingClientRect();
+      var tx = (e.clientX - (rect.left + rect.width / 2)) * strength;
+      var ty = (e.clientY - (rect.top + rect.height / 2)) * strength;
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(function () { applyTransform(tx, ty); });
+    });
+    el.addEventListener('mouseleave', function () {
+      pressed = false;
+      if (raf) cancelAnimationFrame(raf);
+      el.style.transform = '';
+    });
+    el.addEventListener('mousedown', function () {
+      pressed = true;
+    });
+    window.addEventListener('mouseup', function () {
+      if (pressed) { pressed = false; }
+    });
+  }
+
+  document.querySelectorAll('.glass-cta, .submit-btn').forEach(function (el) {
+    initMagnetic(el);
+  });
 })();

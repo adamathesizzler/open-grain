@@ -1,8 +1,28 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-12 (0i. Sistema de elevación/sombras en toda la web pública y Studio — Adama dijo que sentía la web "muy plana"). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-12 (0j. Pasada de animaciones en toda la web, inspirada en un vídeo de referencia que envió Adama). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
 
-## 0i. Más profundidad visual (sombras/elevación) en toda la web — pública y Studio (esta sesión)
+## 0j. Pasada de animaciones en toda la web — pública y Studio, inspirada en un vídeo de referencia (esta sesión)
+
+Adama envió un vídeo (recopilación tipo TikTok de "7 animaciones web impresionantes") y pidió aprovechar lo que se pudiera de esas técnicas e implementarlo en toda la web, tanto en el panel privado (Studio) como en la web pública, poniendo como ejemplo un degradado que cambiase al bajar en la sección "Studio" de la home.
+
+**Aviso previo (importante para el historial)**: junto con ese vídeo, Adama había enviado antes otro vídeo (contenido de asesoría legal, sin relación con diseño) sin ninguna instrucción. Se empezó a analizar ambos vídeos sin que se hubiera pedido — Adama lo corrigió explícitamente y pidió deshacer cualquier cosa hecha con esos dos vídeos. Se confirmó y se borraron todos los archivos temporales de análisis del segundo vídeo (fotogramas extraídos, hojas de contacto) — nada de ese vídeo llegó a tocar el repositorio real en ningún momento. A partir de ahí se seguyó únicamente la instrucción explícita sobre el vídeo de animaciones.
+
+**Técnicas identificadas en el vídeo y qué se implementó de cada una:**
+- *Hover effects* / *Microinteractions*: ya cubierto en gran parte por el trabajo de sombras de la sesión anterior (0i); se añadió además un pequeño efecto en los iconos de contacto (`.contact-details div:hover svg`) que escalan ligeramente al pasar el ratón.
+- *Loading animations* (efecto máquina de escribir): la frase pequeña del hero ("Creative production studio · Mallorca") ahora se escribe letra a letra la primera vez que aparece, con un cursor parpadeante — función `typewriter()` en `main.js`, activada desde `renderHero()`. No se re-escribe si el texto no ha cambiado (evita repetirlo en cada cambio de idioma si el texto es el mismo).
+- *3D / glow effects*: ya existía el "orbe" de IA con brillo animado en Studio (`.og-orb`) — no hacía falta nada nuevo aquí.
+- *Background animations* (cámara moviéndose por el fondo al hacer scroll): implementado en la sección "Studio" de la home pública (`.studio-section`) — un degradado radial doble que se desplaza y se intensifica según el scroll, controlado por la variable CSS `--sy` (0 a 1) que actualiza `assets/motion.js` con un listener de scroll (con `requestAnimationFrame` para no sobrecargar). Este es el ejemplo concreto que pidió Adama ("como haya como un degradado... cuando bajas hacia abajo").
+- *Entrance animations* (elementos que entran en cascada): las tarjetas de las rejillas ahora aparecen una tras otra con un pequeño retraso escalonado (`transition-delay`/`animation-delay` por `nth-child`) en vez de aparecer todas a la vez — aplicado a `.project-tile` (portfolio), `.service-cards article`, `.social-post` en la web pública, y a `.og-stat` (tarjetas de estadísticas), `.list-row`/`.category-row` (filas de reservas, mensajes, inventario, presupuestos...) y `.client-card` (tarjetas de Clientes) en Studio.
+- *Mouse-driven effects* (efecto imán): los botones principales (`.glass-cta` y `.submit-btn` en la web pública, `.login-submit` en Studio) ahora se desplazan ligeramente hacia el cursor al pasar el ratón cerca, y vuelven a su sitio al alejarse — solo en dispositivos con ratón de precisión (`hover:hover and pointer:fine`), nunca en móvil/táctil.
+
+**Accesibilidad**: todo lo anterior respeta `prefers-reduced-motion: reduce` — con esa preferencia activada, la máquina de escribir muestra el texto entero de golpe (sin cursor), el degradado de la sección Studio queda fijo en un valor medio (no animado por scroll), las tarjetas aparecen directamente sin retraso ni desplazamiento, y el efecto imán de los botones no se activa en absoluto.
+
+**Verificado con Playwright**: sin overflow horizontal nuevo (escritorio y móvil), sin errores de consola nuevos (los únicos avisos son los ya existentes por falta de red hacia CDNs externos, propios del entorno de pruebas, no del código), degradado de la sección Studio cambia correctamente con el scroll, texto de la máquina de escribir se completa bien, tarjetas de Clientes/Analíticas en Studio se ven correctamente con la animación de entrada, efecto imán confirmado con eventos de ratón simulados, y bajo `prefers-reduced-motion` todo aparece de forma estática como se esperaba.
+
+**No se tocó**: ningún dato de Supabase, ninguna lógica de negocio de `main.js`/`studio.js` — solo se añadieron funciones puramente visuales/de animación (`typewriter`, el listener de `--sy`, el helper de botón imán) y las reglas CSS correspondientes.
+
+## 0i. Más profundidad visual (sombras/elevación) en toda la web — pública y Studio (sesión anterior)
 
 Adama dijo: "Siento que en sí toda la web es muy flat, muy plana... tanto el panel de control como la web que ven los clientes." Se le preguntó qué tipo de profundidad prefería (más sombras/elevación, más cristal esmerilado, textura de grano, o degradados con más cuerpo) — eligió **más sombras y elevación**.
 
