@@ -33,6 +33,11 @@ const projects = [
   { id: '08', title: 'Platform',    type: 'Street',       image: 'assets/portfolio/platform.jpg',           ratio: 'tall',   w: 1200, h: 1800 },
   { id: '09', title: 'Sobremesa',   type: 'Documentary',  image: 'assets/portfolio/documentary.jpg',        ratio: 'tall',   w: 1457, h: 1800 },
   { id: '10', title: 'Temple Gate', type: 'Street',       image: 'assets/portfolio/temple-gate.jpg',        ratio: 'tall',   w: 1200, h: 1800 },
+  { id: '11', title: 'Offering',    type: 'Documentary',  image: 'assets/portfolio/incense.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
+  { id: '12', title: 'Five Storeys',type: 'Architecture', image: 'assets/portfolio/pagoda.jpg',             ratio: 'tall',   w: 1200, h: 1800 },
+  { id: '13', title: 'Gate Tower',  type: 'Architecture', image: 'assets/portfolio/gate-tower.jpg',         ratio: 'tall',   w: 1012, h: 1800 },
+  { id: '14', title: 'Roadside',    type: 'Street',       image: 'assets/portfolio/roadside.jpg',           ratio: 'tall',   w: 1012, h: 1800 },
+  { id: '15', title: 'Namba Yasaka',type: 'Architecture', image: 'assets/portfolio/namba-yasaka.jpg',       ratio: 'square', w: 1800, h: 1800 },
 ];
 const serviceImages = [
   'assets/portfolio/portrait-studio.jpg', 'assets/portfolio/motorsport.jpg', 'assets/portfolio/editorial-interior.jpg',
@@ -119,13 +124,15 @@ function renderNav() {
 // stacked sections. Tiles reuse the shared .project-tile class + the
 // data-lightbox-* attributes, so the existing delegated lightbox picks
 // them up with no extra wiring.
-function homeTileMarkup(p, i) {
+function homeTileMarkup(p, i, isRepeat) {
   // aspect-ratio reserves each photo's space before it loads, so the columns
-  // don't jump around as images arrive.
+  // don't jump around as images arrive. Repeats are hidden from screen
+  // readers: the same photographs announced over and over would be noise.
   const ar = tileRatio(p);
+  const repeatAttrs = isRepeat ? ' aria-hidden="true" tabindex="-1"' : ' tabindex="0"';
   return `
-    <figure class="project-tile" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
-      <img src="${p.image}" alt="${attrEscape(p.title)} — ${attrEscape(p.type)}" loading="${i < 6 ? 'eager' : 'lazy'}">
+    <figure class="project-tile"${repeatAttrs} data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
+      <img src="${p.image}" alt="${isRepeat ? '' : attrEscape(p.title) + ' — ' + attrEscape(p.type)}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}">
       <figcaption><span>${attrEscape(p.title)}</span><span>${attrEscape(p.type)}</span></figcaption>
     </figure>`;
 }
@@ -148,24 +155,69 @@ function homeColumnCount() {
   return 5;
 }
 
+// ---------- Endless home grid ----------
+// The home never reaches a bottom: as you approach the end, the portfolio is
+// appended again, so scrolling just keeps revealing work. Each pass reuses
+// the same image URLs, so the repeats come straight from the browser cache.
+// A hard ceiling keeps the DOM from growing without bound on a very long
+// scroll; by then the visitor has seen the portfolio many times over.
+const HOME_MAX_TILES = 240;
+
+let homeCols = [];      // [{ el, height }] — height is in units of tile width
+let homeTileCount = 0;
+
+function appendHomeBatch() {
+  if (!homeCols.length || homeTileCount >= HOME_MAX_TILES) return;
+  projects.forEach((p, k) => {
+    if (homeTileCount >= HOME_MAX_TILES) return;
+    const target = homeCols.reduce((a, b) => (b.height < a.height ? b : a));
+    // Animation index resets each pass so later batches still fade in quickly.
+    target.el.insertAdjacentHTML('beforeend', homeTileMarkup(p, k, homeTileCount >= projects.length));
+    target.height += tileRatio(p);
+    homeTileCount += 1;
+  });
+}
+
 function renderHomeGrid() {
   const grid = $('home-grid');
   if (!grid) return;
 
+  const count = homeColumnCount();
+  grid.innerHTML = Array.from({ length: count }, () => '<div class="home-col"></div>').join('');
+  grid.dataset.cols = String(count);
+
   // Greedy balance: each photo joins whichever column is currently shortest,
   // measured in height-per-unit-width. CSS `columns` fills them in order
   // instead, which leaves the last column visibly short.
-  const count = homeColumnCount();
-  const cols = Array.from({ length: count }, () => ({ height: 0, html: [] }));
-  projects.forEach((p, i) => {
-    const target = cols.reduce((a, b) => (b.height < a.height ? b : a));
-    target.html.push(homeTileMarkup(p, i));
-    target.height += tileRatio(p);
-  });
-
-  grid.innerHTML = cols.map(c => `<div class="home-col">${c.html.join('')}</div>`).join('');
-  grid.dataset.cols = String(count);
+  homeCols = Array.from(grid.querySelectorAll('.home-col')).map(el => ({ el, height: 0 }));
+  homeTileCount = 0;
+  appendHomeBatch();
+  fillHomeViewport();
 }
+
+// Make sure the first screens are covered even on a tall display, otherwise
+// there would be nothing below the fold to trigger the next batch.
+function fillHomeViewport() {
+  let guard = 0;
+  while (
+    document.documentElement.scrollHeight < window.innerHeight * 2.5 &&
+    homeTileCount < HOME_MAX_TILES &&
+    guard++ < 20
+  ) appendHomeBatch();
+}
+
+function maybeExtendHome() {
+  if (!homeCols.length) return;
+  const remaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+  if (remaining < window.innerHeight * 1.5) appendHomeBatch();
+}
+
+let homeScrollTicking = false;
+window.addEventListener('scroll', () => {
+  if (!homeCols.length || homeScrollTicking) return;
+  homeScrollTicking = true;
+  requestAnimationFrame(() => { maybeExtendHome(); homeScrollTicking = false; });
+}, { passive: true });
 
 // Re-lay out only when the column count actually changes, so an ordinary
 // resize doesn't rebuild the grid (and restart its entrance animation).
@@ -174,7 +226,9 @@ window.addEventListener('resize', () => {
   clearTimeout(homeResizeTimer);
   homeResizeTimer = setTimeout(() => {
     const grid = $('home-grid');
-    if (grid && grid.dataset.cols !== String(homeColumnCount())) renderHomeGrid();
+    if (!grid) return;
+    if (grid.dataset.cols !== String(homeColumnCount())) renderHomeGrid();
+    else fillHomeViewport();
   }, 150);
 }, { passive: true });
 
