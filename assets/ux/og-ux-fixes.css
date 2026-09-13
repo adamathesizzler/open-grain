@@ -1,0 +1,185 @@
+/* OPEN GRAIN — notch arriba → izquierda, y correcciones de contacto.
+   Cargar DESPUÉS de styles.css. Sólo toca la navegación pública y el
+   formulario de contacto: el resto de la hoja global queda intacta.
+
+   El notch es un único objeto que cambia de forma y de sitio:
+   arriba (cápsula encajada en el borde superior) → bolita en viaje →
+   izquierda (cápsula encajada en el borde izquierdo, a media altura).
+   La posición la mueve JS con transform; la forma la cambia este CSS
+   según data-edge, para que las dos cosas se puedan animar a la vez. */
+
+/* ---------- Raíz: un lienzo de 48px que JS traslada ---------- */
+#dock.og-notch{
+  position:fixed; top:0; left:0; right:auto; bottom:auto; z-index:65;
+  width:48px; height:48px; margin:0; padding:0; display:block;
+  border:0; border-radius:0; background:transparent; box-shadow:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+  transition:none; overflow:visible;
+  color:var(--fg,#171714); font-family:inherit;
+}
+
+/* Sonda invisible: JS lee de aquí los safe-area insets reales. */
+.og-notch-safe-area{
+  position:absolute; visibility:hidden; pointer-events:none;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-left:env(safe-area-inset-left,0px);
+}
+
+/* ---------- Material: cristal de marca, no una losa negra ---------- */
+.og-notch-toggle,
+.og-notch-panel{
+  color:var(--fg,#171714);
+  background:color-mix(in srgb,var(--bg,#f2eee6) 88%,transparent);
+  border:1px solid var(--line,rgba(23,23,20,.13));
+  box-shadow:var(--elev-2,0 10px 26px rgba(0,0,0,.12)),
+             inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent);
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .og-notch-toggle,
+  .og-notch-panel{
+    background:color-mix(in srgb,var(--bg,#f2eee6) 68%,transparent);
+    backdrop-filter:blur(20px) saturate(1.5);
+    -webkit-backdrop-filter:blur(20px) saturate(1.5);
+  }
+}
+
+/* ---------- El botón: la forma del notch ---------- */
+.og-notch-toggle{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:128px; height:48px; padding:0 14px;
+  display:flex; gap:9px; justify-content:center; align-items:center;
+  cursor:pointer;
+  /* Arriba: esquinas redondeadas sólo abajo → encajado en el borde. */
+  border-radius:0 0 26px 26px;
+  border-top-color:transparent;
+  font:600 13px/1.2 var(--sans,system-ui,-apple-system,sans-serif);
+  letter-spacing:.02em;
+  transition:width .34s cubic-bezier(.22,1,.36,1),
+             height .34s cubic-bezier(.22,1,.36,1),
+             border-radius .34s cubic-bezier(.22,1,.36,1);
+  touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+}
+.og-notch-grip{font-size:15px; letter-spacing:2px; line-height:1; opacity:.75;}
+.og-notch-label{white-space:nowrap;}
+
+/* Izquierda: encajado en el borde izquierdo, vertical. */
+.og-notch[data-edge="left"] .og-notch-toggle{
+  width:48px; height:112px; flex-direction:column; padding:12px 4px; gap:10px;
+  border-radius:0 26px 26px 0;
+  border-top-color:var(--line,rgba(23,23,20,.13));
+  border-left-color:transparent;
+}
+.og-notch[data-edge="left"] .og-notch-label{writing-mode:vertical-rl;}
+
+/* En viaje: se contrae en bolita. Es el mismo nodo, sólo cambia de forma. */
+.og-notch.og-is-travelling .og-notch-toggle{
+  width:46px; height:46px; border-radius:50%;
+  border-color:var(--line,rgba(23,23,20,.13));
+  box-shadow:var(--elev-3,0 20px 50px rgba(0,0,0,.2));
+}
+.og-notch.og-is-travelling .og-notch-label{display:none;}
+.og-notch.og-is-travelling .og-notch-grip{opacity:1;}
+
+.og-notch-toggle:hover{background:color-mix(in srgb,var(--bg,#f2eee6) 80%,transparent);}
+
+/* ---------- El panel: se despliega hacia dentro de la pantalla ---------- */
+.og-notch-panel{
+  position:absolute; left:50%; top:calc(100% + 10px); transform:translateX(-50%);
+  width:min(700px,calc(100vw - 24px));
+  max-height:calc(100dvh - 100px);
+  overflow-y:auto; overscroll-behavior:contain;
+  padding:8px; border-radius:24px;
+  display:flex; flex-wrap:wrap; gap:4px;
+}
+/* Desde la izquierda se abre a su derecha, hacia el interior. */
+.og-notch[data-edge="left"] .og-notch-panel{
+  left:calc(100% + 10px); top:50%; transform:translateY(-50%);
+  width:min(290px,calc(100vw - 82px));
+  max-height:calc(100dvh - 32px);
+  flex-direction:column; flex-wrap:nowrap;
+}
+
+.og-notch-item{
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  min-height:48px; min-width:48px; flex:1 0 auto; margin:0; padding:12px 14px;
+  border:0; border-radius:15px; background:transparent;
+  color:var(--fg,#171714);
+  font:500 14px/1.3 var(--sans,system-ui,-apple-system,sans-serif);
+  cursor:pointer; text-decoration:none;
+  touch-action:manipulation; overflow-wrap:anywhere;
+  transition:background .18s ease;
+}
+.og-notch[data-edge="left"] .og-notch-item{justify-content:flex-start; flex-shrink:0;}
+.og-notch-item:hover,
+.og-notch-item[aria-current="page"]{
+  background:color-mix(in srgb,var(--fg,#171714) 10%,transparent);
+}
+.og-notch-item[aria-current="page"]{font-weight:700;}
+/* "Contacto" es la acción principal: se ve como tal. */
+.og-notch-item.og-notch-contact{
+  background:var(--accent,#1557ff); color:#fff; font-weight:700;
+}
+.og-notch-item.og-notch-contact:hover{
+  background:color-mix(in srgb,var(--accent,#1557ff) 86%,#000);
+}
+.og-notch-item:focus-visible,
+.og-notch-toggle:focus-visible{
+  outline:3px solid var(--accent,#1557ff); outline-offset:3px;
+}
+
+/* Los estados ocultos de ESTOS componentes, y sólo de estos. */
+.og-notch-panel[hidden],
+#contact-form[hidden],
+#form-success[hidden],
+.og-form-summary[hidden],
+.og-field-error[hidden]{display:none !important;}
+
+/* ---------- Formulario: errores y estados accesibles ---------- */
+.og-form-summary{
+  grid-column:1/-1; margin:0; padding:14px;
+  border:1px solid currentColor; border-radius:12px; line-height:1.5;
+  font-size:14px; color:#a12016;
+}
+.dark-mode .og-form-summary{color:#ffb4a9;}
+.og-field-error{font-size:13px; line-height:1.45; color:#a12016;}
+.dark-mode .og-field-error{color:#ffb4a9;}
+#contact-form [aria-invalid="true"]{border:2px solid #a12016;}
+.dark-mode #contact-form [aria-invalid="true"]{border-color:#ffb4a9;}
+/* 16px evita el zoom automático de iOS al enfocar un campo. */
+#contact-form input,
+#contact-form select,
+#contact-form textarea{font-size:16px;}
+#contact-form [type="submit"]{min-height:48px;}
+#contact-form [type="submit"]:disabled{cursor:progress; opacity:.7;}
+#contact-form .consent-label{min-height:48px; align-items:center; flex-wrap:wrap;}
+#contact-form .consent-label .og-field-error{flex-basis:100%;}
+/* Marca de campo opcional, para no obligar a adivinar. */
+.og-optional{color:var(--muted,#6d6b64); font-weight:400;}
+
+/* Aviso cuando el servicio elegido desaparece del catálogo. */
+.og-service-notice{font-size:13px; line-height:1.45; color:var(--accent,#1557ff);}
+.og-service-notice[hidden]{display:none !important;}
+
+/* Llamar y WhatsApp son dos acciones separadas. */
+.contact-details p a{text-decoration:underline; text-underline-offset:3px;}
+.contact-details p a + a{
+  margin-left:12px; padding-left:12px;
+  border-left:1px solid var(--line,rgba(23,23,20,.13));
+}
+.contact-details a:focus-visible{outline:3px solid var(--accent,#1557ff); outline-offset:3px;}
+
+@media(max-width:800px){
+  /* El formulario va ANTES que la fotografía decorativa en móvil. */
+  .contact-card>form{grid-row:1;}
+  .contact-card>.form-success{grid-row:1;}
+  .contact-card>aside{grid-row:auto; min-height:0; max-height:240px;}
+  .contact-card>aside img{height:240px;}
+  .og-notch-panel{width:min(350px,calc(100vw - 24px));}
+  .og-notch-item{flex-basis:calc(50% - 4px);}
+  .og-notch[data-edge="left"] .og-notch-item{flex-basis:auto;}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .og-notch-toggle,
+  .og-notch-item{transition:none;}
+}

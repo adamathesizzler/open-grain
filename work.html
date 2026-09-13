@@ -7,17 +7,26 @@
 <meta name="description" content="Selected photography, film and social content projects by OPEN GRAIN, a creative production studio in Mallorca.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="assets/ux/og-ux-fixes.css">
 </head>
 <body>
 
 <main class="site-shell inner-page" id="site-shell">
 
   <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
-  <nav class="dock" id="dock" aria-label="Primary"></nav>
+  <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
+       se sigue pudiendo navegar. El componente los sustituye al montarse. -->
+  <nav class="dock" id="dock" aria-label="Primary">
+    <a href="index.html">Home</a>
+    <a href="work.html">Work</a>
+    <a href="services.html">Services</a>
+    <a href="about.html">Studio</a>
+    <a href="contact.html">Contact</a>
+  </nav>
 
   <section id="work" class="work-section section-pad" data-reveal>
     <div class="portfolio-heading">
-      <div class="section-label"><span>01</span><p id="work-label"></p></div>
+      <div class="section-label"><span>01</span><h1 id="work-label"></h1></div>
       <p id="work-lede"></p>
     </div>
     <div class="masonry-grid" id="masonry-grid"></div>
@@ -43,9 +52,17 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <img id="lightbox-img" src="" alt="">
+    <button type="button" class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Anterior">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 5-7 7 7 7"/></svg>
+    </button>
+    <button type="button" class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Siguiente">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 5 7 7-7 7"/></svg>
+    </button>
     <figcaption>
       <span id="lightbox-eyebrow"></span>
       <h3 id="lightbox-title"></h3>
+      <p class="lightbox-meta"><span id="lightbox-count" aria-live="polite"></span></p>
+      <a class="og-btn og-btn-primary lightbox-cta" id="lightbox-cta" href="contact.html"></a>
     </figcaption>
   </figure>
 </div>
@@ -53,6 +70,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/config.js"></script>
 <script src="assets/default-copy.js"></script>
+<script src="assets/ux/og-notch.js"></script>
+<script src="assets/ux/og-contact.js"></script>
 <script src="main.js"></script>
 <script src="assets/motion.js"></script>
 </body>

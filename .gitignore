@@ -3,3 +3,7 @@ node_modules/
 .vercel
 *.log
 .git_stale_locks*/
+
+# Carpeta temporal: Claude no puede borrar archivos en tu Mac, así que mueve
+# aquí lo que hay que eliminar. Puedes borrarla a mano sin problema.
+_a_borrar/

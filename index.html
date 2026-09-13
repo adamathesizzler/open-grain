@@ -7,22 +7,46 @@
 <meta name="description" content="OPEN GRAIN is an independent creative production studio based in Mallorca. Photography, film, UGC, events and social content.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="assets/ux/og-ux-fixes.css">
 </head>
 <body class="is-home">
 
 <main class="site-shell" id="site-shell">
 
   <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
-  <nav class="dock" id="dock" aria-label="Primary"></nav>
+  <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
+       se sigue pudiendo navegar. El componente los sustituye al montarse. -->
+  <nav class="dock" id="dock" aria-label="Primary">
+    <a href="index.html">Home</a>
+    <a href="work.html">Work</a>
+    <a href="services.html">Services</a>
+    <a href="about.html">Studio</a>
+    <a href="contact.html">Contact</a>
+  </nav>
 
-  <!-- The home page is the work itself: a full-bleed grid of projects and
-       nothing else — no headline, no intro copy, no stacked sections.
-       Everything else lives on its own page, reached from the nav above. -->
+  <!-- La fotografía sigue mandando, pero una portada que sólo es un mosaico no
+       dice a qué se dedica el estudio ni cómo contratarlo. Esta banda es
+       estrecha a propósito: un titular, una línea y dos acciones. El texto va
+       en el HTML para que siga estando si falla el JavaScript. -->
+  <section class="home-intro" aria-labelledby="home-intro-heading">
+    <p class="home-intro-kicker" id="home-intro-kicker">Creative production studio · Mallorca</p>
+    <h1 class="home-intro-heading" id="home-intro-heading">Photography, film and content for brands in Mallorca.</h1>
+    <p class="home-intro-body" id="home-intro-body">An independent studio: stills, moving image, UGC and event coverage, from the first idea to the delivered files.</p>
+    <p class="home-intro-actions">
+      <a class="og-btn og-btn-primary" id="home-cta-quote" href="contact.html">Request a quote</a>
+      <a class="og-btn" id="home-cta-services" href="services.html">See services</a>
+    </p>
+  </section>
+
   <section class="home-grid" id="home-grid" aria-label="Selected work"></section>
 
-  <!-- The grid never ends, so there is no bottom for a normal footer to sit
-       on. This is a thin fixed bar instead: it keeps the legally required
-       links reachable from the home without interrupting the scroll. -->
+  <!-- El mosaico es una selección finita: antes repetía las mismas fotos hasta
+       diez veces y el pie quedaba inalcanzable. Ahora termina y ofrece a dónde
+       ir después. -->
+  <section class="home-more">
+    <a class="og-btn" id="home-cta-all" href="work.html">See all projects</a>
+  </section>
+
   <footer class="home-footer">
     <nav aria-label="Social">
       <a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">Instagram</a>
@@ -40,9 +64,17 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <img id="lightbox-img" src="" alt="">
+    <button type="button" class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Anterior">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 5-7 7 7 7"/></svg>
+    </button>
+    <button type="button" class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Siguiente">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 5 7 7-7 7"/></svg>
+    </button>
     <figcaption>
       <span id="lightbox-eyebrow"></span>
       <h3 id="lightbox-title"></h3>
+      <p class="lightbox-meta"><span id="lightbox-count" aria-live="polite"></span></p>
+      <a class="og-btn og-btn-primary lightbox-cta" id="lightbox-cta" href="contact.html"></a>
     </figcaption>
   </figure>
 </div>
@@ -50,9 +82,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/config.js"></script>
 <script src="assets/default-copy.js"></script>
+<script src="assets/ux/og-notch.js"></script>
+<script src="assets/ux/og-contact.js"></script>
 <script src="main.js"></script>
-<script src="dynamic-island-nav.js"></script>
 <script src="assets/motion.js"></script>
 </body>
-</html>
 </html>

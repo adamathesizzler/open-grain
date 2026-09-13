@@ -7,17 +7,26 @@
 <meta name="description" content="Plan a project with OPEN GRAIN — creative production studio in Mallorca. Photography, film and social content.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="assets/ux/og-ux-fixes.css">
 </head>
 <body>
 
 <main class="site-shell inner-page" id="site-shell">
 
   <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
-  <nav class="dock" id="dock" aria-label="Primary"></nav>
+  <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
+       se sigue pudiendo navegar. El componente los sustituye al montarse. -->
+  <nav class="dock" id="dock" aria-label="Primary">
+    <a href="index.html">Home</a>
+    <a href="work.html">Work</a>
+    <a href="services.html">Services</a>
+    <a href="about.html">Studio</a>
+    <a href="contact.html">Contact</a>
+  </nav>
 
   <section id="contact" class="contact section-pad" data-reveal>
     <div class="contact-head">
-      <div><span>PLAN A PROJECT</span><h2 id="contact-heading"></h2></div>
+      <div><span>PLAN A PROJECT</span><h1 id="contact-heading"></h1></div>
       <p id="contact-lede"></p>
     </div>
     <div class="contact-card">
@@ -25,7 +34,8 @@
         <label id="label-name">Name<input type="text" id="name" name="name" required></label>
         <label>Email<input type="email" id="email" name="email" required placeholder="you@example.com"></label>
         <label id="label-phone">Phone<input type="tel" id="phone" name="phone" placeholder="+34"></label>
-        <label id="label-service">Service<select id="service" name="service"></select></label>
+        <label id="label-service">Service<select id="service" name="service"></select>
+          <span class="og-service-notice" id="service-notice" role="status" hidden></span></label>
         <label id="label-date">Preferred date<input type="date" id="date" name="date"></label>
         <label id="label-budget">Approx. budget<select id="budget" name="budget"></select></label>
         <label class="full" id="label-message">Tell us about your idea<textarea id="message" name="message"></textarea></label>
@@ -44,11 +54,17 @@
     <div class="contact-details">
       <div>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        <h3>Call &amp; WhatsApp</h3><p><a href="https://wa.me/34677247113" target="_blank" rel="noopener">+34 677 24 71 13</a></p>
+        <!-- Llamar y WhatsApp son dos acciones distintas: un mismo enlace
+             obligaba a abrir WhatsApp aunque sólo se quisiera telefonear. -->
+        <h3>Call &amp; WhatsApp</h3>
+        <p>
+          <a href="tel:+34677247113">+34 677 24 71 13</a>
+          <a href="https://wa.me/34677247113" target="_blank" rel="noopener">WhatsApp</a>
+        </p>
       </div>
       <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v8M8 12h8"/></svg>
-        <h3>Instagram</h3><p>@opengrain.studio</p>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        <h3>Instagram</h3><p><a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">@opengrain.studio</a></p>
       </div>
       <div>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
@@ -77,9 +93,17 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
     <img id="lightbox-img" src="" alt="">
+    <button type="button" class="lightbox-nav lightbox-prev" id="lightbox-prev" aria-label="Anterior">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 5-7 7 7 7"/></svg>
+    </button>
+    <button type="button" class="lightbox-nav lightbox-next" id="lightbox-next" aria-label="Siguiente">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 5 7 7-7 7"/></svg>
+    </button>
     <figcaption>
       <span id="lightbox-eyebrow"></span>
       <h3 id="lightbox-title"></h3>
+      <p class="lightbox-meta"><span id="lightbox-count" aria-live="polite"></span></p>
+      <a class="og-btn og-btn-primary lightbox-cta" id="lightbox-cta" href="contact.html"></a>
     </figcaption>
   </figure>
 </div>
@@ -87,6 +111,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/config.js"></script>
 <script src="assets/default-copy.js"></script>
+<script src="assets/ux/og-notch.js"></script>
+<script src="assets/ux/og-contact.js"></script>
 <script src="main.js"></script>
 <script src="assets/motion.js"></script>
 </body>
