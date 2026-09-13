@@ -6,56 +6,25 @@
 // specific pieces (auth, D1, R2, Worker API routes).
 // ============================================================
 
-// ---------- Multi-page note ----------
-// Since the site became multi-page (index = full-bleed work grid, plus
-// work/services/about/contact pages), this same file is loaded by every
-// page. Every render function below therefore bails out early when its
-// container is missing, so each page only runs the parts it actually has.
-const $ = (id) => document.getElementById(id);
+document.getElementById('year').textContent = new Date().getFullYear();
 
-if ($('year')) $('year').textContent = new Date().getFullYear();
-
-// ---------- Portfolio ----------
-// Adama's own photographs. Titles and categories are placeholders he can
-// rename from Studio → Portfolio; the images themselves are his real work,
-// so nothing on the page is stock any more. Published projects added in
-// Studio replace this list entirely (see applyRealProjects below).
-// w/h are the real pixel dimensions of each file: the home grid uses them to
-// reserve each photo's space before it loads and to balance the columns.
+// ---------- Provisional content (identical to the real site) ----------
+// "El contenido, los clientes y los proyectos visibles son provisionales
+// hasta que Adama entregue material real" — CLAUDE_START_HERE.md, §2/§5.
 const projects = [
-  { id: '01', title: 'Formula E',   type: 'Motorsport',   image: 'assets/portfolio/motorsport.jpg',         ratio: 'wide',   w: 1800, h: 1350 },
-  { id: '02', title: 'Tōdai-ji',    type: 'Architecture', image: 'assets/portfolio/todaiji.jpg',            ratio: 'tall',   w: 1200, h: 1800 },
-  { id: '03', title: 'Daylight',    type: 'Portrait',     image: 'assets/portfolio/portrait-studio.jpg',    ratio: 'tall',   w: 1200, h: 1800 },
-  { id: '04', title: 'Nara',        type: 'Wildlife',     image: 'assets/portfolio/nara-deer.jpg',          ratio: 'square', w: 1800, h: 1800 },
-  { id: '05', title: 'Blue Room',   type: 'Editorial',    image: 'assets/portfolio/editorial-interior.jpg', ratio: 'wide',   w: 1800, h: 1200 },
-  { id: '06', title: 'Nightfall',   type: 'Portrait',     image: 'assets/portfolio/night-portrait.jpg',     ratio: 'tall',   w: 1012, h: 1800 },
-  { id: '07', title: 'Low Key',     type: 'Portrait',     image: 'assets/portfolio/portrait-low-key.jpg',   ratio: 'tall',   w: 1200, h: 1800 },
-  { id: '08', title: 'Platform',    type: 'Street',       image: 'assets/portfolio/platform.jpg',           ratio: 'tall',   w: 1200, h: 1800 },
-  { id: '09', title: 'Sobremesa',   type: 'Documentary',  image: 'assets/portfolio/documentary.jpg',        ratio: 'tall',   w: 1457, h: 1800 },
-  { id: '10', title: 'Temple Gate', type: 'Street',       image: 'assets/portfolio/temple-gate.jpg',        ratio: 'tall',   w: 1200, h: 1800 },
-  { id: '11', title: 'Offering',    type: 'Documentary',  image: 'assets/portfolio/incense.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
-  { id: '12', title: 'Five Storeys',type: 'Architecture', image: 'assets/portfolio/pagoda.jpg',             ratio: 'tall',   w: 1200, h: 1800 },
-  { id: '13', title: 'Gate Tower',  type: 'Architecture', image: 'assets/portfolio/gate-tower.jpg',         ratio: 'tall',   w: 1012, h: 1800 },
-  { id: '14', title: 'Roadside',    type: 'Street',       image: 'assets/portfolio/roadside.jpg',           ratio: 'tall',   w: 1012, h: 1800 },
-  { id: '15', title: 'Namba Yasaka',type: 'Architecture', image: 'assets/portfolio/namba-yasaka.jpg',       ratio: 'square', w: 1800, h: 1800 },
-  { id: '16', title: 'Ginza',       type: 'Motorsport',   image: 'assets/portfolio/ginza-nissan.jpg',       ratio: 'wide',   w: 1800, h: 1350 },
-  { id: '17', title: 'Tokyo Tower', type: 'Architecture', image: 'assets/portfolio/tokyo-tower.jpg',        ratio: 'tall',   w: 1012, h: 1800 },
-  { id: '18', title: 'Halo',        type: 'Motorsport',   image: 'assets/portfolio/halo-detail.jpg',        ratio: 'wide',   w: 1800, h: 1350 },
-  { id: '19', title: 'Last Train',  type: 'Street',       image: 'assets/portfolio/last-train.jpg',         ratio: 'tall',   w: 1012, h: 1800 },
-  { id: '20', title: 'Shibuya',     type: 'Street',       image: 'assets/portfolio/shibuya.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
-  { id: '21', title: 'Cheers',      type: 'Nightlife',    image: 'assets/portfolio/nightlife-cheers.jpg',   ratio: 'wide',   w: 1800, h: 1350 },
-  { id: '22', title: 'The Crew',    type: 'Nightlife',    image: 'assets/portfolio/nightlife-crew.jpg',     ratio: 'wide',   w: 1800, h: 1350 },
-  { id: '23', title: 'Crossing',    type: 'Motorsport',   image: 'assets/portfolio/nissan-crossing.jpg',    ratio: 'wide',   w: 1800, h: 1350 },
-  { id: '24', title: 'Itaewon',     type: 'Street',       image: 'assets/portfolio/itaewon.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
+  { id: '01', title: 'Son Brut',       type: 'Gastronomy',  image: 'assets/portfolio/gastronomy.jpg',  ratio: 'tall' },
+  { id: '02', title: 'Luz de Sal',     type: 'Portrait',    image: 'assets/portfolio/portrait.jpg',    ratio: 'wide' },
+  { id: '03', title: 'Nocturna',       type: 'Events',      image: 'assets/portfolio/event.jpg',       ratio: 'tall' },
+  { id: '04', title: 'Costa Sol',      type: 'Hospitality', image: 'assets/portfolio/hospitality.jpg', ratio: 'square' },
+  { id: '05', title: 'Palma Stories',  type: 'Portrait',    image: 'assets/portfolio/portrait.jpg',    ratio: 'tall crop-two' },
+  { id: '06', title: 'After Light',    type: 'Events',      image: 'assets/portfolio/event.jpg',       ratio: 'wide crop-two' },
+  { id: '07', title: 'Table No. 8',    type: 'Gastronomy',  image: 'assets/portfolio/gastronomy.jpg',  ratio: 'square crop-two' },
+  { id: '08', title: 'Mediterranean',  type: 'Hospitality', image: 'assets/portfolio/hospitality.jpg', ratio: 'tall crop-two' },
 ];
-// One image per service, in the same order as copy[].serviceList
-// (Photography, Film & Reels, UGC, Events, Social Content).
+const heroProjects = projects.slice(0, 3);
 const serviceImages = [
-  'assets/portfolio/portrait-studio.jpg',
-  'assets/portfolio/halo-detail.jpg',
-  'assets/portfolio/nightlife-cheers.jpg',
-  'assets/portfolio/nightlife-crew.jpg',
-  'assets/portfolio/shibuya.jpg',
+  'assets/portfolio/portrait.jpg', 'assets/portfolio/gastronomy.jpg', 'assets/portfolio/event.jpg',
+  'assets/portfolio/hospitality.jpg', 'assets/portfolio/portrait.jpg',
 ];
 
 // Editable marketing copy (headline, about text, etc.) lives in
@@ -93,182 +62,67 @@ const copy = {
 
 let lang = 'en';
 let dark = (() => { const h = new Date().getHours(); return h < 7 || h >= 20; })();
+let menuOpen = false;
 
-const shell = $('site-shell');
+const shell = document.getElementById('site-shell');
+const heroGrid = document.getElementById('hero-grid');
 
 function applyTheme() {
-  if (shell) shell.classList.toggle('dark-mode', dark);
+  shell.classList.toggle('dark-mode', dark);
+  document.getElementById('icon-sun').hidden = dark;
+  document.getElementById('icon-moon').hidden = !dark;
 }
 
-// Dock icons. Line icons on a 24 grid, same stroke weight throughout.
-const ICONS = {
-  home:    '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/>',
-  work:    '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 15 5-4 4 3 3-2 6 4"/><circle cx="8.5" cy="8.5" r="1.4"/>',
-  palette: '<path d="M12 3a9 9 0 1 0 0 18 2 2 0 0 0 1.6-3.2 2 2 0 0 1 1.6-3.2H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/>',
-  studio:  '<path d="M22 18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-2.6h6L17 7h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/>',
-  mail:    '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.6 6.5 8.4 6 8.4-6"/>',
-  globe:   '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/>',
-  sun:     '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  moon:    '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
-};
-
-const svg = (d) => `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-
-const NAV_PAGES = [
-  ['index.html', 'home', 'home'],
-  ['work.html', 'work', 'work'],
-  ['services.html', 'services', 'palette'],
-  ['about.html', 'studio', 'studio'],
-  ['contact.html', 'contact', 'mail'],
-];
-
-function currentPage() {
-  const file = window.location.pathname.split('/').pop();
-  return file === '' ? 'index.html' : file;
-}
-
-// A compact floating dock of icons instead of a wide top bar: the old bar
-// took up most of the screen on a phone and pushed the nav links into a
-// hamburger. Labels appear on hover, and every button keeps its aria-label.
 function renderNav() {
-  const dock = $('dock');
-  if (!dock) return;
   const t = copy[lang];
-  const here = currentPage();
-
-  const links = NAV_PAGES.map(([href, key, icon]) => {
-    const label = key === 'home' ? (lang === 'es' ? 'Inicio' : 'Home') : t[key];
-    const active = href === here ? ' aria-current="page"' : '';
-    return `<a class="dock-btn" href="${href}"${active} aria-label="${attrEscape(label)}" data-tip="${attrEscape(label)}">${svg(ICONS[icon])}</a>`;
-  }).join('');
-
-  dock.innerHTML = `${links}
-    <span class="dock-sep" aria-hidden="true"></span>
-    <button class="dock-btn" type="button" data-action="lang" aria-label="${lang === 'es' ? 'Cambiar idioma' : 'Change language'}" data-tip="${lang.toUpperCase()}">${svg(ICONS.globe)}</button>
-    <button class="dock-btn" type="button" data-action="theme" aria-label="${lang === 'es' ? 'Cambiar tema' : 'Change theme'}" data-tip="${lang === 'es' ? 'Tema' : 'Theme'}">${svg(dark ? ICONS.moon : ICONS.sun)}</button>`;
+  const items = [['#work', t.work], ['#services', t.services], ['#studio', t.studio], ['#contact', t.contact]];
+  document.getElementById('nav-links').innerHTML = items.map(([href, label]) => `<a href="${href}">${label}</a>`).join('');
+  const mobileMenu = document.getElementById('mobile-menu');
+  mobileMenu.innerHTML = items.map(([href, label]) => `<a href="${href}">${label}</a>`).join('');
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setMenu(false)));
 }
 
-// ---------- Home: the full-bleed work grid ----------
-// The home page is nothing but this grid — no headline, no intro copy, no
-// stacked sections. Tiles reuse the shared .project-tile class + the
-// data-lightbox-* attributes, so the existing delegated lightbox picks
-// them up with no extra wiring.
-function homeTileMarkup(p, i, isRepeat) {
-  // aspect-ratio reserves each photo's space before it loads, so the columns
-  // don't jump around as images arrive. Repeats are hidden from screen
-  // readers: the same photographs announced over and over would be noise.
-  const ar = tileRatio(p);
-  const repeatAttrs = isRepeat ? ' aria-hidden="true" tabindex="-1"' : ' tabindex="0"';
-  return `
-    <figure class="project-tile"${repeatAttrs} data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
-      <img src="${p.image}" alt="${isRepeat ? '' : attrEscape(p.title) + ' — ' + attrEscape(p.type)}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}">
-      <figcaption><span>${attrEscape(p.title)}</span><span>${attrEscape(p.type)}</span></figcaption>
-    </figure>`;
+function renderHero() {
+  // Full-bleed photo grid: no headline/copy to translate here anymore,
+  // just the portfolio imagery itself, wired into the existing lightbox
+  // via the shared .project-tile class + data-lightbox-* attributes.
+  heroGrid.innerHTML = heroProjects.map((p) => `
+    <figure class="project-tile" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
+      <img src="${p.image}" alt="${attrEscape(p.title)} — ${attrEscape(p.type)}">
+    </figure>`).join('');
 }
-
-// Height ÷ width. Real dimensions when we have them; otherwise inferred from
-// the layout class, which is all Studio-published projects carry.
-function tileRatio(p) {
-  if (p.w && p.h) return p.h / p.w;
-  const r = p.ratio || '';
-  if (r.includes('wide')) return 0.7;
-  if (r.includes('square')) return 1;
-  return 1.45;
-}
-
-function homeColumnCount() {
-  const w = window.innerWidth;
-  if (w <= 560) return 2;
-  if (w <= 900) return 3;
-  if (w <= 1400) return 4;
-  return 5;
-}
-
-// ---------- Endless home grid ----------
-// The home never reaches a bottom: as you approach the end, the portfolio is
-// appended again, so scrolling just keeps revealing work. Each pass reuses
-// the same image URLs, so the repeats come straight from the browser cache.
-// A hard ceiling keeps the DOM from growing without bound on a very long
-// scroll; by then the visitor has seen the portfolio many times over.
-const HOME_MAX_TILES = 240;
-
-let homeCols = [];      // [{ el, height }] — height is in units of tile width
-let homeTileCount = 0;
-
-function appendHomeBatch() {
-  if (!homeCols.length || homeTileCount >= HOME_MAX_TILES) return;
-  projects.forEach((p, k) => {
-    if (homeTileCount >= HOME_MAX_TILES) return;
-    const target = homeCols.reduce((a, b) => (b.height < a.height ? b : a));
-    // Animation index resets each pass so later batches still fade in quickly.
-    target.el.insertAdjacentHTML('beforeend', homeTileMarkup(p, k, homeTileCount >= projects.length));
-    target.height += tileRatio(p);
-    homeTileCount += 1;
-  });
-}
-
-function renderHomeGrid() {
-  const grid = $('home-grid');
-  if (!grid) return;
-
-  const count = homeColumnCount();
-  grid.innerHTML = Array.from({ length: count }, () => '<div class="home-col"></div>').join('');
-  grid.dataset.cols = String(count);
-
-  // Greedy balance: each photo joins whichever column is currently shortest,
-  // measured in height-per-unit-width. CSS `columns` fills them in order
-  // instead, which leaves the last column visibly short.
-  homeCols = Array.from(grid.querySelectorAll('.home-col')).map(el => ({ el, height: 0 }));
-  homeTileCount = 0;
-  appendHomeBatch();
-  fillHomeViewport();
-}
-
-// Make sure the first screens are covered even on a tall display, otherwise
-// there would be nothing below the fold to trigger the next batch.
-function fillHomeViewport() {
-  let guard = 0;
-  while (
-    document.documentElement.scrollHeight < window.innerHeight * 2.5 &&
-    homeTileCount < HOME_MAX_TILES &&
-    guard++ < 20
-  ) appendHomeBatch();
-}
-
-function maybeExtendHome() {
-  if (!homeCols.length) return;
-  const remaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
-  if (remaining < window.innerHeight * 1.5) appendHomeBatch();
-}
-
-let homeScrollTicking = false;
-window.addEventListener('scroll', () => {
-  if (!homeCols.length || homeScrollTicking) return;
-  homeScrollTicking = true;
-  requestAnimationFrame(() => { maybeExtendHome(); homeScrollTicking = false; });
-}, { passive: true });
-
-// Re-lay out only when the column count actually changes, so an ordinary
-// resize doesn't rebuild the grid (and restart its entrance animation).
-let homeResizeTimer = 0;
-window.addEventListener('resize', () => {
-  clearTimeout(homeResizeTimer);
-  homeResizeTimer = setTimeout(() => {
-    const grid = $('home-grid');
-    if (!grid) return;
-    if (grid.dataset.cols !== String(homeColumnCount())) renderHomeGrid();
-    else fillHomeViewport();
-  }, 150);
-}, { passive: true });
 
 function attrEscape(str) { return String(str ?? '').replace(/"/g, '&quot;'); }
 
+// ---------- Typewriter (hero eyebrow) ----------
+// A small "loading animation" nod: the eyebrow line types itself out once
+// instead of just appearing. Skips entirely under reduced-motion, and
+// skips re-typing if the text hasn't actually changed (renderAll() can
+// run again after a language toggle or a Supabase content override).
+function typewriter(el, text, speed) {
+  if (!el) return;
+  if (el.dataset.typedText === text) return;
+  el.dataset.typedText = text;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = text; return; }
+  clearInterval(el._typeTimer);
+  el.textContent = '';
+  el.classList.add('is-typing');
+  let i = 0;
+  el._typeTimer = setInterval(() => {
+    i++;
+    el.textContent = text.slice(0, i);
+    if (i >= text.length) {
+      clearInterval(el._typeTimer);
+      el.classList.remove('is-typing');
+    }
+  }, speed || 26);
+}
+
 function renderWork() {
-  const grid = $('masonry-grid');
-  if (!grid) return;
   const t = copy[lang];
-  if ($('work-label')) $('work-label').textContent = t.selected;
-  if ($('work-lede')) $('work-lede').textContent = t.workBlurb;
+  document.getElementById('work-label').textContent = t.selected;
+  document.getElementById('work-lede').textContent = t.workBlurb;
+  const grid = document.getElementById('masonry-grid');
   grid.innerHTML = projects.map(p => `
     <article class="project-tile ${p.ratio}" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
       <img src="${p.image}" alt="${p.title} — ${p.type}">
@@ -278,231 +132,69 @@ function renderWork() {
 
 function renderStatement() {
   const t = copy[lang];
-  // Checked separately: the services page reuses the body copy as its lede
-  // without carrying the heading.
-  if ($('statement-heading')) $('statement-heading').textContent = t.intro;
-  if ($('statement-body')) $('statement-body').textContent = t.introBody;
+  document.getElementById('statement-heading').textContent = t.intro;
+  document.getElementById('statement-body').textContent = t.introBody;
 }
 
 function renderServices() {
   const t = copy[lang];
-  // The kicker says "Services"; the heading is the marketing line, so they
-  // don't repeat each other.
-  if ($('services-label')) $('services-label').textContent = t.services;
-  if ($('services-heading')) $('services-heading').textContent = t.capabilities;
-
-  const cards = $('service-cards');
-  if (cards) {
-    // On the services page this is a plain index list (<ol>); elsewhere it is
-    // the older card grid. Same data, rendered to fit its container.
-    cards.innerHTML = cards.tagName === 'OL'
-      ? t.serviceList.map(s => `<li><span>${attrEscape(s)}</span></li>`).join('')
-      : t.serviceList.map((s, i) => `
-        <article>
-          <span>0${i + 1}</span>
-          <img src="${serviceImages[i % serviceImages.length]}" alt="">
-          <div><h3>${s}</h3><p>${t.viewService} →</p></div>
-        </article>`).join('');
-  }
-
-  renderServiceMarquee();
-}
-
-// The ribbon: one tilted card per service, drifting sideways forever. The
-// list is rendered twice and the track travels exactly -50%, so the loop has
-// no seam. The second copy is hidden from screen readers — it is the same
-// services again, announced twice.
-function renderServiceMarquee() {
-  const el = $('service-marquee');
-  if (!el) return;
-  const t = copy[lang];
-  const card = (s, i, dup) => `
-    <figure class="svc-card"${dup ? ' aria-hidden="true"' : ''}>
-      <img src="${serviceImages[i % serviceImages.length]}" alt="">
-      <figcaption><span>0${i + 1}</span>${attrEscape(s)}</figcaption>
-    </figure>`;
-  const pass = (dup) => t.serviceList.map((s, i) => card(s, i, dup)).join('');
-  el.innerHTML = `<div class="marquee-track">${pass(false)}${pass(true)}</div>`;
+  document.getElementById('services-label').textContent = t.capabilities;
+  document.getElementById('services-heading').textContent = t.capabilities;
+  document.getElementById('service-cards').innerHTML = t.serviceList.map((s, i) => `
+    <article>
+      <span>0${i + 1}</span>
+      <img src="${serviceImages[i]}" alt="">
+      <div><h3>${s}</h3><p>${t.viewService} →</p></div>
+    </article>`).join('');
 }
 
 function renderStudio() {
-  if (!$('studio-heading')) return;
   const t = copy[lang];
-  if ($('studio-label')) $('studio-label').textContent = t.studio;
-  $('studio-heading').textContent = t.about;
-  $('studio-body').textContent = t.aboutBody;
-  if ($('studio-tag')) $('studio-tag').textContent = t.studioTag;
+  document.getElementById('studio-label').textContent = t.studio;
+  document.getElementById('studio-heading').textContent = t.about;
+  document.getElementById('studio-body').textContent = t.aboutBody;
+  document.getElementById('studio-tag').textContent = t.studioTag;
 }
 
 function renderContact() {
-  if (!$('contact-form')) return;
   const t = copy[lang];
-  if ($('contact-heading')) $('contact-heading').textContent = t.cta;
-  if ($('contact-lede')) $('contact-lede').textContent = t.ctaLede;
-  $('label-name').firstChild.textContent = t.fName;
-  $('label-phone').firstChild.textContent = t.fPhone;
-  $('label-service').firstChild.textContent = t.fService;
-  $('label-date').firstChild.textContent = t.fDate;
-  $('label-budget').firstChild.textContent = t.fBudget;
-  $('label-message').firstChild.textContent = t.fMessage;
-  $('message').placeholder = t.fMessagePh;
-  $('label-consent').innerHTML = t.fConsent;
+  document.getElementById('contact-heading').textContent = t.cta;
+  document.getElementById('contact-lede').textContent = t.ctaLede;
+  document.getElementById('label-name').firstChild.textContent = t.fName;
+  document.getElementById('label-phone').firstChild.textContent = t.fPhone;
+  document.getElementById('label-service').firstChild.textContent = t.fService;
+  document.getElementById('label-date').firstChild.textContent = t.fDate;
+  document.getElementById('label-budget').firstChild.textContent = t.fBudget;
+  document.getElementById('label-message').firstChild.textContent = t.fMessage;
+  document.getElementById('message').placeholder = t.fMessagePh;
+  document.getElementById('label-consent').innerHTML = t.fConsent;
 
-  $('service').innerHTML = `<option value="" disabled selected>${t.fServicePh}</option>` +
+  const serviceSel = document.getElementById('service');
+  serviceSel.innerHTML = `<option value="" disabled selected>${t.fServicePh}</option>` +
     t.serviceList.map(s => `<option>${s}</option>`).join('');
 
-  $('budget').innerHTML = `<option value="" disabled selected>€</option>
+  const budgetSel = document.getElementById('budget');
+  budgetSel.innerHTML = `<option value="" disabled selected>€</option>
     <option>€500–1,000</option><option>€1,000–2,500</option><option>€2,500+</option>`;
 
-  $('submit-btn').innerHTML = `${t.start}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+  const submitBtn = document.getElementById('submit-btn');
+  submitBtn.innerHTML = `${t.start}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
 }
 
 function renderSocialLabels() {
   const t = copy[lang];
-  if ($('social-label')) $('social-label').textContent = t.social;
-  if ($('social-lede')) $('social-lede').textContent = t.socialLede;
-  // Split heading so the first half can be set in italic serif, like the
-  // reference: "Lo último / del estudio".
-  if ($('social-title-a')) $('social-title-a').textContent = lang === 'es' ? 'Lo último' : 'The latest';
-  if ($('social-title-b')) $('social-title-b').textContent = lang === 'es' ? 'del estudio' : 'from the studio';
-  renderNetTabs();
+  document.getElementById('social-label').textContent = t.social;
+  document.getElementById('social-lede').textContent = t.socialLede;
 }
-
-// ---------- Social: network picker + adaptive mosaic ----------
-// Up to 12 selected posts per network. The count is whatever Adama has
-// published — four, nine, twelve — so the layout can't assume a fixed grid:
-// posts are dealt into 4 columns (3 on a phone) by running height, which
-// keeps the columns level whatever the number and lets every thumbnail keep
-// its own proportions instead of being cropped to a common box.
-const NETWORKS = [
-  ['tiktok', 'TikTok', '<path d="M9 18a3.2 3.2 0 1 0 3.2-3.2V4c.6 2.5 2.6 4.4 5.1 4.7"/>'],
-  ['instagram', 'Instagram', '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1"/>'],
-  ['youtube', 'YouTube', '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10.5 9.5 5 2.5-5 2.5z"/>'],
-];
-const SOCIAL_MAX = 12;
-
-let socialNet = 'tiktok';
-let socialPosts = { tiktok: [], instagram: [], youtube: [] };
-
-function renderNetTabs() {
-  const tabs = $('net-tabs');
-  if (!tabs) return;
-  tabs.innerHTML = NETWORKS.map(([id, label, icon]) => `
-    <button class="net-tab" type="button" role="tab" data-net="${id}"
-            aria-selected="${id === socialNet}">${svg(icon)}${label}</button>`).join('');
-}
-
-function socialRatio(p) {
-  if (p.w && p.h) return p.h / p.w;
-  // Sensible defaults per network when a post carries no dimensions:
-  // TikTok and Reels are 9:16, YouTube is 16:9.
-  return p.platform === 'youtube' ? 0.5625 : 1.7778;
-}
-
-function renderSocialGrid() {
-  const grid = $('social-grid');
-  if (!grid) return;
-
-  const posts = (socialPosts[socialNet] || []).slice(0, SOCIAL_MAX);
-  const empty = $('social-empty');
-  if (empty) {
-    empty.hidden = posts.length > 0;
-    empty.textContent = lang === 'es'
-      ? 'Todavía no hay publicaciones seleccionadas para esta red.'
-      : 'No posts selected for this network yet.';
-  }
-  if (!posts.length) { grid.innerHTML = ''; return; }
-
-  const count = window.innerWidth <= 700 ? 3 : 4;
-  const cols = Array.from({ length: count }, () => ({ height: 0, html: [] }));
-
-  posts.forEach((p, i) => {
-    const target = cols.reduce((a, b) => (b.height < a.height ? b : a));
-    const ar = socialRatio(p);
-    target.html.push(`
-      <figure class="social-post" tabindex="0" data-idx="${i}"
-              style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
-        <img src="${attrEscape(p.image_url)}" alt="${attrEscape(p.caption || '')}" loading="${i < 4 ? 'eager' : 'lazy'}">
-        <span class="social-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M8 5v14l11-7z"/></svg></span>
-        ${p.caption ? `<figcaption>${attrEscape(p.caption)}</figcaption>` : ''}
-      </figure>`);
-    target.height += ar;
-  });
-
-  grid.innerHTML = cols.map(c => `<div class="social-col">${c.html.join('')}</div>`).join('');
-  grid.dataset.cols = String(count);
-}
-
-function openPostSheet(post) {
-  const sheet = $('post-sheet');
-  if (!sheet || !post) return;
-  $('post-sheet-img').src = post.image_url;
-  $('post-sheet-img').alt = post.caption || '';
-  $('post-sheet-net').textContent = (NETWORKS.find(n => n[0] === post.platform) || [, post.platform])[1];
-  $('post-sheet-caption').textContent = post.caption || '';
-  const link = $('post-sheet-link');
-  link.href = post.external_url || '#';
-  link.hidden = !post.external_url;
-  link.textContent = lang === 'es' ? 'Ver publicación ↗' : 'View post ↗';
-  sheet.hidden = false;
-  document.body.style.overflow = 'hidden';
-  requestAnimationFrame(() => sheet.classList.add('is-open'));
-  $('post-sheet-close').focus();
-}
-
-function closePostSheet() {
-  const sheet = $('post-sheet');
-  if (!sheet || sheet.hidden) return;
-  sheet.classList.remove('is-open');
-  document.body.style.overflow = '';
-  const done = () => { sheet.hidden = true; };
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
-  else sheet.addEventListener('transitionend', done, { once: true });
-}
-
-$('net-tabs')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-net]');
-  if (!btn) return;
-  socialNet = btn.dataset.net;
-  renderNetTabs();
-  renderSocialGrid();
-});
-
-$('social-grid')?.addEventListener('click', (e) => {
-  const tile = e.target.closest('.social-post');
-  if (!tile) return;
-  openPostSheet((socialPosts[socialNet] || [])[Number(tile.dataset.idx)]);
-});
-$('social-grid')?.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' && e.key !== ' ') return;
-  const tile = e.target.closest && e.target.closest('.social-post');
-  if (!tile) return;
-  e.preventDefault();
-  openPostSheet((socialPosts[socialNet] || [])[Number(tile.dataset.idx)]);
-});
-$('post-sheet-close')?.addEventListener('click', closePostSheet);
-$('post-sheet')?.addEventListener('click', (e) => { if (e.target === $('post-sheet')) closePostSheet(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePostSheet(); });
-
-let socialResizeTimer = 0;
-window.addEventListener('resize', () => {
-  clearTimeout(socialResizeTimer);
-  socialResizeTimer = setTimeout(() => {
-    const grid = $('social-grid');
-    if (!grid) return;
-    const want = String(window.innerWidth <= 700 ? 3 : 4);
-    if (grid.dataset.cols !== want) renderSocialGrid();
-  }, 150);
-}, { passive: true });
 
 function renderFooter() {
-  if ($('footer-based')) $('footer-based').textContent = copy[lang].based;
+  document.getElementById('footer-based').textContent = copy[lang].based;
 }
 
 function renderAll() {
   applyTheme();
   renderNav();
-  renderHomeGrid();
+  renderHero();
   renderWork();
   renderStatement();
   renderServices();
@@ -512,31 +204,23 @@ function renderAll() {
   renderFooter();
 }
 
-// Language and theme are per-visitor choices that must survive navigating
-// between pages now that the site is multi-page, so they persist locally.
-try {
-  const savedLang = localStorage.getItem('og_lang');
-  if (savedLang === 'en' || savedLang === 'es') lang = savedLang;
-  const savedTheme = localStorage.getItem('og_theme');
-  if (savedTheme === 'dark' || savedTheme === 'light') dark = savedTheme === 'dark';
-} catch (e) { /* private mode / blocked storage — fall back to defaults */ }
+function setMenu(open) {
+  menuOpen = open;
+  document.getElementById('mobile-menu').hidden = !open;
+  document.getElementById('menu-toggle').setAttribute('aria-expanded', String(open));
+  document.getElementById('icon-menu').hidden = open;
+  document.getElementById('icon-close').hidden = !open;
+}
 
-// Delegated, because renderNav() rebuilds the dock's markup whenever the
-// language or theme changes — listeners bound to the old buttons would die
-// with them.
-$('dock')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action]');
-  if (!btn) return;
-  if (btn.dataset.action === 'lang') {
-    lang = lang === 'en' ? 'es' : 'en';
-    try { localStorage.setItem('og_lang', lang); } catch (err) { /* ignore */ }
-    renderAll();
-  } else if (btn.dataset.action === 'theme') {
-    dark = !dark;
-    try { localStorage.setItem('og_theme', dark ? 'dark' : 'light'); } catch (err) { /* ignore */ }
-    applyTheme();
-    renderNav();
-  }
+document.getElementById('menu-toggle').addEventListener('click', () => setMenu(!menuOpen));
+document.getElementById('lang-toggle').addEventListener('click', () => {
+  lang = lang === 'en' ? 'es' : 'en';
+  document.getElementById('lang-label').textContent = lang.toUpperCase();
+  renderAll();
+});
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  dark = !dark;
+  applyTheme();
 });
 
 renderAll();
@@ -557,6 +241,7 @@ window.addEventListener('message', (event) => {
     if (msg.fields) Object.assign(copy[msg.lang], msg.fields);
     if (Array.isArray(msg.serviceList) && msg.serviceList.length) copy[msg.lang].serviceList = msg.serviceList;
     lang = msg.lang;
+    document.getElementById('lang-label').textContent = lang.toUpperCase();
     renderAll();
   }
 });
@@ -595,8 +280,8 @@ if (supabaseClient) {
 }
 
 // ---------- Contact form → Supabase `enquiries` ----------
-const form = $('contact-form');
-form?.addEventListener('submit', async (e) => {
+const form = document.getElementById('contact-form');
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const payload = {
     name: document.getElementById('name').value.trim(),
@@ -624,27 +309,10 @@ form?.addEventListener('submit', async (e) => {
     return;
   }
   form.hidden = true;
-  const success = $('form-success');
+  const success = document.getElementById('form-success');
   success.textContent = copy[lang].sent;
   success.hidden = false;
 });
-
-// Real published projects replace the provisional ones everywhere they
-// appear — the home grid and the Work page use the same source.
-function applyRealProjects(rows) {
-  const fallbackRatios = ['tall', 'wide', 'square', 'tall crop-two', 'wide crop-two', 'square crop-two'];
-  const mapped = rows.map((p, i) => ({
-    id: String(i + 1).padStart(2, '0'),
-    title: p.title,
-    type: p.subtitle || '',
-    image: p.cover_image_url || 'assets/portfolio/portrait-studio.jpg',
-    ratio: p.layout_class || fallbackRatios[i % fallbackRatios.length],
-  }));
-  projects.length = 0;
-  projects.push(...mapped);
-  renderHomeGrid();
-  renderWork();
-}
 
 // ---------- Real portfolio (Supabase) with graceful fallback ----------
 // The public work grid shows the provisional projects above by default —
@@ -657,67 +325,54 @@ if (supabaseClient) {
     .eq('is_published', true)
     .order('sort_order')
     .then(({ data }) => {
-      if (data && data.length) applyRealProjects(data);
+      if (data && data.length) {
+        const fallbackRatios = ['tall', 'wide', 'square', 'tall crop-two', 'wide crop-two', 'square crop-two'];
+        const grid = document.getElementById('masonry-grid');
+        grid.innerHTML = data.map((p, i) => `
+          <article class="project-tile ${p.layout_class || fallbackRatios[i % fallbackRatios.length]}" tabindex="0" data-lightbox-image="${attrEscape(p.cover_image_url || 'assets/portfolio/portrait.jpg')}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.subtitle || '')}">
+            <img src="${p.cover_image_url || 'assets/portfolio/portrait.jpg'}" alt="${p.title}">
+            <div><span>/ ${String(i + 1).padStart(2, '0')}</span><h3>${p.title}</h3><p>${p.subtitle || ''}</p></div>
+          </article>`).join('');
+      }
     })
     .catch(() => {});
 
   // Real selected social posts, same graceful fallback as portfolio.
-  // Grouped by network, capped at SOCIAL_MAX each, in Studio's sort order.
   supabaseClient
     .from('social_posts')
     .select('platform, external_url, image_url, caption, sort_order')
     .eq('is_selected', true)
     .order('sort_order')
     .then(({ data }) => {
-      if (data && data.length) applyRealSocial(data);
-      else renderProvisionalSocial();
+      const grid = document.getElementById('social-grid');
+      if (data && data.length) {
+        grid.innerHTML = data.map(p => `
+          <a class="social-post" href="${p.external_url}" target="_blank" rel="noopener">
+            <img src="${p.image_url || 'assets/portfolio/portrait.jpg'}" alt="${p.caption || ''}">
+            <span>${p.platform === 'instagram' ? '@ Instagram' : '♪ TikTok'}</span>
+          </a>`).join('');
+      } else {
+        renderProvisionalSocial(grid);
+      }
     })
-    .catch(() => renderProvisionalSocial());
+    .catch(() => renderProvisionalSocial(document.getElementById('social-grid')));
 } else {
-  renderProvisionalSocial();
+  renderProvisionalSocial(document.getElementById('social-grid'));
 }
 
-function applyRealSocial(rows) {
-  const next = { tiktok: [], instagram: [], youtube: [] };
-  rows.forEach(r => {
-    const net = next[r.platform] ? r.platform : 'instagram';
-    if (next[net].length < SOCIAL_MAX) next[net].push({ ...r, platform: net });
-  });
-  socialPosts = next;
-  // Land on a network that actually has something to show.
-  if (!socialPosts[socialNet].length) {
-    const firstFilled = NETWORKS.map(n => n[0]).find(n => socialPosts[n].length);
-    if (firstFilled) socialNet = firstFilled;
-  }
-  renderNetTabs();
-  renderSocialGrid();
-}
-
-// Nothing selected in Studio yet: show Adama's own photographs as stand-ins
-// so the section isn't empty, each linking to the real profile rather than a
-// dead click. Replaced the moment he selects actual posts.
-function renderProvisionalSocial() {
-  if (!$('social-grid')) return;
-  const PROFILE = {
-    tiktok: 'https://tiktok.com/@opengrain.studio',
-    instagram: 'https://instagram.com/opengrain.studio',
-    youtube: 'https://instagram.com/opengrain.studio',
-  };
-  const next = { tiktok: [], instagram: [], youtube: [] };
-  NETWORKS.forEach(([net], n) => {
-    projects.slice(n * 4, n * 4 + SOCIAL_MAX).forEach(p => {
-      next[net].push({
-        platform: net,
-        image_url: p.image,
-        caption: p.title,
-        external_url: PROFILE[net],
-        w: p.w, h: p.h,
-      });
-    });
-  });
-  socialPosts = next;
-  renderNetTabs();
-  renderSocialGrid();
+function renderProvisionalSocial(grid) {
+  // No real posts selected yet in Studio — link each placeholder to the
+  // real profile (not a dead "#") so it isn't a dead click even before
+  // Adama adds actual selected posts.
+  grid.innerHTML = projects.slice(0, 6).map((p, i) => {
+    const isInsta = i < 3;
+    const href = isInsta ? 'https://instagram.com/opengrain.studio' : 'https://tiktok.com/@opengrain.studio';
+    return `
+    <a class="social-post" href="${href}" target="_blank" rel="noopener">
+      <img src="${p.image}" alt="Selected social post">
+      <span>${isInsta ? '@ Instagram' : '♪ TikTok'}</span>
+    </a>`;
+  }).join('');
 }
 
 // ============================================================
