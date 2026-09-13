@@ -163,6 +163,46 @@ body.is-home{ background:#0b0b0a; }
 .home-footer a:hover{ color:#fff; }
 .home-footer nav{ display:flex; gap:18px; }
 
+/* ---------- Services ribbon ----------
+   An endless sideways drift of tilted cards, one per service, over a soft
+   radial gradient that beats like a resting heart (~55 bpm: a quick lub, a
+   softer dub, then a rest). The tilt is applied per card with its own
+   perspective() so every card sits at the same angle, instead of fanning out
+   the way a shared perspective on the container would. */
+.services-stage{ position:relative; overflow:hidden; isolation:isolate;
+  padding:clamp(70px,10vw,120px) 0 clamp(80px,11vw,130px); }
+.pulse-bg{ position:absolute; inset:-18%; z-index:-1; transform-origin:50% 50%;
+  background:radial-gradient(circle at 50% 50%,
+    #b9dbff 0%, #d6e9ff 34%, #eaf4ff 62%, #f7fbff 85%, #fdfeff 100%);
+  animation:og-heartbeat 1.15s ease-in-out infinite; }
+@keyframes og-heartbeat{
+  0%   { transform:scale(1);     opacity:.88; }
+  7%   { transform:scale(1.055); opacity:1; }    /* lub */
+  15%  { transform:scale(1.005); opacity:.93; }
+  23%  { transform:scale(1.032); opacity:.98; }  /* dub */
+  33%  { transform:scale(1);     opacity:.88; }
+  100% { transform:scale(1);     opacity:.88; }  /* rest */
+}
+
+.marquee{ position:relative; overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);
+          mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent); }
+.marquee-track{ display:flex; width:max-content; animation:og-marquee 42s linear infinite; }
+.marquee:hover .marquee-track{ animation-play-state:paused; }
+/* margin-right, not gap: the track has to be exactly twice the list's width
+   for the -50% loop to land seamlessly, and a trailing gap would break that. */
+.svc-card{ flex:0 0 auto; width:clamp(132px,13.5vw,196px); margin:0 clamp(18px,2vw,30px) 0 0;
+  transform:perspective(900px) rotateY(-24deg); transform-style:preserve-3d;
+  transition:transform var(--dur-base) var(--ease-smooth); }
+.svc-card img{ width:100%; aspect-ratio:3 / 4; object-fit:cover; display:block;
+  border-radius:3px; box-shadow:0 18px 40px rgba(20,30,60,.22), 0 4px 12px rgba(20,30,60,.14); }
+.svc-card figcaption{ margin-top:14px; display:flex; align-items:baseline; gap:9px;
+  color:#1b2740; text-transform:uppercase;
+  font:10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
+.svc-card figcaption span{ color:#5b76a8; }
+.marquee:hover .svc-card:hover{ transform:perspective(900px) rotateY(-10deg) translateY(-6px); }
+@keyframes og-marquee{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
+
 /* ---------- Inner pages ----------
    They no longer follow a full-height hero, so the first section needs to
    clear the fixed nav on its own. */
@@ -385,6 +425,12 @@ body.is-home{ background:#0b0b0a; }
   .lightbox, .lightbox-figure{ transition:opacity var(--dur-fast) linear !important; transform:none !important; }
   .project-tile, .service-cards article, .social-post{ opacity:1 !important; transform:none !important; transition:opacity var(--dur-fast) linear !important; transition-delay:0s !important; }
   .home-grid .project-tile{ opacity:1 !important; transform:none !important; animation:none !important; animation-delay:0s !important; }
+  /* No drifting ribbon and no beating background: a large moving surface and
+     a slow loop are exactly what reduced motion asks us to drop. The cards
+     stay tilted and readable, just still. */
+  .marquee-track{ animation:none !important; }
+  .pulse-bg{ animation:none !important; transform:none !important; opacity:.95 !important; }
+  .marquee{ overflow-x:auto; }
   .studio-section{ --sy:0.5 !important; }
 }
 
@@ -412,6 +458,8 @@ body.is-home{ background:#0b0b0a; }
   .home-grid .project-tile figcaption{ display:none; }
   .home-footer{ justify-content:center; text-align:center; gap:4px 14px; padding:14px 16px 10px; font-size:8px; }
   .home-footer nav{ gap:14px; }
+  .services-stage{ padding:60px 0 70px; }
+  .svc-card{ width:44vw; margin-right:14px; transform:perspective(700px) rotateY(-18deg); }
   .home-footer{ padding:22px 20px 26px; }
   .inner-page > section:first-of-type{ padding-top:120px; }
   .section-pad{ padding:100px 20px; }

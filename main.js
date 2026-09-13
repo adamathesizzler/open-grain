@@ -43,10 +43,19 @@ const projects = [
   { id: '18', title: 'Halo',        type: 'Motorsport',   image: 'assets/portfolio/halo-detail.jpg',        ratio: 'wide',   w: 1800, h: 1350 },
   { id: '19', title: 'Last Train',  type: 'Street',       image: 'assets/portfolio/last-train.jpg',         ratio: 'tall',   w: 1012, h: 1800 },
   { id: '20', title: 'Shibuya',     type: 'Street',       image: 'assets/portfolio/shibuya.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
+  { id: '21', title: 'Cheers',      type: 'Nightlife',    image: 'assets/portfolio/nightlife-cheers.jpg',   ratio: 'wide',   w: 1800, h: 1350 },
+  { id: '22', title: 'The Crew',    type: 'Nightlife',    image: 'assets/portfolio/nightlife-crew.jpg',     ratio: 'wide',   w: 1800, h: 1350 },
+  { id: '23', title: 'Crossing',    type: 'Motorsport',   image: 'assets/portfolio/nissan-crossing.jpg',    ratio: 'wide',   w: 1800, h: 1350 },
+  { id: '24', title: 'Itaewon',     type: 'Street',       image: 'assets/portfolio/itaewon.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
 ];
+// One image per service, in the same order as copy[].serviceList
+// (Photography, Film & Reels, UGC, Events, Social Content).
 const serviceImages = [
-  'assets/portfolio/portrait-studio.jpg', 'assets/portfolio/motorsport.jpg', 'assets/portfolio/editorial-interior.jpg',
-  'assets/portfolio/documentary.jpg', 'assets/portfolio/portrait-low-key.jpg',
+  'assets/portfolio/portrait-studio.jpg',
+  'assets/portfolio/halo-detail.jpg',
+  'assets/portfolio/nightlife-cheers.jpg',
+  'assets/portfolio/nightlife-crew.jpg',
+  'assets/portfolio/shibuya.jpg',
 ];
 
 // Editable marketing copy (headline, about text, etc.) lives in
@@ -260,16 +269,37 @@ function renderStatement() {
 }
 
 function renderServices() {
-  if (!$('service-cards')) return;
   const t = copy[lang];
   if ($('services-label')) $('services-label').textContent = t.capabilities;
   if ($('services-heading')) $('services-heading').textContent = t.capabilities;
-  $('service-cards').innerHTML = t.serviceList.map((s, i) => `
-    <article>
-      <span>0${i + 1}</span>
-      <img src="${serviceImages[i]}" alt="">
-      <div><h3>${s}</h3><p>${t.viewService} →</p></div>
-    </article>`).join('');
+
+  if ($('service-cards')) {
+    $('service-cards').innerHTML = t.serviceList.map((s, i) => `
+      <article>
+        <span>0${i + 1}</span>
+        <img src="${serviceImages[i % serviceImages.length]}" alt="">
+        <div><h3>${s}</h3><p>${t.viewService} →</p></div>
+      </article>`).join('');
+  }
+
+  renderServiceMarquee();
+}
+
+// The ribbon: one tilted card per service, drifting sideways forever. The
+// list is rendered twice and the track travels exactly -50%, so the loop has
+// no seam. The second copy is hidden from screen readers — it is the same
+// services again, announced twice.
+function renderServiceMarquee() {
+  const el = $('service-marquee');
+  if (!el) return;
+  const t = copy[lang];
+  const card = (s, i, dup) => `
+    <figure class="svc-card"${dup ? ' aria-hidden="true"' : ''}>
+      <img src="${serviceImages[i % serviceImages.length]}" alt="">
+      <figcaption><span>0${i + 1}</span>${attrEscape(s)}</figcaption>
+    </figure>`;
+  const pass = (dup) => t.serviceList.map((s, i) => card(s, i, dup)).join('');
+  el.innerHTML = `<div class="marquee-track">${pass(false)}${pass(true)}</div>`;
 }
 
 function renderStudio() {
