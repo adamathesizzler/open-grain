@@ -20,17 +20,19 @@ if ($('year')) $('year').textContent = new Date().getFullYear();
 // rename from Studio → Portfolio; the images themselves are his real work,
 // so nothing on the page is stock any more. Published projects added in
 // Studio replace this list entirely (see applyRealProjects below).
+// w/h are the real pixel dimensions of each file: the home grid uses them to
+// reserve each photo's space before it loads and to balance the columns.
 const projects = [
-  { id: '01', title: 'Formula E',   type: 'Motorsport',   image: 'assets/portfolio/motorsport.jpg',         ratio: 'wide' },
-  { id: '02', title: 'Tōdai-ji',    type: 'Architecture', image: 'assets/portfolio/todaiji.jpg',            ratio: 'tall' },
-  { id: '03', title: 'Daylight',    type: 'Portrait',     image: 'assets/portfolio/portrait-studio.jpg',    ratio: 'tall' },
-  { id: '04', title: 'Nara',        type: 'Wildlife',     image: 'assets/portfolio/nara-deer.jpg',          ratio: 'square' },
-  { id: '05', title: 'Blue Room',   type: 'Editorial',    image: 'assets/portfolio/editorial-interior.jpg', ratio: 'wide' },
-  { id: '06', title: 'Nightfall',   type: 'Portrait',     image: 'assets/portfolio/night-portrait.jpg',     ratio: 'tall' },
-  { id: '07', title: 'Low Key',     type: 'Portrait',     image: 'assets/portfolio/portrait-low-key.jpg',   ratio: 'tall' },
-  { id: '08', title: 'Platform',    type: 'Street',       image: 'assets/portfolio/platform.jpg',           ratio: 'tall' },
-  { id: '09', title: 'Sobremesa',   type: 'Documentary',  image: 'assets/portfolio/documentary.jpg',        ratio: 'tall' },
-  { id: '10', title: 'Temple Gate', type: 'Street',       image: 'assets/portfolio/temple-gate.jpg',        ratio: 'tall' },
+  { id: '01', title: 'Formula E',   type: 'Motorsport',   image: 'assets/portfolio/motorsport.jpg',         ratio: 'wide',   w: 1800, h: 1350 },
+  { id: '02', title: 'Tōdai-ji',    type: 'Architecture', image: 'assets/portfolio/todaiji.jpg',            ratio: 'tall',   w: 1200, h: 1800 },
+  { id: '03', title: 'Daylight',    type: 'Portrait',     image: 'assets/portfolio/portrait-studio.jpg',    ratio: 'tall',   w: 1200, h: 1800 },
+  { id: '04', title: 'Nara',        type: 'Wildlife',     image: 'assets/portfolio/nara-deer.jpg',          ratio: 'square', w: 1800, h: 1800 },
+  { id: '05', title: 'Blue Room',   type: 'Editorial',    image: 'assets/portfolio/editorial-interior.jpg', ratio: 'wide',   w: 1800, h: 1200 },
+  { id: '06', title: 'Nightfall',   type: 'Portrait',     image: 'assets/portfolio/night-portrait.jpg',     ratio: 'tall',   w: 1012, h: 1800 },
+  { id: '07', title: 'Low Key',     type: 'Portrait',     image: 'assets/portfolio/portrait-low-key.jpg',   ratio: 'tall',   w: 1200, h: 1800 },
+  { id: '08', title: 'Platform',    type: 'Street',       image: 'assets/portfolio/platform.jpg',           ratio: 'tall',   w: 1200, h: 1800 },
+  { id: '09', title: 'Sobremesa',   type: 'Documentary',  image: 'assets/portfolio/documentary.jpg',        ratio: 'tall',   w: 1457, h: 1800 },
+  { id: '10', title: 'Temple Gate', type: 'Street',       image: 'assets/portfolio/temple-gate.jpg',        ratio: 'tall',   w: 1200, h: 1800 },
 ];
 const serviceImages = [
   'assets/portfolio/portrait-studio.jpg', 'assets/portfolio/motorsport.jpg', 'assets/portfolio/editorial-interior.jpg',
@@ -118,59 +120,62 @@ function renderNav() {
 // data-lightbox-* attributes, so the existing delegated lightbox picks
 // them up with no extra wiring.
 function homeTileMarkup(p, i) {
-  // Landscape work takes a double-width cell so the grid has rhythm instead
-  // of reading as a uniform checkerboard.
-  const wide = /wide/.test(p.ratio || '') ? ' is-wide' : '';
+  // aspect-ratio reserves each photo's space before it loads, so the columns
+  // don't jump around as images arrive.
+  const ar = tileRatio(p);
   return `
-    <figure class="project-tile${wide}" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i}">
-      <img src="${p.image}" alt="${attrEscape(p.title)} — ${attrEscape(p.type)}" loading="${i < 4 ? 'eager' : 'lazy'}">
+    <figure class="project-tile" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
+      <img src="${p.image}" alt="${attrEscape(p.title)} — ${attrEscape(p.type)}" loading="${i < 6 ? 'eager' : 'lazy'}">
       <figcaption><span>${attrEscape(p.title)}</span><span>${attrEscape(p.type)}</span></figcaption>
     </figure>`;
 }
 
-// Widen the final tile so the bottom row is always full. Without this the
-// grid ends on empty black cells whenever the project count doesn't divide
-// evenly into the columns — and the column count changes with the viewport,
-// so this is recalculated on resize too.
-function fitHomeGrid() {
-  const grid = $('home-grid');
-  if (!grid) return;
-  const tiles = Array.from(grid.querySelectorAll('.project-tile'));
-  if (!tiles.length) return;
-  tiles.forEach(t => { t.style.gridColumn = ''; t.style.gridRow = ''; });
+// Height ÷ width. Real dimensions when we have them; otherwise inferred from
+// the layout class, which is all Studio-published projects carry.
+function tileRatio(p) {
+  if (p.w && p.h) return p.h / p.w;
+  const r = p.ratio || '';
+  if (r.includes('wide')) return 0.7;
+  if (r.includes('square')) return 1;
+  return 1.45;
+}
 
-  const cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
-  if (cols < 2) return;
-
-  const spanOf = (t) => (t.classList.contains('is-wide') ? 2 : 1);
-  const used = tiles.reduce((sum, t) => sum + spanOf(t), 0);
-  const remainder = used % cols;
-  if (!remainder) return;
-
-  // Grow the last tile's height by the same factor as its width, so the
-  // photograph keeps the crop it would have had in a normal cell instead of
-  // being squeezed into a letterbox.
-  const last = tiles[tiles.length - 1];
-  const base = spanOf(last);
-  const fill = base + (cols - remainder);
-  last.style.gridColumn = `span ${fill}`;
-  last.style.gridRow = `span ${Math.max(1, Math.round(fill / base))}`;
+function homeColumnCount() {
+  const w = window.innerWidth;
+  if (w <= 560) return 2;
+  if (w <= 900) return 3;
+  if (w <= 1400) return 4;
+  return 5;
 }
 
 function renderHomeGrid() {
   const grid = $('home-grid');
   if (!grid) return;
-  // With only a handful of photographs, three columns leave the last one
-  // visibly short; two columns stay balanced and show the work bigger.
-  grid.classList.toggle('is-sparse', projects.length <= 6);
-  grid.innerHTML = projects.map(homeTileMarkup).join('');
-  fitHomeGrid();
+
+  // Greedy balance: each photo joins whichever column is currently shortest,
+  // measured in height-per-unit-width. CSS `columns` fills them in order
+  // instead, which leaves the last column visibly short.
+  const count = homeColumnCount();
+  const cols = Array.from({ length: count }, () => ({ height: 0, html: [] }));
+  projects.forEach((p, i) => {
+    const target = cols.reduce((a, b) => (b.height < a.height ? b : a));
+    target.html.push(homeTileMarkup(p, i));
+    target.height += tileRatio(p);
+  });
+
+  grid.innerHTML = cols.map(c => `<div class="home-col">${c.html.join('')}</div>`).join('');
+  grid.dataset.cols = String(count);
 }
 
-let fitTimer = 0;
+// Re-lay out only when the column count actually changes, so an ordinary
+// resize doesn't rebuild the grid (and restart its entrance animation).
+let homeResizeTimer = 0;
 window.addEventListener('resize', () => {
-  clearTimeout(fitTimer);
-  fitTimer = setTimeout(fitHomeGrid, 120);
+  clearTimeout(homeResizeTimer);
+  homeResizeTimer = setTimeout(() => {
+    const grid = $('home-grid');
+    if (grid && grid.dataset.cols !== String(homeColumnCount())) renderHomeGrid();
+  }, 150);
 }, { passive: true });
 
 function attrEscape(str) { return String(str ?? '').replace(/"/g, '&quot;'); }
