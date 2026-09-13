@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPEN GRAIN — Creative Production Studio · Mallorca</title>
-<meta name="description" content="OPEN GRAIN is an independent creative production studio based in Mallorca. Photography, film, UGC, events and social content.">
+<title>Studio — OPEN GRAIN</title>
+<meta name="description" content="About OPEN GRAIN, an independent creative production studio based in Mallorca.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body class="is-home">
+<body>
 
-<main class="site-shell" id="site-shell">
+<main class="site-shell inner-page" id="site-shell">
 
   <header class="glass-nav">
     <a class="brand" href="index.html">OPEN GRAIN<span>®</span></a>
@@ -30,19 +30,34 @@
 
   <nav id="mobile-menu" class="mobile-menu" aria-label="Mobile" hidden></nav>
 
-  <!-- The home page is the work itself: a full-bleed grid of projects and
-       nothing else — no headline, no intro copy, no stacked sections.
-       Everything else lives on its own page, reached from the nav above. -->
-  <section class="home-grid" id="home-grid" aria-label="Selected work"></section>
+  <section id="studio" class="studio-section section-pad" data-reveal>
+    <div class="section-label"><span>03</span><p id="studio-label"></p></div>
+    <div>
+      <h2 id="studio-heading"></h2>
+      <p id="studio-body"></p>
+      <div class="studio-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span id="studio-tag">Visuals with something to say.</span>
+      </div>
+    </div>
+  </section>
 
-  <footer class="home-footer">
-    <span class="home-footer-brand">OPEN GRAIN<span>®</span></span>
-    <nav aria-label="Social">
+  <section id="social" class="social-section section-pad" data-reveal>
+    <div class="section-label"><span>05</span><p id="social-label"></p></div>
+    <div class="social-head"><h2>Instagram + TikTok</h2><p id="social-lede"></p></div>
+    <div class="social-grid" id="social-grid"></div>
+  </section>
+
+
+  <footer class="site-footer" data-reveal>
+    <div class="footer-brand">OPEN GRAIN</div>
+    <div>
       <a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">Instagram</a>
       <a href="https://tiktok.com/@opengrain.studio" target="_blank" rel="noopener">TikTok</a>
       <a href="mailto:adamabalde1998@gmail.com">Email</a>
-    </nav>
-    <span class="home-footer-legal">© <span id="year"></span> · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
+    </div>
+    <p id="footer-based"></p>
+    <span>© <span id="year"></span> OPEN GRAIN · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
   </footer>
 
 </main>

@@ -14,8 +14,8 @@
   // reveal, not a repeating scroll-jack. The [data-reveal] attribute is
   // set directly in the HTML (not here) so the hidden starting state is
   // present at first paint — adding it only after JS runs would flash the
-  // section visible-then-hidden-then-visible. The hero is excluded: it
-  // already has its own bespoke entrance choreography in CSS.
+  // section visible-then-hidden-then-visible. The home page's work grid is
+  // excluded: it has its own staggered entrance choreography in CSS.
   var revealTargets = document.querySelectorAll('[data-reveal]');
 
   if ('IntersectionObserver' in window) {
@@ -33,8 +33,8 @@
   }
 
   // Nav material: compacts and deepens its blur once the page has scrolled
-  // past the hero meta, so the chrome reads as reacting to context (a
-  // "scroll edge effect") rather than a fixed opaque bar.
+  // at all, so the chrome reads as reacting to context (a "scroll edge
+  // effect") rather than a fixed opaque bar.
   var nav = document.querySelector('.glass-nav');
   if (nav) {
     var ticking = false;

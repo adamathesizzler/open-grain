@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OPEN GRAIN — Creative Production Studio · Mallorca</title>
-<meta name="description" content="OPEN GRAIN is an independent creative production studio based in Mallorca. Photography, film, UGC, events and social content.">
+<title>Work — OPEN GRAIN</title>
+<meta name="description" content="Selected photography, film and social content projects by OPEN GRAIN, a creative production studio in Mallorca.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body class="is-home">
+<body>
 
-<main class="site-shell" id="site-shell">
+<main class="site-shell inner-page" id="site-shell">
 
   <header class="glass-nav">
     <a class="brand" href="index.html">OPEN GRAIN<span>®</span></a>
@@ -30,19 +30,24 @@
 
   <nav id="mobile-menu" class="mobile-menu" aria-label="Mobile" hidden></nav>
 
-  <!-- The home page is the work itself: a full-bleed grid of projects and
-       nothing else — no headline, no intro copy, no stacked sections.
-       Everything else lives on its own page, reached from the nav above. -->
-  <section class="home-grid" id="home-grid" aria-label="Selected work"></section>
+  <section id="work" class="work-section section-pad" data-reveal>
+    <div class="portfolio-heading">
+      <div class="section-label"><span>01</span><p id="work-label"></p></div>
+      <p id="work-lede"></p>
+    </div>
+    <div class="masonry-grid" id="masonry-grid"></div>
+  </section>
 
-  <footer class="home-footer">
-    <span class="home-footer-brand">OPEN GRAIN<span>®</span></span>
-    <nav aria-label="Social">
+
+  <footer class="site-footer" data-reveal>
+    <div class="footer-brand">OPEN GRAIN</div>
+    <div>
       <a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">Instagram</a>
       <a href="https://tiktok.com/@opengrain.studio" target="_blank" rel="noopener">TikTok</a>
       <a href="mailto:adamabalde1998@gmail.com">Email</a>
-    </nav>
-    <span class="home-footer-legal">© <span id="year"></span> · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
+    </div>
+    <p id="footer-based"></p>
+    <span>© <span id="year"></span> OPEN GRAIN · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
   </footer>
 
 </main>

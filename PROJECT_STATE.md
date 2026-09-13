@@ -1,6 +1,33 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-13 (0k. Hero de la web pública rediseñado como rejilla de fotos a pantalla completa, inspirado en markclennon.com). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-13 (0l. La web pública pasa de una sola página con scroll a multipágina: home = rejilla de trabajo a pantalla completa, más 4 páginas reales tras la nav. Se incorporan las primeras fotos reales de Adama). Sustituye/anula la sección 0, la 0k y la mayor parte de 2/2b/2c/2d de más abajo.
+
+## 0l. Reestructuración a multipágina + primeras fotos reales (esta sesión)
+
+Adama revisó el hero de la sección 0k y dijo que no era lo que quería: pedía que la home fuera un *landing* y que **la home sea lo único que se ve al entrar**, con el resto de apartados accesibles solo desde los botones de la nav. Pidió explícitamente navegar markclennon.com y replicar su funcionamiento.
+
+**Cómo funciona la referencia** (comprobado navegándola): su home no tiene secciones apiladas — es solo una rejilla de proyectos con scroll. La nav superior lleva a páginas reales independientes (`/motion`, `/info`, …), y cada foto abre la página de ese proyecto.
+
+**Decisiones confirmadas con Adama**: (1) home = rejilla de todos los proyectos con scroll, sin hero separado ni secciones; (2) los apartados son **páginas HTML reales**, no vistas JS — URLs propias, compartibles e indexables, y coherente con el patrón que ya usaban `aviso-legal.html` / `privacidad.html` / `cookies.html`.
+
+**Estructura nueva de la web pública**:
+- `index.html` — solo nav + `<section class="home-grid">` + un footer mínimo con los enlaces legales (obligatorios por LSSI). Fondo oscuro permanente (`body.is-home`).
+- `work.html` — el portfolio (masonry con títulos), antes sección `#work`.
+- `services.html` — el *statement* + las tarjetas de servicios.
+- `about.html` — la sección "Estudio" + la rejilla de redes sociales. Se llama `about.html` **a propósito**: `studio.html` habría chocado en Vercel con la carpeta `/studio/` del panel privado.
+- `contact.html` — formulario de contacto + datos de contacto.
+
+**Cambios técnicos**:
+- `main.js` es ahora **defensivo y compartido por las 5 páginas**: helper `$(id)`, y cada `renderX()` sale temprano si falta su contenedor, así ninguna página ejecuta lo que no tiene. Se añadió `NAV_PAGES` + `currentPage()` para generar la nav con enlaces reales y marcar la página activa (`aria-current="page"`). Idioma y tema se guardan en `localStorage` (`og_lang` / `og_theme`) porque ahora hay que conservarlos al cambiar de página. `applyRealProjects()` centraliza la sustitución por los proyectos publicados en Supabase, que ahora alimentan a la vez la home y la página Work. Se eliminó `typewriter()` (ya sin uso).
+- `renderHomeGrid()` + `fitHomeGrid()`: la rejilla de la home es un CSS Grid de filas de altura fija; las fotos apaisadas (`ratio` con "wide") ocupan doble ancho. `fitHomeGrid()` **ensancha el último tile para cerrar la fila inferior** y le da altura proporcional, de modo que (a) la página nunca termina en celdas negras vacías y (b) esa foto conserva exactamente el mismo encuadre que una celda normal. Se recalcula al redimensionar. Con ≤6 proyectos la rejilla usa 2 columnas (`.is-sparse`) en vez de 3, porque con pocas fotos 3 columnas quedan descompensadas.
+- `styles.css`: nuevo bloque `.home-grid` / `.home-footer` / `.inner-page`; se retiraron `.hero`, `.hero-grid` y `.scroll-cue`. Las páginas interiores llevan `padding-top` propio para despejar la nav fija. Móvil: home a 1 columna con los pies de foto siempre visibles (no hay hover táctil).
+- `assets/motion.js`: solo comentarios obsoletos actualizados; ya era defensivo y funciona igual en todas las páginas.
+
+**Fotos reales**: Adama envió sus primeras 5 fotografías propias. Se optimizaron (lado largo ≤1800px, JPEG progresivo q82) a `assets/portfolio/`: `motorsport.jpg`, `portrait-studio.jpg`, `portrait-low-key.jpg`, `editorial-interior.jpg`, `documentary.jpg`. El array `projects` de `main.js` y `serviceImages` ya **no usan ninguna foto de stock**. Los títulos/categorías ("Formula E", "Daylight", "Low Key", "Blue Room", "Sobremesa") son marcadores que Adama puede renombrar desde Studio → Portfolio; las imágenes sí son suyas. Las antiguas de stock siguen en la carpeta pero ya no se referencian (no se borraron: el borrado quedó bloqueado por permisos del sandbox).
+
+**Verificado con Playwright** en las 5 páginas, escritorio (1440) y móvil (390): sin overflow horizontal, sin errores de consola, nav con 4 enlaces y página activa correcta en cada una, navegación real entre páginas, lightbox funcionando desde la home, menú móvil con los enlaces correctos, idioma y tema persistiendo al cambiar de página, formulario de contacto intacto (selectores de servicio/presupuesto y consentimiento poblados) y `prefers-reduced-motion` respetado.
+
+**Pendiente**: el `git push` sigue requiriendo el Terminal real de Adama (ni el sandbox de Cowork ni el shell del puente tienen sus credenciales de GitHub).
 
 ## 0k. Hero de la web pública: de titular+fotos flotantes a rejilla de fotos a pantalla completa (esta sesión)
 
