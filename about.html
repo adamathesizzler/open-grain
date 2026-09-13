@@ -8,33 +8,42 @@
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="is-light">
 
-<main class="site-shell inner-page" id="site-shell">
+<div class="pulse-bg" aria-hidden="true"></div>
+
+<main class="site-shell light-page" id="site-shell">
 
   <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
   <nav class="dock" id="dock" aria-label="Primary"></nav>
 
-  <section id="studio" class="studio-section section-pad" data-reveal>
-    <div class="section-label"><span>03</span><p id="studio-label"></p></div>
-    <div>
-      <h2 id="studio-heading"></h2>
-      <p id="studio-body"></p>
-      <div class="studio-mark">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        <span id="studio-tag">Visuals with something to say.</span>
-      </div>
+  <header class="svc-hero">
+    <p class="svc-kicker"><span>03</span><span id="studio-label"></span></p>
+    <h1 id="studio-heading"></h1>
+    <p class="svc-lede" id="studio-body"></p>
+    <p class="studio-mark-light">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span id="studio-tag">Visuals with something to say.</span>
+    </p>
+  </header>
+
+  <!-- Social: pick a network, see the selected posts for it. Up to 12, laid
+       out 4 columns on desktop and 3 on a phone, each thumbnail keeping its
+       own proportions. Tapping one opens the expanded view. -->
+  <section class="social-stage" id="social" aria-labelledby="social-title">
+    <div class="social-head-light">
+      <h2 id="social-title"><em id="social-title-a"></em> <span id="social-title-b"></span></h2>
+      <p id="social-lede"></p>
     </div>
+
+    <div class="net-tabs" id="net-tabs" role="tablist" aria-label="Redes sociales"></div>
+
+    <div class="social-mosaic" id="social-grid"></div>
+
+    <p class="social-empty" id="social-empty" hidden></p>
   </section>
 
-  <section id="social" class="social-section section-pad" data-reveal>
-    <div class="section-label"><span>05</span><p id="social-label"></p></div>
-    <div class="social-head"><h2>Instagram + TikTok</h2><p id="social-lede"></p></div>
-    <div class="social-grid" id="social-grid"></div>
-  </section>
-
-
-  <footer class="site-footer" data-reveal>
+  <footer class="light-footer">
     <div class="footer-brand">OPEN GRAIN</div>
     <div>
       <a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">Instagram</a>
@@ -46,6 +55,22 @@
   </footer>
 
 </main>
+
+<!-- Expanded post view. Placeholder styling for now: Adama is sending the
+     design for this screen. -->
+<div id="post-sheet" class="post-sheet" hidden role="dialog" aria-modal="true" aria-label="Publicación ampliada">
+  <button type="button" class="post-sheet-close" id="post-sheet-close" aria-label="Cerrar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <figure class="post-sheet-box">
+    <img id="post-sheet-img" src="" alt="">
+    <figcaption>
+      <span class="post-sheet-net" id="post-sheet-net"></span>
+      <h3 id="post-sheet-caption"></h3>
+      <a class="post-sheet-link" id="post-sheet-link" href="#" target="_blank" rel="noopener"></a>
+    </figcaption>
+  </figure>
+</div>
 
 <div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="Vista ampliada del proyecto">
   <figure class="lightbox-figure">

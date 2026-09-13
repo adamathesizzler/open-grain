@@ -220,8 +220,82 @@ body.is-home{ background:#0b0b0a; }
   100% { filter:saturate(.9)  brightness(1.015); transform:scale(1); }      /* rest */
 }
 
-/* ---------- Light page (services) ---------- */
-body.is-services{ background:#f4f9ff; }
+/* ---------- Social: network picker + adaptive mosaic ----------
+   Post count varies (Adama may have four selected, or twelve), so the mosaic
+   is dealt into columns by running height in main.js rather than assuming a
+   fixed grid — that keeps the columns level at any count and lets each
+   thumbnail keep its real proportions instead of being cropped square. */
+.social-stage{ padding:clamp(40px,6vw,70px) 6vw clamp(70px,9vw,110px); }
+.social-head-light{ text-align:center; max-width:760px; margin:0 auto; }
+.social-head-light h2{ margin:0; font-size:clamp(30px,5vw,58px); line-height:1.04;
+  letter-spacing:-.035em; font-weight:800; color:#101828; }
+.social-head-light h2 em{ font-family:Georgia,"Times New Roman",serif; font-style:italic;
+  font-weight:500; letter-spacing:-.02em; }
+.social-head-light p{ margin:16px auto 0; max-width:48ch; color:#40506b;
+  font-size:clamp(13px,1.4vw,16px); }
+
+.net-tabs{ display:flex; justify-content:center; flex-wrap:wrap; gap:10px;
+  margin:30px 0 clamp(30px,4vw,46px); }
+.net-tab{ display:inline-flex; align-items:center; gap:8px; padding:11px 20px; border-radius:999px;
+  border:1px solid rgba(16,40,80,.16); background:rgba(255,255,255,.68); color:#23324d;
+  font-size:14px; font-weight:600; cursor:pointer;
+  transition:background var(--dur-fast) var(--ease-smooth), color var(--dur-fast) var(--ease-smooth),
+             transform var(--dur-instant) var(--ease-out), border-color var(--dur-fast) var(--ease-smooth); }
+.net-tab:hover{ background:#fff; transform:translateY(-1px); }
+.net-tab:active{ transform:scale(.97); }
+.net-tab[aria-selected="true"]{ background:#101828; border-color:#101828; color:#fff; }
+.net-tab:focus-visible{ outline:2px solid #101828; outline-offset:2px; }
+.net-tab svg{ width:16px; height:16px; }
+
+.social-mosaic{ display:flex; align-items:flex-start; gap:14px; max-width:1180px; margin:0 auto; }
+.social-col{ flex:1 1 0; min-width:0; display:flex; flex-direction:column; gap:14px; }
+.social-post{ position:relative; margin:0; display:block; border-radius:14px; overflow:hidden;
+  background:#dce8f7; cursor:pointer;
+  box-shadow:0 14px 34px rgba(20,40,80,.15);
+  opacity:0; transform:translateY(14px);
+  animation:og-social-in .55s var(--ease-out) forwards; animation-delay:calc(var(--i,0) * 45ms);
+  transition:transform var(--dur-base) var(--ease-smooth), box-shadow var(--dur-base) var(--ease-smooth); }
+.social-post:hover{ transform:translateY(-5px); box-shadow:0 22px 48px rgba(20,40,80,.25); }
+.social-post:focus-visible{ outline:2px solid #101828; outline-offset:3px; }
+.social-post img{ width:100%; height:100%; object-fit:cover; display:block; }
+.social-post figcaption{ position:absolute; inset:auto 0 0 0; padding:24px 12px 10px; color:#fff;
+  font-size:11px; letter-spacing:.03em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  background:linear-gradient(to top,rgba(0,0,0,.66),transparent); }
+.social-play{ position:absolute; top:10px; right:10px; width:26px; height:26px; border-radius:50%;
+  background:rgba(0,0,0,.55); color:#fff; display:grid; place-items:center; }
+@keyframes og-social-in{ to{ opacity:1; transform:translateY(0); } }
+.social-empty{ text-align:center; color:#64789c; margin:30px 0 0;
+  font:12px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.08em; text-transform:uppercase; }
+
+/* Expanded post view — placeholder until Adama sends the design. */
+.post-sheet{ position:fixed; inset:0; z-index:70; display:grid; place-items:center; padding:24px;
+  background:rgba(10,16,28,.62); backdrop-filter:blur(8px);
+  opacity:0; transition:opacity var(--dur-base) var(--ease-smooth); }
+/* Needed: this rule's display:grid outranks the browser's [hidden]{display:none},
+   so without it the closed sheet keeps swallowing clicks on the page beneath. */
+.post-sheet[hidden]{ display:none; }
+.post-sheet.is-open{ opacity:1; }
+.post-sheet-box{ margin:0; width:min(440px,92vw); max-height:86vh; overflow:auto;
+  background:#fff; border-radius:20px; box-shadow:0 40px 90px rgba(0,0,0,.42);
+  transform:scale(.97); transition:transform var(--dur-base) var(--ease-out); }
+.post-sheet.is-open .post-sheet-box{ transform:scale(1); }
+.post-sheet-box img{ width:100%; display:block; }
+.post-sheet-box figcaption{ padding:18px 20px 22px; }
+.post-sheet-net{ font:10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.14em;
+  text-transform:uppercase; color:#7b93bd; }
+.post-sheet-box h3{ margin:8px 0 14px; font-size:19px; letter-spacing:-.02em; color:#101828; }
+.post-sheet-link{ display:inline-block; padding:10px 16px; border-radius:999px;
+  background:#101828; color:#fff; font-size:13px; font-weight:600; }
+.post-sheet-close{ position:absolute; top:22px; right:24px; width:40px; height:40px; border-radius:50%;
+  border:0; background:rgba(255,255,255,.16); color:#fff; cursor:pointer;
+  display:grid; place-items:center; transition:background var(--dur-fast) var(--ease-smooth); }
+.post-sheet-close:hover{ background:rgba(255,255,255,.28); }
+
+.studio-mark-light{ display:flex; align-items:center; gap:10px; margin:26px 0 0; color:#5b76a8;
+  font:11px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.1em; text-transform:uppercase; }
+
+/* ---------- Light page (services, studio) ---------- */
+body.is-services, body.is-light{ background:#f4f9ff; }
 .light-page{ background:transparent !important; color:#141c2b; min-height:100vh; }
 .light-page::after{ opacity:.03; }
 .svc-hero{ padding:clamp(150px,18vw,210px) 6vw clamp(40px,6vw,70px); max-width:1100px; }
@@ -499,6 +573,8 @@ body.is-services{ background:#f4f9ff; }
   .marquee-track{ animation:none !important; }
   .pulse-bg{ animation:none !important; transform:none !important; opacity:.95 !important; }
   .marquee{ overflow-x:auto; }
+  .social-post{ animation:none !important; opacity:1 !important; transform:none !important; }
+  .post-sheet, .post-sheet-box{ transition:opacity var(--dur-fast) linear !important; transform:none !important; }
   .studio-section{ --sy:0.5 !important; }
 }
 
@@ -527,6 +603,13 @@ body.is-services{ background:#f4f9ff; }
   .home-footer{ justify-content:center; text-align:center; gap:4px 14px; padding:14px 16px 10px; font-size:8px; }
   .home-footer nav{ gap:14px; }
   .svc-card{ width:44vw; margin-right:14px; transform:perspective(700px) rotateY(-18deg); }
+  .social-stage{ padding:30px 16px 70px; }
+  .social-mosaic{ gap:8px; }
+  .social-col{ gap:8px; }
+  .social-post figcaption{ font-size:9px; padding:18px 8px 7px; }
+  .social-play{ width:20px; height:20px; top:6px; right:6px; }
+  .net-tabs{ gap:7px; margin:22px 0 26px; }
+  .net-tab{ padding:9px 14px; font-size:13px; }
   /* Dock shrinks and hugs the edge; the hover labels are pointless on touch. */
   .dock{ right:8px; gap:0; padding:6px 5px; border-radius:24px; }
   .dock-btn{ width:34px; height:34px; }

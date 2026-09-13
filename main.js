@@ -358,11 +358,142 @@ function renderContact() {
 }
 
 function renderSocialLabels() {
-  if (!$('social-label')) return;
   const t = copy[lang];
-  $('social-label').textContent = t.social;
-  $('social-lede').textContent = t.socialLede;
+  if ($('social-label')) $('social-label').textContent = t.social;
+  if ($('social-lede')) $('social-lede').textContent = t.socialLede;
+  // Split heading so the first half can be set in italic serif, like the
+  // reference: "Lo último / del estudio".
+  if ($('social-title-a')) $('social-title-a').textContent = lang === 'es' ? 'Lo último' : 'The latest';
+  if ($('social-title-b')) $('social-title-b').textContent = lang === 'es' ? 'del estudio' : 'from the studio';
+  renderNetTabs();
 }
+
+// ---------- Social: network picker + adaptive mosaic ----------
+// Up to 12 selected posts per network. The count is whatever Adama has
+// published — four, nine, twelve — so the layout can't assume a fixed grid:
+// posts are dealt into 4 columns (3 on a phone) by running height, which
+// keeps the columns level whatever the number and lets every thumbnail keep
+// its own proportions instead of being cropped to a common box.
+const NETWORKS = [
+  ['tiktok', 'TikTok', '<path d="M9 18a3.2 3.2 0 1 0 3.2-3.2V4c.6 2.5 2.6 4.4 5.1 4.7"/>'],
+  ['instagram', 'Instagram', '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r="1"/>'],
+  ['youtube', 'YouTube', '<rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="m10.5 9.5 5 2.5-5 2.5z"/>'],
+];
+const SOCIAL_MAX = 12;
+
+let socialNet = 'tiktok';
+let socialPosts = { tiktok: [], instagram: [], youtube: [] };
+
+function renderNetTabs() {
+  const tabs = $('net-tabs');
+  if (!tabs) return;
+  tabs.innerHTML = NETWORKS.map(([id, label, icon]) => `
+    <button class="net-tab" type="button" role="tab" data-net="${id}"
+            aria-selected="${id === socialNet}">${svg(icon)}${label}</button>`).join('');
+}
+
+function socialRatio(p) {
+  if (p.w && p.h) return p.h / p.w;
+  // Sensible defaults per network when a post carries no dimensions:
+  // TikTok and Reels are 9:16, YouTube is 16:9.
+  return p.platform === 'youtube' ? 0.5625 : 1.7778;
+}
+
+function renderSocialGrid() {
+  const grid = $('social-grid');
+  if (!grid) return;
+
+  const posts = (socialPosts[socialNet] || []).slice(0, SOCIAL_MAX);
+  const empty = $('social-empty');
+  if (empty) {
+    empty.hidden = posts.length > 0;
+    empty.textContent = lang === 'es'
+      ? 'Todavía no hay publicaciones seleccionadas para esta red.'
+      : 'No posts selected for this network yet.';
+  }
+  if (!posts.length) { grid.innerHTML = ''; return; }
+
+  const count = window.innerWidth <= 700 ? 3 : 4;
+  const cols = Array.from({ length: count }, () => ({ height: 0, html: [] }));
+
+  posts.forEach((p, i) => {
+    const target = cols.reduce((a, b) => (b.height < a.height ? b : a));
+    const ar = socialRatio(p);
+    target.html.push(`
+      <figure class="social-post" tabindex="0" data-idx="${i}"
+              style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
+        <img src="${attrEscape(p.image_url)}" alt="${attrEscape(p.caption || '')}" loading="${i < 4 ? 'eager' : 'lazy'}">
+        <span class="social-play" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11"><path d="M8 5v14l11-7z"/></svg></span>
+        ${p.caption ? `<figcaption>${attrEscape(p.caption)}</figcaption>` : ''}
+      </figure>`);
+    target.height += ar;
+  });
+
+  grid.innerHTML = cols.map(c => `<div class="social-col">${c.html.join('')}</div>`).join('');
+  grid.dataset.cols = String(count);
+}
+
+function openPostSheet(post) {
+  const sheet = $('post-sheet');
+  if (!sheet || !post) return;
+  $('post-sheet-img').src = post.image_url;
+  $('post-sheet-img').alt = post.caption || '';
+  $('post-sheet-net').textContent = (NETWORKS.find(n => n[0] === post.platform) || [, post.platform])[1];
+  $('post-sheet-caption').textContent = post.caption || '';
+  const link = $('post-sheet-link');
+  link.href = post.external_url || '#';
+  link.hidden = !post.external_url;
+  link.textContent = lang === 'es' ? 'Ver publicación ↗' : 'View post ↗';
+  sheet.hidden = false;
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => sheet.classList.add('is-open'));
+  $('post-sheet-close').focus();
+}
+
+function closePostSheet() {
+  const sheet = $('post-sheet');
+  if (!sheet || sheet.hidden) return;
+  sheet.classList.remove('is-open');
+  document.body.style.overflow = '';
+  const done = () => { sheet.hidden = true; };
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) done();
+  else sheet.addEventListener('transitionend', done, { once: true });
+}
+
+$('net-tabs')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-net]');
+  if (!btn) return;
+  socialNet = btn.dataset.net;
+  renderNetTabs();
+  renderSocialGrid();
+});
+
+$('social-grid')?.addEventListener('click', (e) => {
+  const tile = e.target.closest('.social-post');
+  if (!tile) return;
+  openPostSheet((socialPosts[socialNet] || [])[Number(tile.dataset.idx)]);
+});
+$('social-grid')?.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const tile = e.target.closest && e.target.closest('.social-post');
+  if (!tile) return;
+  e.preventDefault();
+  openPostSheet((socialPosts[socialNet] || [])[Number(tile.dataset.idx)]);
+});
+$('post-sheet-close')?.addEventListener('click', closePostSheet);
+$('post-sheet')?.addEventListener('click', (e) => { if (e.target === $('post-sheet')) closePostSheet(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePostSheet(); });
+
+let socialResizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(socialResizeTimer);
+  socialResizeTimer = setTimeout(() => {
+    const grid = $('social-grid');
+    if (!grid) return;
+    const want = String(window.innerWidth <= 700 ? 3 : 4);
+    if (grid.dataset.cols !== want) renderSocialGrid();
+  }, 150);
+}, { passive: true });
 
 function renderFooter() {
   if ($('footer-based')) $('footer-based').textContent = copy[lang].based;
@@ -531,43 +662,62 @@ if (supabaseClient) {
     .catch(() => {});
 
   // Real selected social posts, same graceful fallback as portfolio.
+  // Grouped by network, capped at SOCIAL_MAX each, in Studio's sort order.
   supabaseClient
     .from('social_posts')
     .select('platform, external_url, image_url, caption, sort_order')
     .eq('is_selected', true)
     .order('sort_order')
     .then(({ data }) => {
-      const grid = $('social-grid');
-      if (!grid) return;
-      if (data && data.length) {
-        grid.innerHTML = data.map(p => `
-          <a class="social-post" href="${p.external_url}" target="_blank" rel="noopener">
-            <img src="${p.image_url || 'assets/portfolio/portrait-studio.jpg'}" alt="${p.caption || ''}">
-            <span>${p.platform === 'instagram' ? '@ Instagram' : '♪ TikTok'}</span>
-          </a>`).join('');
-      } else {
-        renderProvisionalSocial(grid);
-      }
+      if (data && data.length) applyRealSocial(data);
+      else renderProvisionalSocial();
     })
-    .catch(() => renderProvisionalSocial($('social-grid')));
+    .catch(() => renderProvisionalSocial());
 } else {
-  renderProvisionalSocial($('social-grid'));
+  renderProvisionalSocial();
 }
 
-function renderProvisionalSocial(grid) {
-  if (!grid) return;
-  // No real posts selected yet in Studio — link each placeholder to the
-  // real profile (not a dead "#") so it isn't a dead click even before
-  // Adama adds actual selected posts.
-  grid.innerHTML = projects.slice(0, 6).map((p, i) => {
-    const isInsta = i < 3;
-    const href = isInsta ? 'https://instagram.com/opengrain.studio' : 'https://tiktok.com/@opengrain.studio';
-    return `
-    <a class="social-post" href="${href}" target="_blank" rel="noopener">
-      <img src="${p.image}" alt="Selected social post">
-      <span>${isInsta ? '@ Instagram' : '♪ TikTok'}</span>
-    </a>`;
-  }).join('');
+function applyRealSocial(rows) {
+  const next = { tiktok: [], instagram: [], youtube: [] };
+  rows.forEach(r => {
+    const net = next[r.platform] ? r.platform : 'instagram';
+    if (next[net].length < SOCIAL_MAX) next[net].push({ ...r, platform: net });
+  });
+  socialPosts = next;
+  // Land on a network that actually has something to show.
+  if (!socialPosts[socialNet].length) {
+    const firstFilled = NETWORKS.map(n => n[0]).find(n => socialPosts[n].length);
+    if (firstFilled) socialNet = firstFilled;
+  }
+  renderNetTabs();
+  renderSocialGrid();
+}
+
+// Nothing selected in Studio yet: show Adama's own photographs as stand-ins
+// so the section isn't empty, each linking to the real profile rather than a
+// dead click. Replaced the moment he selects actual posts.
+function renderProvisionalSocial() {
+  if (!$('social-grid')) return;
+  const PROFILE = {
+    tiktok: 'https://tiktok.com/@opengrain.studio',
+    instagram: 'https://instagram.com/opengrain.studio',
+    youtube: 'https://instagram.com/opengrain.studio',
+  };
+  const next = { tiktok: [], instagram: [], youtube: [] };
+  NETWORKS.forEach(([net], n) => {
+    projects.slice(n * 4, n * 4 + SOCIAL_MAX).forEach(p => {
+      next[net].push({
+        platform: net,
+        image_url: p.image,
+        caption: p.title,
+        external_url: PROFILE[net],
+        w: p.w, h: p.h,
+      });
+    });
+  });
+  socialPosts = next;
+  renderNetTabs();
+  renderSocialGrid();
 }
 
 // ============================================================
