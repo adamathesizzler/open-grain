@@ -21,7 +21,7 @@ const projects = [
   { id: '07', title: 'Table No. 8',    type: 'Gastronomy',  image: 'assets/portfolio/gastronomy.jpg',  ratio: 'square crop-two' },
   { id: '08', title: 'Mediterranean',  type: 'Hospitality', image: 'assets/portfolio/hospitality.jpg', ratio: 'tall crop-two' },
 ];
-const heroProjects = projects.slice(0, 4);
+const heroProjects = projects.slice(0, 3);
 const serviceImages = [
   'assets/portfolio/portrait.jpg', 'assets/portfolio/gastronomy.jpg', 'assets/portfolio/event.jpg',
   'assets/portfolio/hospitality.jpg', 'assets/portfolio/portrait.jpg',
@@ -65,7 +65,7 @@ let dark = (() => { const h = new Date().getHours(); return h < 7 || h >= 20; })
 let menuOpen = false;
 
 const shell = document.getElementById('site-shell');
-const stage = document.getElementById('floating-stage');
+const heroGrid = document.getElementById('hero-grid');
 
 function applyTheme() {
   shell.classList.toggle('dark-mode', dark);
@@ -83,16 +83,12 @@ function renderNav() {
 }
 
 function renderHero() {
-  const t = copy[lang];
-  typewriter(document.getElementById('hero-eyebrow'), t.eyebrow);
-  document.getElementById('hero-headline').textContent = t.headline;
-  const cta = document.getElementById('hero-cta');
-  cta.innerHTML = `${t.explore}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M7 7h10v10"/></svg>`;
-
-  stage.innerHTML = heroProjects.map((p, i) => `
-    <figure class="float-card card-${String.fromCharCode(97 + i)}" data-depth="${i + 1}">
-      <img src="${p.image}" alt="">
-      <figcaption><span>/ ${p.id}</span><span>${p.title}</span></figcaption>
+  // Full-bleed photo grid: no headline/copy to translate here anymore,
+  // just the portfolio imagery itself, wired into the existing lightbox
+  // via the shared .project-tile class + data-lightbox-* attributes.
+  heroGrid.innerHTML = heroProjects.map((p) => `
+    <figure class="project-tile" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
+      <img src="${p.image}" alt="${attrEscape(p.title)} — ${attrEscape(p.type)}">
     </figure>`).join('');
 }
 
@@ -249,19 +245,6 @@ window.addEventListener('message', (event) => {
     renderAll();
   }
 });
-
-// ---------- Pointer parallax on the floating hero photos ----------
-// Ported from open-grain.tsx: updates --mx/--my custom properties via rAF,
-// respects prefers-reduced-motion.
-let raf = 0;
-window.addEventListener('pointermove', (e) => {
-  if (!stage || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(() => {
-    stage.style.setProperty('--mx', String((e.clientX / innerWidth - 0.5) * 2));
-    stage.style.setProperty('--my', String((e.clientY / innerHeight - 0.5) * 2));
-  });
-}, { passive: true });
 
 // ---------- Supabase client ----------
 const supabaseClient = (window.supabase && window.SUPABASE_URL && !window.SUPABASE_URL.includes('YOUR-PROJECT'))

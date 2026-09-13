@@ -1,8 +1,21 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-12 (0j. Pasada de animaciones en toda la web, inspirada en un vídeo de referencia que envió Adama). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
+Última actualización: 2026-09-13 (0k. Hero de la web pública rediseñado como rejilla de fotos a pantalla completa, inspirado en markclennon.com). Sustituye/anula la sección 0 y la mayor parte de 2/2b/2c/2d de más abajo.
 
-## 0j. Pasada de animaciones en toda la web — pública y Studio, inspirada en un vídeo de referencia (esta sesión)
+## 0k. Hero de la web pública: de titular+fotos flotantes a rejilla de fotos a pantalla completa (esta sesión)
+
+Adama pidió que el hero de la home se pareciera a markclennon.com (un portfolio de fotografía donde el "hero" es directamente una rejilla de fotos a pantalla completa, sin titular ni texto de introducción, solo el logo pequeño arriba). Se le preguntó qué quería exactamente conservar y eligió la opción de rejilla pura: quitar el titular grande "OPEN GRAIN" y el texto de intro, dejando solo la rejilla de fotos + el logo de la nav (que ya existía).
+
+**Cambios**:
+- `index.html`: la sección `.hero` ya no tiene `<h1>`, `<h2 id="hero-headline">`, el botón CTA (`#hero-cta`) ni el bloque `.hero-meta`/`#hero-eyebrow`. Ahora es un único `<div class="hero-grid" id="hero-grid">` (poblado por JS) + el `.scroll-cue` de siempre.
+- `main.js`: `renderHero()` reescrito — ya no traduce/escribe ningún texto del hero (los textos `eyebrow`/`headline`/`explore` de `copy[lang]` quedan sin usar pero no se han borrado, por si se reutilizan en otra sección más adelante); ahora solo rellena `#hero-grid` con 3 fotos del portfolio (`heroProjects`, antes 4) usando la misma clase `.project-tile` + atributos `data-lightbox-*` que ya usa la rejilla de "Selected Work", así que las fotos del hero abren el lightbox existente sin tocar esa lógica. Se eliminó también el efecto de paralaje por puntero (`--mx`/`--my` sobre las tarjetas flotantes), que ya no aplica.
+- `styles.css`: nuevo bloque `.hero`/`.hero-grid` — composición de 1 foto grande centrada arriba + 2 fotos a media anchura debajo, fondo siempre oscuro (fijo, no depende del tema claro/oscuro del resto de la web, a propósito, como una vitrina fotográfica), sin bordes redondeados, con una entrada animada escalonada (`@keyframes og-hero-tile-in`) que respeta `prefers-reduced-motion`. En móvil la rejilla pasa a 3 fotos apiladas verticalmente. Se retiraron las reglas ya no usadas: `.hero-meta`, `.floating-stage`, `.float-card`, `.card-a/b/c/d`, `.hero-copy`, `.glass-cta` y sus animaciones asociadas (`og-float-in`); `@keyframes og-rise-in` se conservó porque también la usa el aviso de cookies.
+
+**Verificado con Playwright**: sin overflow horizontal (escritorio y móvil), sin errores de consola nuevos, la rejilla se ve y anima correctamente en claro/oscuro (el hero en sí es siempre oscuro a propósito) y bajo `prefers-reduced-motion` aparece ya asentada sin animación; las fotos del hero abren el lightbox correctamente al pulsarlas.
+
+**No se tocó**: ningún dato de Supabase, el resto de secciones de la home, ni Studio — cambio acotado a la sección `.hero` de la web pública.
+
+## 0j. Pasada de animaciones en toda la web — pública y Studio, inspirada en un vídeo de referencia (sesión anterior)
 
 Adama envió un vídeo (recopilación tipo TikTok de "7 animaciones web impresionantes") y pidió aprovechar lo que se pudiera de esas técnicas e implementarlo en toda la web, tanto en el panel privado (Studio) como en la web pública, poniendo como ejemplo un degradado que cambiase al bajar en la sección "Studio" de la home.
 
