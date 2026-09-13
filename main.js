@@ -93,23 +93,33 @@ const copy = {
 
 let lang = 'en';
 let dark = (() => { const h = new Date().getHours(); return h < 7 || h >= 20; })();
-let menuOpen = false;
 
 const shell = $('site-shell');
 
 function applyTheme() {
   if (shell) shell.classList.toggle('dark-mode', dark);
-  if ($('icon-sun')) $('icon-sun').hidden = dark;
-  if ($('icon-moon')) $('icon-moon').hidden = !dark;
 }
 
-// The nav now links to real pages instead of in-page anchors: the home is
-// only the work grid, and every other section lives on its own page.
+// Dock icons. Line icons on a 24 grid, same stroke weight throughout.
+const ICONS = {
+  home:    '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/>',
+  work:    '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m3 15 5-4 4 3 3-2 6 4"/><circle cx="8.5" cy="8.5" r="1.4"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18 2 2 0 0 0 1.6-3.2 2 2 0 0 1 1.6-3.2H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10" cy="7" r="1.1"/><circle cx="15" cy="7.5" r="1.1"/>',
+  studio:  '<path d="M22 18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l2-2.6h6L17 7h3a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/>',
+  mail:    '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.6 6.5 8.4 6 8.4-6"/>',
+  globe:   '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/>',
+  sun:     '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:    '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+};
+
+const svg = (d) => `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+
 const NAV_PAGES = [
-  ['work.html', 'work'],
-  ['services.html', 'services'],
-  ['about.html', 'studio'],
-  ['contact.html', 'contact'],
+  ['index.html', 'home', 'home'],
+  ['work.html', 'work', 'work'],
+  ['services.html', 'services', 'palette'],
+  ['about.html', 'studio', 'studio'],
+  ['contact.html', 'contact', 'mail'],
 ];
 
 function currentPage() {
@@ -117,20 +127,25 @@ function currentPage() {
   return file === '' ? 'index.html' : file;
 }
 
+// A compact floating dock of icons instead of a wide top bar: the old bar
+// took up most of the screen on a phone and pushed the nav links into a
+// hamburger. Labels appear on hover, and every button keeps its aria-label.
 function renderNav() {
+  const dock = $('dock');
+  if (!dock) return;
   const t = copy[lang];
   const here = currentPage();
-  const markup = NAV_PAGES.map(([href, key]) => {
+
+  const links = NAV_PAGES.map(([href, key, icon]) => {
+    const label = key === 'home' ? (lang === 'es' ? 'Inicio' : 'Home') : t[key];
     const active = href === here ? ' aria-current="page"' : '';
-    return `<a href="${href}"${active}>${t[key]}</a>`;
+    return `<a class="dock-btn" href="${href}"${active} aria-label="${attrEscape(label)}" data-tip="${attrEscape(label)}">${svg(ICONS[icon])}</a>`;
   }).join('');
 
-  if ($('nav-links')) $('nav-links').innerHTML = markup;
-  const mobileMenu = $('mobile-menu');
-  if (mobileMenu) {
-    mobileMenu.innerHTML = markup;
-    mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setMenu(false)));
-  }
+  dock.innerHTML = `${links}
+    <span class="dock-sep" aria-hidden="true"></span>
+    <button class="dock-btn" type="button" data-action="lang" aria-label="${lang === 'es' ? 'Cambiar idioma' : 'Change language'}" data-tip="${lang.toUpperCase()}">${svg(ICONS.globe)}</button>
+    <button class="dock-btn" type="button" data-action="theme" aria-label="${lang === 'es' ? 'Cambiar tema' : 'Change theme'}" data-tip="${lang === 'es' ? 'Tema' : 'Theme'}">${svg(dark ? ICONS.moon : ICONS.sun)}</button>`;
 }
 
 // ---------- Home: the full-bleed work grid ----------
@@ -262,24 +277,32 @@ function renderWork() {
 }
 
 function renderStatement() {
-  if (!$('statement-heading')) return;
   const t = copy[lang];
-  $('statement-heading').textContent = t.intro;
-  $('statement-body').textContent = t.introBody;
+  // Checked separately: the services page reuses the body copy as its lede
+  // without carrying the heading.
+  if ($('statement-heading')) $('statement-heading').textContent = t.intro;
+  if ($('statement-body')) $('statement-body').textContent = t.introBody;
 }
 
 function renderServices() {
   const t = copy[lang];
-  if ($('services-label')) $('services-label').textContent = t.capabilities;
+  // The kicker says "Services"; the heading is the marketing line, so they
+  // don't repeat each other.
+  if ($('services-label')) $('services-label').textContent = t.services;
   if ($('services-heading')) $('services-heading').textContent = t.capabilities;
 
-  if ($('service-cards')) {
-    $('service-cards').innerHTML = t.serviceList.map((s, i) => `
-      <article>
-        <span>0${i + 1}</span>
-        <img src="${serviceImages[i % serviceImages.length]}" alt="">
-        <div><h3>${s}</h3><p>${t.viewService} →</p></div>
-      </article>`).join('');
+  const cards = $('service-cards');
+  if (cards) {
+    // On the services page this is a plain index list (<ol>); elsewhere it is
+    // the older card grid. Same data, rendered to fit its container.
+    cards.innerHTML = cards.tagName === 'OL'
+      ? t.serviceList.map(s => `<li><span>${attrEscape(s)}</span></li>`).join('')
+      : t.serviceList.map((s, i) => `
+        <article>
+          <span>0${i + 1}</span>
+          <img src="${serviceImages[i % serviceImages.length]}" alt="">
+          <div><h3>${s}</h3><p>${t.viewService} →</p></div>
+        </article>`).join('');
   }
 
   renderServiceMarquee();
@@ -358,14 +381,6 @@ function renderAll() {
   renderFooter();
 }
 
-function setMenu(open) {
-  menuOpen = open;
-  if ($('mobile-menu')) $('mobile-menu').hidden = !open;
-  if ($('menu-toggle')) $('menu-toggle').setAttribute('aria-expanded', String(open));
-  if ($('icon-menu')) $('icon-menu').hidden = open;
-  if ($('icon-close')) $('icon-close').hidden = !open;
-}
-
 // Language and theme are per-visitor choices that must survive navigating
 // between pages now that the site is multi-page, so they persist locally.
 try {
@@ -375,19 +390,22 @@ try {
   if (savedTheme === 'dark' || savedTheme === 'light') dark = savedTheme === 'dark';
 } catch (e) { /* private mode / blocked storage — fall back to defaults */ }
 
-if ($('lang-label')) $('lang-label').textContent = lang.toUpperCase();
-
-$('menu-toggle')?.addEventListener('click', () => setMenu(!menuOpen));
-$('lang-toggle')?.addEventListener('click', () => {
-  lang = lang === 'en' ? 'es' : 'en';
-  if ($('lang-label')) $('lang-label').textContent = lang.toUpperCase();
-  try { localStorage.setItem('og_lang', lang); } catch (e) { /* ignore */ }
-  renderAll();
-});
-$('theme-toggle')?.addEventListener('click', () => {
-  dark = !dark;
-  try { localStorage.setItem('og_theme', dark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
-  applyTheme();
+// Delegated, because renderNav() rebuilds the dock's markup whenever the
+// language or theme changes — listeners bound to the old buttons would die
+// with them.
+$('dock')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'lang') {
+    lang = lang === 'en' ? 'es' : 'en';
+    try { localStorage.setItem('og_lang', lang); } catch (err) { /* ignore */ }
+    renderAll();
+  } else if (btn.dataset.action === 'theme') {
+    dark = !dark;
+    try { localStorage.setItem('og_theme', dark ? 'dark' : 'light'); } catch (err) { /* ignore */ }
+    applyTheme();
+    renderNav();
+  }
 });
 
 renderAll();
@@ -408,7 +426,6 @@ window.addEventListener('message', (event) => {
     if (msg.fields) Object.assign(copy[msg.lang], msg.fields);
     if (Array.isArray(msg.serviceList) && msg.serviceList.length) copy[msg.lang].serviceList = msg.serviceList;
     lang = msg.lang;
-    if ($('lang-label')) $('lang-label').textContent = lang.toUpperCase();
     renderAll();
   }
 });
