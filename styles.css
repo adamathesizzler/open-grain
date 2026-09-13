@@ -126,7 +126,10 @@ body.is-home{ background:#0b0b0a; }
    a double-width cell for editorial rhythm, and the last tile always
    stretches to the end of its row, so the page can never end on an empty
    black cell however many projects there are. */
-.home-grid{ display:grid; grid-template-columns:repeat(3,1fr);
+/* `dense` matters: without it a double-width tile that doesn't fit the space
+   left in a row jumps to the next one and leaves a hole behind. Dense pulls a
+   later single-width photo into that gap instead, so the grid stays solid. */
+.home-grid{ display:grid; grid-template-columns:repeat(3,1fr); grid-auto-flow:row dense;
   grid-auto-rows:clamp(240px,27vw,430px); gap:3px; padding:3px; }
 .home-grid.is-sparse{ grid-template-columns:repeat(2,1fr); grid-auto-rows:clamp(280px,34vw,540px); }
 .home-grid .project-tile{ margin:0; border-radius:0; overflow:hidden; position:relative;

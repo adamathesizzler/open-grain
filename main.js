@@ -21,11 +21,16 @@ if ($('year')) $('year').textContent = new Date().getFullYear();
 // so nothing on the page is stock any more. Published projects added in
 // Studio replace this list entirely (see applyRealProjects below).
 const projects = [
-  { id: '01', title: 'Formula E',   type: 'Motorsport',  image: 'assets/portfolio/motorsport.jpg',         ratio: 'wide' },
-  { id: '02', title: 'Daylight',    type: 'Portrait',    image: 'assets/portfolio/portrait-studio.jpg',    ratio: 'tall' },
-  { id: '03', title: 'Low Key',     type: 'Portrait',    image: 'assets/portfolio/portrait-low-key.jpg',   ratio: 'tall' },
-  { id: '04', title: 'Blue Room',   type: 'Editorial',   image: 'assets/portfolio/editorial-interior.jpg', ratio: 'wide' },
-  { id: '05', title: 'Sobremesa',   type: 'Documentary', image: 'assets/portfolio/documentary.jpg',        ratio: 'tall' },
+  { id: '01', title: 'Formula E',   type: 'Motorsport',   image: 'assets/portfolio/motorsport.jpg',         ratio: 'wide' },
+  { id: '02', title: 'Tōdai-ji',    type: 'Architecture', image: 'assets/portfolio/todaiji.jpg',            ratio: 'tall' },
+  { id: '03', title: 'Daylight',    type: 'Portrait',     image: 'assets/portfolio/portrait-studio.jpg',    ratio: 'tall' },
+  { id: '04', title: 'Nara',        type: 'Wildlife',     image: 'assets/portfolio/nara-deer.jpg',          ratio: 'square' },
+  { id: '05', title: 'Blue Room',   type: 'Editorial',    image: 'assets/portfolio/editorial-interior.jpg', ratio: 'wide' },
+  { id: '06', title: 'Nightfall',   type: 'Portrait',     image: 'assets/portfolio/night-portrait.jpg',     ratio: 'tall' },
+  { id: '07', title: 'Low Key',     type: 'Portrait',     image: 'assets/portfolio/portrait-low-key.jpg',   ratio: 'tall' },
+  { id: '08', title: 'Platform',    type: 'Street',       image: 'assets/portfolio/platform.jpg',           ratio: 'tall' },
+  { id: '09', title: 'Sobremesa',   type: 'Documentary',  image: 'assets/portfolio/documentary.jpg',        ratio: 'tall' },
+  { id: '10', title: 'Temple Gate', type: 'Street',       image: 'assets/portfolio/temple-gate.jpg',        ratio: 'tall' },
 ];
 const serviceImages = [
   'assets/portfolio/portrait-studio.jpg', 'assets/portfolio/motorsport.jpg', 'assets/portfolio/editorial-interior.jpg',
