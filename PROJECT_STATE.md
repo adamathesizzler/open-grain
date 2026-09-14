@@ -968,3 +968,10 @@ más de siete el margen del plan gratuito de Vercel que se describe en PERF-07.
 3. Resolver SEC-07 desde una máquina con acceso a la red, o servir la librería
    desde el repositorio.
 4. Sincronizar con el Mac y hacer el `git push` — que sigue sin autorizar.
+
+## 12. Contexto retomado en Codex (14.09.2026)
+
+- Comprobado en el Mac: `main` y la referencia local `origin/main` apuntan a `ed5ed45` (Arreglos invisibles de la auditoría: seguridad, peso y fluidez), coincidiendo con el último push confirmado en la conversación importada de Claude. No se ha consultado el remoto en esta comprobación.
+- Antes de esta nota no había cambios en archivos versionados; `AGENTS.md` aparece sin seguimiento.
+- Las pruebas de las secciones anteriores son resultados documentados de sesiones anteriores, no pruebas repetidas por Codex. Siguen pendientes de verificación las migraciones en Supabase real y el despliegue actual.
+- La indicación anterior de push pendiente queda superada por el push de `ed5ed45` confirmado en la conversación. No se ha hecho ningún commit ni push en esta consulta.
