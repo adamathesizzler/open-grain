@@ -78,13 +78,13 @@ img { max-width: 100%; display: block; }
   radial-gradient(ellipse 44% 34% at 92% 23%,rgba(255,116,61,.09),transparent 72%),
   linear-gradient(145deg,#101111 0%,#171514 54%,#111212 100%)}
 
-/* ---------- Notch de navegación (arriba → izquierda) ----------
-   La navegación pública es un único componente: assets/ux/og-notch.js lo
-   monta sobre #dock y assets/ux/og-ux-fixes.css le da forma. Aquí sólo
-   queda el wordmark. El dock lateral antiguo y la Dynamic Island se han
-   retirado: mantener dos sistemas a la vez provocaba estilos en conflicto
-   y listeners duplicados. */
-
+/* ---------- Navegación ----------
+   El dock lateral de iconos se ha sustituido por el notch: un único
+   componente que arranca encajado en el borde superior y viaja hasta el
+   borde derecho al bajar, justo donde estaba el dock. Vive en
+   assets/ux/og-notch.js y assets/ux/og-ux-fixes.css. Aquí sólo queda el
+   wordmark. Las reglas de .dock se han retirado para no tener dos sistemas
+   de estilos peleándose por el mismo elemento. */
 .wordmark{ position:fixed; top:24px; left:3vw; z-index:55;
   font-size:15px; font-weight:800; letter-spacing:-.03em; color:#fff;
   mix-blend-mode:difference; }
@@ -165,41 +165,9 @@ body.is-home{ background:#0b0b0a; }
 /* Fixed footer bar. The grid is endless, so there is no bottom of the page to
    put a normal footer on — but the legal links must stay reachable, so they
    ride along in a thin bar that fades up out of the imagery. */
-/* ---------- Home: banda de presentación y acciones ----------
-   Estrecha a propósito: la portada sigue siendo el trabajo, no un hero
-   comercial. Pero quien llega tiene que saber en una línea a qué se dedica
-   el estudio y poder pedir presupuesto sin abrir el menú. */
-.home-intro{ padding:clamp(74px,9vw,118px) 3vw clamp(22px,3vw,34px); color:#f3efe8; max-width:1100px; }
-.home-intro-kicker{ margin:0; font:11px ui-monospace,SFMono-Regular,Menlo,monospace;
-  letter-spacing:.14em; text-transform:uppercase; color:rgba(243,239,232,.62); }
-.home-intro-heading{ margin:14px 0 0; font-size:clamp(26px,3.6vw,46px); line-height:1.08;
-  letter-spacing:-.025em; font-weight:700; max-width:19ch; }
-.home-intro-body{ margin:14px 0 0; font-size:clamp(14px,1.2vw,17px); line-height:1.6;
-  color:rgba(243,239,232,.74); max-width:56ch; }
-.home-intro-actions{ margin:24px 0 0; display:flex; flex-wrap:wrap; gap:10px; }
-
-/* Botón compartido por portada, servicios y portfolio. */
-.og-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px;
-  min-height:48px; padding:13px 22px; border-radius:999px; border:1px solid rgba(243,239,232,.34);
-  color:#f3efe8; font-size:14px; font-weight:600; letter-spacing:-.01em; cursor:pointer;
-  background:transparent; transition:background var(--dur-fast) var(--ease-smooth),
-             border-color var(--dur-fast) var(--ease-smooth), transform var(--dur-instant) var(--ease-out); }
-.og-btn:hover{ background:rgba(243,239,232,.12); border-color:rgba(243,239,232,.6); }
-.og-btn:active{ transform:scale(.97); }
-.og-btn:focus-visible{ outline:3px solid var(--accent); outline-offset:3px; }
-.og-btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
-.og-btn-primary:hover{ background:color-mix(in srgb,var(--accent) 86%,#000); border-color:transparent; }
-/* Sobre fondo claro (servicios, portfolio) el botón invierte su contraste. */
-.inner-page .og-btn{ border-color:var(--line); color:var(--fg); }
-.inner-page .og-btn:hover{ background:color-mix(in srgb,var(--fg) 8%,transparent); border-color:var(--fg); }
-.inner-page .og-btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
-
-/* El mosaico termina: hay un final y una salida hacia el resto del sitio. */
-.home-more{ display:flex; justify-content:center; padding:clamp(30px,5vw,58px) 3vw; }
-
-.home-footer{ position:static; z-index:30;
+.home-footer{ position:fixed; left:0; right:0; bottom:0; z-index:30;
   display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 22px;
-  padding:16px 3vw 26px; pointer-events:auto;
+  padding:16px 3vw 12px; pointer-events:none;
   color:rgba(255,255,255,.72);
   font:9px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; text-transform:uppercase;
   background:linear-gradient(to top,rgba(0,0,0,.72),rgba(0,0,0,.34) 55%,transparent); }
@@ -322,28 +290,11 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .svc-index{ padding:clamp(50px,7vw,90px) 6vw clamp(70px,9vw,110px); }
 .svc-index ol{ list-style:none; margin:0; padding:0; counter-reset:svc;
   border-top:1px solid rgba(20,40,80,.14); max-width:900px; }
-/* Cada servicio explica qué se produce y ofrece una acción real. Antes era
-   sólo un nombre en una lista, sin forma de preguntar por él. */
-.svc-index li{ counter-increment:svc; display:grid;
-  grid-template-columns:auto 1fr auto; gap:6px 20px; align-items:baseline;
-  padding:26px 2px; border-bottom:1px solid rgba(20,40,80,.14); color:#101828; }
-.svc-index li::before{ content:"0" counter(svc); grid-row:1; color:#7b93bd; font-weight:500;
+.svc-index li{ counter-increment:svc; display:flex; align-items:baseline; gap:20px;
+  padding:20px 2px; border-bottom:1px solid rgba(20,40,80,.14);
+  color:#101828; font-size:clamp(19px,2.4vw,30px); letter-spacing:-.02em; font-weight:700; }
+.svc-index li::before{ content:"0" counter(svc); flex:0 0 auto; color:#7b93bd; font-weight:500;
   font:11px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.14em; }
-.svc-name{ grid-column:2; margin:0; font-size:clamp(19px,2.4vw,30px);
-  letter-spacing:-.02em; font-weight:700; }
-.svc-blurb{ grid-column:2; margin:8px 0 0; max-width:56ch;
-  font-size:15px; line-height:1.6; font-weight:400; color:#42506b; }
-.svc-meta{ grid-column:2; margin:10px 0 0;
-  font:11px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em;
-  text-transform:uppercase; color:#7b93bd; }
-.svc-ask{ grid-column:3; grid-row:1/span 4; align-self:center; white-space:nowrap;
-  border-color:rgba(20,40,80,.22); color:#101828; }
-.svc-ask:hover{ background:rgba(20,40,80,.07); border-color:#101828; }
-.svc-ask-inline{ text-decoration:underline; text-underline-offset:3px; }
-@media(max-width:700px){
-  .svc-index li{ grid-template-columns:auto 1fr; }
-  .svc-ask{ grid-column:1/-1; grid-row:auto; margin-top:16px; justify-self:start; }
-}
 
 .light-footer{ display:grid; grid-template-columns:1fr auto; gap:14px 30px;
   padding:36px 6vw 44px; border-top:1px solid rgba(20,40,80,.14);
@@ -433,7 +384,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .section-pad{ padding:clamp(80px,14vw,140px) 5vw; }
 .section-label{ display:flex; gap:42px; margin-bottom:70px; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; text-transform:uppercase; letter-spacing:.1em; }
 .section-label span{ color:var(--accent); }
-.section-label p, .section-label h1{ margin:0; font:inherit; letter-spacing:inherit; }
+.section-label p{ margin:0; }
 .work-section{ background:linear-gradient(180deg,color-mix(in srgb,var(--bg),transparent 12%),color-mix(in srgb,var(--bg),var(--accent) 3%) 55%,color-mix(in srgb,var(--bg),transparent 8%)); }
 
 .portfolio-heading{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:55px; }
@@ -500,7 +451,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .contact{ display:block; text-align:left; min-height:0; background:transparent; }
 .contact-head{ display:grid; grid-template-columns:1.25fr .75fr; gap:10vw; align-items:end; margin-bottom:54px; }
 .contact-head>div>span{ font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--accent); letter-spacing:.13em; }
-.contact-head h1{ font-size:clamp(52px,7.5vw,116px); max-width:930px; text-align:left; margin:18px 0 0; letter-spacing:-.03em; font-weight:inherit; }
+.contact-head h2{ font-size:clamp(52px,7.5vw,116px); max-width:930px; text-align:left; margin:18px 0 0; letter-spacing:-.03em; }
 .contact-head>p{ font-size:17px; line-height:1.6; color:var(--muted); max-width:400px; margin:0 0 8px; }
 .contact-card{ display:grid; grid-template-columns:1.7fr .75fr; gap:14px; }
 .contact-card>form, .contact-card>.form-success{ border:1px solid var(--line); border-radius:24px; background:color-mix(in srgb,var(--bg),white 20%); padding:28px; box-shadow:var(--elev-1); }
@@ -571,11 +522,6 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 }
 .lightbox[hidden]{ display:none; }
 .lightbox.is-open{ opacity:1; }
-/* Mientras se desvanece sigue ocupando toda la pantalla: sin esto, durante
-   medio segundo una capa invisible se traga los clics de la página. Y el
-   cierre va más rápido que la apertura, como corresponde a descartar algo. */
-.lightbox:not(.is-open){ pointer-events:none; transition-duration:var(--dur-fast); }
-.lightbox:not(.is-open) .lightbox-figure{ transition-duration:var(--dur-fast); }
 .lightbox-figure{
   position:relative; max-width:min(1100px,90vw); max-height:88vh; margin:0;
   transform:scale(.96); opacity:0; transition:transform var(--dur-base) var(--ease-smooth), opacity var(--dur-base) var(--ease-smooth);
@@ -586,25 +532,6 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .lightbox-figure figcaption{ margin-top:16px; text-align:center; color:#f3efe8; }
 .lightbox-figure figcaption span{ display:block; font:11px ui-monospace,SFMono-Regular,Menlo,monospace; text-transform:uppercase; letter-spacing:.12em; opacity:.65; margin-bottom:4px; }
 .lightbox-figure figcaption h3{ font-size:20px; margin:0; letter-spacing:-.01em; }
-/* Anterior/siguiente con contador, y una salida hacia Contacto: ver la foto
-   grande sin poder hacer nada con ella no lleva a ninguna parte. */
-.lightbox-nav{ position:absolute; top:calc(39vh - 24px); width:48px; height:48px;
-  display:flex; align-items:center; justify-content:center; cursor:pointer;
-  border:1px solid rgba(255,255,255,.28); border-radius:999px;
-  background:rgba(10,9,8,.55); color:#f3efe8;
-  transition:background var(--dur-fast) var(--ease-smooth); }
-.lightbox-nav:hover{ background:rgba(10,9,8,.85); }
-.lightbox-nav:focus-visible{ outline:3px solid #fff; outline-offset:3px; }
-.lightbox-nav[hidden]{ display:none; }
-.lightbox-prev{ left:-8px; }
-.lightbox-next{ right:-8px; }
-.lightbox-meta{ margin:8px 0 0; font:11px ui-monospace,SFMono-Regular,Menlo,monospace;
-  letter-spacing:.12em; opacity:.7; }
-.lightbox-meta span{ display:inline; margin:0; font-size:inherit; opacity:1; }
-.lightbox-cta{ margin-top:14px; }
-@media(max-width:700px){
-  .lightbox-prev{ left:2px; } .lightbox-next{ right:2px; }
-}
 .lightbox-close{
   position:absolute; top:-46px; right:0; width:36px; height:36px; border-radius:999px; border:1px solid rgba(255,255,255,.25);
   background:rgba(255,255,255,.08); color:#f3efe8; display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -677,9 +604,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
   .service-cards article{ flex:0 0 72vw; height:380px !important; scroll-snap-align:start; }
   .contact-head{ grid-template-columns:1fr; gap:25px; }
   .contact-card{ grid-template-columns:1fr; }
-  /* En móvil manda el formulario, no la foto decorativa: el orden de
-     grid-row lo fija assets/ux/og-ux-fixes.css (form → 1, aside después). */
-  .contact-card aside{ min-height:0; }
+  .contact-card aside{ min-height:330px; grid-row:1; }
   .project-form{ grid-template-columns:1fr; }
   .project-form label.full, .submit-btn{ grid-column:1; }
   .contact-details{ grid-template-columns:1fr; gap:0; }
@@ -726,15 +651,10 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 #cookie-banner p{ margin:0; flex:1 1 260px; }
 #cookie-banner a{ color:#8fb2ff; text-decoration:underline; }
 #cookie-banner div{ display:flex; gap:8px; flex-shrink:0; }
-/* El aviso reserva su altura al final del documento en lugar de flotar encima
-   de lo último de la página: en móvil tapaba el botón de enviar y el pie. */
-body.has-cookie-banner{ padding-bottom:clamp(116px,22vw,164px); }
 #cookie-banner button{
-  border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:9px 18px;
-  min-height:44px; min-width:88px;
-  font-size:13px; cursor:pointer; font-family:inherit; transition:transform var(--dur-instant) var(--ease-out);
+  border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:9px 16px;
+  font-size:12px; cursor:pointer; font-family:inherit; transition:transform var(--dur-instant) var(--ease-out);
 }
-#cookie-banner button:focus-visible{ outline:3px solid #8fb2ff; outline-offset:3px; }
 #cookie-banner button:active{ transform:scale(.94); }
 #cookie-banner #cookie-accept{ background:#f3efe8; color:#171714; border-color:#f3efe8; font-weight:600; }
 #cookie-banner #cookie-reject{ background:transparent; color:#f3efe8; }

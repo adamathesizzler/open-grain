@@ -1,6 +1,6 @@
-/* OPEN GRAIN — top → LEFT notch. Vanilla JS, no external dependencies.
-   Load BEFORE main.js, replace renderNav() as described in INTEGRACION.md.
-   Remove the old DynamicIslandNav initializer; do not run both systems. */
+/* OPEN GRAIN — notch arriba → DERECHA. JavaScript nativo, sin dependencias.
+   Cargar ANTES de main.js; sustituye a renderNav().
+   El destino es el borde derecho, donde vivía el dock antiguo. */
 (() => {
   'use strict';
   const instances = new WeakMap();
@@ -44,7 +44,7 @@
       this.signal = this.abort.signal;
       this.reduced = matchMedia('(prefers-reduced-motion: reduce)');
       this.hover = matchMedia('(hover: hover) and (pointer: fine)');
-      this.edge = scrollY > 120 ? 'left' : 'top';
+      this.edge = scrollY > 120 ? 'right' : 'top';
       this.target = this.edge;
       this.opened = false;
       this.keyboardMode = false;
@@ -125,14 +125,14 @@
         if (this.raf) return;
         this.raf = requestAnimationFrame(() => {
           this.raf = 0;
-          if (scrollY > 120) this.target = 'left';
+          if (scrollY > 120) this.target = 'right';
           else if (scrollY < 48) this.target = 'top';
           this.move();
         });
       }, { passive: true });
       this.listen(window, 'resize', () => this.settle(), { passive: true });
       this.listen(window, 'pageshow', () => {
-        this.target = scrollY > 120 ? 'left' : 'top';
+        this.target = scrollY > 120 ? 'right' : 'top';
         this.settle();
       });
       if (window.visualViewport) {
@@ -191,15 +191,18 @@
       });
     }
     coordinates(edge) {
+      // Los insets reales de safe-area se leen de la sonda invisible, no se
+      // suponen: en un iPhone apaisado el lado derecho tiene muesca.
       const css = getComputedStyle(this.probe);
       const top = parseFloat(css.paddingTop) || 0;
-      const left = parseFloat(css.paddingLeft) || 0;
+      const right = parseFloat(css.paddingRight) || 0;
       const vv = window.visualViewport;
       const width = vv?.width || innerWidth;
       const height = vv?.height || innerHeight;
       const ox = vv?.offsetLeft || 0;
       const oy = vv?.offsetTop || 0;
-      const x = edge === 'top' ? ox + width / 2 - 24 : ox + left;
+      const size = 48; // el lienzo del notch, el mismo que fija la CSS
+      const x = edge === 'top' ? ox + width / 2 - 24 : ox + width - right - size;
       const y = edge === 'top' ? oy + top : oy + Math.max(top + 36, height / 2 - 24);
       return `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
     }

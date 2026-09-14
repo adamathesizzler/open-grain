@@ -101,8 +101,16 @@
       else input.removeAttribute('aria-invalid');
       return !message;
     }
+    // El botón del sitio lleva texto y una flecha. Si marca dónde va el texto
+    // con data-og-label se escribe ahí, para no borrar el icono al pasar a
+    // «Enviando…»; si no, se comporta como antes.
+    function setButtonText(text) {
+      const slot = button.querySelector('[data-og-label]');
+      if (slot) slot.textContent = text;
+      else button.textContent = text;
+    }
     function refresh() {
-      button.textContent = busy ? t().pending : t().submit;
+      setButtonText(busy ? t().pending : t().submit);
       fields.filter(x => x.hasAttribute('aria-invalid')).forEach(validate);
       if (completed) success.textContent = t().success;
     }

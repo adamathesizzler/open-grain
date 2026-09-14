@@ -1,16 +1,19 @@
-/* OPEN GRAIN — notch arriba → izquierda, y correcciones de contacto.
-   Cargar DESPUÉS de styles.css. Sólo toca la navegación pública y el
-   formulario de contacto: el resto de la hoja global queda intacta.
+/* OPEN GRAIN — notch de navegación (arriba → derecha) y estados del formulario.
+   Cargar DESPUÉS de styles.css.
 
-   El notch es un único objeto que cambia de forma y de sitio:
-   arriba (cápsula encajada en el borde superior) → bolita en viaje →
-   izquierda (cápsula encajada en el borde izquierdo, a media altura).
-   La posición la mueve JS con transform; la forma la cambia este CSS
-   según data-edge, para que las dos cosas se puedan animar a la vez. */
+   Esta hoja toca DOS cosas y nada más: el notch, que sustituye al dock lateral
+   antiguo, y los estados de error del formulario de contacto, que sólo se ven
+   cuando hay un error. El diseño del resto de la web queda intacto.
+
+   El notch es un único objeto que cambia de forma y de sitio: arriba (cápsula
+   encajada en el borde superior) → bolita en viaje → derecha (cápsula encajada
+   en el borde derecho, a media altura, donde vivía el dock). La posición la
+   mueve JS con transform; la forma la cambia este CSS según data-edge, para que
+   las dos cosas se puedan animar a la vez. */
 
 /* ---------- Raíz: un lienzo de 48px que JS traslada ---------- */
 #dock.og-notch{
-  position:fixed; top:0; left:0; right:auto; bottom:auto; z-index:65;
+  position:fixed; top:0; left:0; right:auto; bottom:auto; z-index:60;
   width:48px; height:48px; margin:0; padding:0; display:block;
   border:0; border-radius:0; background:transparent; box-shadow:none;
   backdrop-filter:none; -webkit-backdrop-filter:none;
@@ -22,10 +25,10 @@
 .og-notch-safe-area{
   position:absolute; visibility:hidden; pointer-events:none;
   padding-top:env(safe-area-inset-top,0px);
-  padding-left:env(safe-area-inset-left,0px);
+  padding-right:env(safe-area-inset-right,0px);
 }
 
-/* ---------- Material: cristal de marca, no una losa negra ---------- */
+/* ---------- Material ---------- */
 .og-notch-toggle,
 .og-notch-panel{
   color:var(--fg,#171714);
@@ -52,7 +55,7 @@
   /* Arriba: esquinas redondeadas sólo abajo → encajado en el borde. */
   border-radius:0 0 26px 26px;
   border-top-color:transparent;
-  font:600 13px/1.2 var(--sans,system-ui,-apple-system,sans-serif);
+  font:600 13px/1.2 inherit;
   letter-spacing:.02em;
   transition:width .34s cubic-bezier(.22,1,.36,1),
              height .34s cubic-bezier(.22,1,.36,1),
@@ -62,14 +65,14 @@
 .og-notch-grip{font-size:15px; letter-spacing:2px; line-height:1; opacity:.75;}
 .og-notch-label{white-space:nowrap;}
 
-/* Izquierda: encajado en el borde izquierdo, vertical. */
-.og-notch[data-edge="left"] .og-notch-toggle{
+/* Derecha: encajado en el borde derecho, vertical. */
+.og-notch[data-edge="right"] .og-notch-toggle{
   width:48px; height:112px; flex-direction:column; padding:12px 4px; gap:10px;
-  border-radius:0 26px 26px 0;
+  border-radius:26px 0 0 26px;
   border-top-color:var(--line,rgba(23,23,20,.13));
-  border-left-color:transparent;
+  border-right-color:transparent;
 }
-.og-notch[data-edge="left"] .og-notch-label{writing-mode:vertical-rl;}
+.og-notch[data-edge="right"] .og-notch-label{writing-mode:vertical-rl;}
 
 /* En viaje: se contrae en bolita. Es el mismo nodo, sólo cambia de forma. */
 .og-notch.og-is-travelling .og-notch-toggle{
@@ -91,9 +94,9 @@
   padding:8px; border-radius:24px;
   display:flex; flex-wrap:wrap; gap:4px;
 }
-/* Desde la izquierda se abre a su derecha, hacia el interior. */
-.og-notch[data-edge="left"] .og-notch-panel{
-  left:calc(100% + 10px); top:50%; transform:translateY(-50%);
+/* Desde la derecha se abre a su izquierda, hacia el interior. */
+.og-notch[data-edge="right"] .og-notch-panel{
+  left:auto; right:calc(100% + 10px); top:50%; transform:translateY(-50%);
   width:min(290px,calc(100vw - 82px));
   max-height:calc(100dvh - 32px);
   flex-direction:column; flex-wrap:nowrap;
@@ -104,18 +107,17 @@
   min-height:48px; min-width:48px; flex:1 0 auto; margin:0; padding:12px 14px;
   border:0; border-radius:15px; background:transparent;
   color:var(--fg,#171714);
-  font:500 14px/1.3 var(--sans,system-ui,-apple-system,sans-serif);
+  font:500 14px/1.3 inherit;
   cursor:pointer; text-decoration:none;
   touch-action:manipulation; overflow-wrap:anywhere;
   transition:background .18s ease;
 }
-.og-notch[data-edge="left"] .og-notch-item{justify-content:flex-start; flex-shrink:0;}
+.og-notch[data-edge="right"] .og-notch-item{justify-content:flex-start; flex-shrink:0;}
 .og-notch-item:hover,
 .og-notch-item[aria-current="page"]{
   background:color-mix(in srgb,var(--fg,#171714) 10%,transparent);
 }
 .og-notch-item[aria-current="page"]{font-weight:700;}
-/* "Contacto" es la acción principal: se ve como tal. */
 .og-notch-item.og-notch-contact{
   background:var(--accent,#1557ff); color:#fff; font-weight:700;
 }
@@ -127,14 +129,16 @@
   outline:3px solid var(--accent,#1557ff); outline-offset:3px;
 }
 
-/* Los estados ocultos de ESTOS componentes, y sólo de estos. */
+/* Los estados ocultos de ESTOS componentes, y sólo de estos.
+   #contact-form lo necesita porque .project-form{display:grid} le ganaba a
+   [hidden] y el formulario seguía visible tras enviarse. */
 .og-notch-panel[hidden],
 #contact-form[hidden],
 #form-success[hidden],
 .og-form-summary[hidden],
 .og-field-error[hidden]{display:none !important;}
 
-/* ---------- Formulario: errores y estados accesibles ---------- */
+/* ---------- Formulario: sólo lo que aparece cuando hay un error ---------- */
 .og-form-summary{
   grid-column:1/-1; margin:0; padding:14px;
   border:1px solid currentColor; border-radius:12px; line-height:1.5;
@@ -143,43 +147,64 @@
 .dark-mode .og-form-summary{color:#ffb4a9;}
 .og-field-error{font-size:13px; line-height:1.45; color:#a12016;}
 .dark-mode .og-field-error{color:#ffb4a9;}
-#contact-form [aria-invalid="true"]{border:2px solid #a12016;}
+#contact-form [aria-invalid="true"]{border-color:#a12016;}
 .dark-mode #contact-form [aria-invalid="true"]{border-color:#ffb4a9;}
-/* 16px evita el zoom automático de iOS al enfocar un campo. */
-#contact-form input,
-#contact-form select,
-#contact-form textarea{font-size:16px;}
-#contact-form [type="submit"]{min-height:48px;}
 #contact-form [type="submit"]:disabled{cursor:progress; opacity:.7;}
-#contact-form .consent-label{min-height:48px; align-items:center; flex-wrap:wrap;}
-#contact-form .consent-label .og-field-error{flex-basis:100%;}
-/* Marca de campo opcional, para no obligar a adivinar. */
-.og-optional{color:var(--muted,#6d6b64); font-weight:400;}
-
-/* Aviso cuando el servicio elegido desaparece del catálogo. */
+/* Nota: los campos se quedan en los 15px del diseño original. Por debajo de
+   16px, Safari en iPhone hace zoom automático al enfocar un campo. Subirlo a
+   16px lo evitaría, pero cambia la altura de los campos, y el encargo es no
+   tocar nada visual. Pendiente de decisión. */
+/* Aviso cuando el servicio elegido ya no está en el catálogo. */
 .og-service-notice{font-size:13px; line-height:1.45; color:var(--accent,#1557ff);}
 .og-service-notice[hidden]{display:none !important;}
 
-/* Llamar y WhatsApp son dos acciones separadas. */
-.contact-details p a{text-decoration:underline; text-underline-offset:3px;}
-.contact-details p a + a{
-  margin-left:12px; padding-left:12px;
-  border-left:1px solid var(--line,rgba(23,23,20,.13));
-}
-.contact-details a:focus-visible{outline:3px solid var(--accent,#1557ff); outline-offset:3px;}
-
 @media(max-width:800px){
-  /* El formulario va ANTES que la fotografía decorativa en móvil. */
-  .contact-card>form{grid-row:1;}
-  .contact-card>.form-success{grid-row:1;}
-  .contact-card>aside{grid-row:auto; min-height:0; max-height:240px;}
-  .contact-card>aside img{height:240px;}
   .og-notch-panel{width:min(350px,calc(100vw - 24px));}
   .og-notch-item{flex-basis:calc(50% - 4px);}
-  .og-notch[data-edge="left"] .og-notch-item{flex-basis:auto;}
+  .og-notch[data-edge="right"] .og-notch-item{flex-basis:auto;}
 }
 
 @media(prefers-reduced-motion:reduce){
   .og-notch-toggle,
   .og-notch-item{transition:none;}
 }
+
+/* ---------- Encabezados: mismo aspecto, mejor estructura ----------
+   Cada página necesita un h1 para quien navega con lector de pantalla. Estos
+   cambios son sólo semánticos: el h1 hereda exactamente los estilos que tenía
+   el elemento anterior, así que nada se ve distinto. */
+.og-sr-only{
+  position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+  overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%); white-space:nowrap; border:0;
+}
+.section-label h1{ margin:0; font:inherit; letter-spacing:inherit; }
+.contact-head h1{
+  font-size:clamp(52px,7.5vw,116px); max-width:930px; text-align:left;
+  margin:18px 0 0; letter-spacing:-.03em;
+  /* El h2 original heredaba la negrita por defecto del navegador; un h1 sin
+     esto se vería más fino y el titular rompería en otro punto. */
+  font-weight:bold;
+}
+
+/* Mientras la vista ampliada se desvanece sigue ocupando toda la pantalla: sin
+   esto, durante medio segundo una capa invisible se traga los clics. */
+.lightbox:not(.is-open){ pointer-events:none; }
+
+/* En la portada el fondo es siempre oscuro, tenga el tema que tenga, y las
+   fotografías mandan. El notch usa ahí el mismo cristal ahumado que tenía el
+   dock antiguo, para no convertirse en un bloque claro encima de las fotos. */
+body.is-home .og-notch-toggle,
+body.is-home .og-notch-panel{
+  background:rgba(14,14,15,.86);
+  border-color:rgba(255,255,255,.12);
+  color:#f3efe8;
+  box-shadow:0 14px 40px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.12);
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  body.is-home .og-notch-toggle,
+  body.is-home .og-notch-panel{ background:rgba(14,14,15,.78); }
+}
+body.is-home .og-notch-item{ color:#f3efe8; }
+body.is-home .og-notch-item:hover,
+body.is-home .og-notch-item[aria-current="page"]{ background:rgba(255,255,255,.14); }
+body.is-home .og-notch-toggle:hover{ background:rgba(14,14,15,.94); }
