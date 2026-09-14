@@ -10,6 +10,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap">
 <link rel="stylesheet" href="/styles.css">
 <link rel="stylesheet" href="/studio/studio.css">
+<!-- Capa de piel: alinea Studio con el lenguaje visual de la web pública.
+     Quitando esta línea, el panel vuelve exactamente a su aspecto anterior. -->
+<link rel="stylesheet" href="/studio/studio-skin.css">
 <script>
   // Apply the saved theme before paint, so there's no flash of the wrong theme.
   try { document.documentElement.dataset.theme = localStorage.getItem('og_studio_theme') || 'day'; } catch (e) {}

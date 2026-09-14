@@ -1,8 +1,149 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-13 (0n. Notch arriba → izquierda, formulario validado y reestructuración UX).
+Última actualización: 2026-09-14 (0ñ. Notch a la derecha, Contacto rediseñado y Studio alineado con la marca).
 
-## 0n. Notch arriba → izquierda, formulario validado y reestructuración UX (esta sesión)
+## 0ñ. Notch a la derecha, Contacto rediseñado y Studio alineado con la marca (esta sesión)
+
+### Lo que pasó, en orden
+
+1. La entrega 0n se publicó en producción y **Adama no reconoció su web**: además de mover
+   el menú, había cambiado portada, Servicios, Contacto y la vista ampliada. Pidió volver
+   al diseño de antes conservando sólo el notch, y que éste viajara **a la derecha** en
+   lugar de a la izquierda.
+2. Se restauró el diseño original partiendo del código intacto y se remontó únicamente el
+   notch. **Comprobado píxel a píxel**: las cinco páginas quedaron idénticas al original en
+   tema claro y oscuro, fuera de la zona de navegación (10/10).
+3. Publicado por Adama. `origin/main` = `1b5158e`.
+4. Después pidió rediseñar **Contacto** a partir de una referencia visual, y **Studio**
+   aprovechando el lenguaje de la web pública, con libertad creativa.
+
+### Notch: arriba → derecha
+
+Único componente en las cinco páginas. Arranca encajado en el borde superior, se contrae en
+bolita, viaja hasta el borde derecho —donde vivía el dock antiguo, a media altura— y vuelve
+arriba al subir. Ratón, toque y teclado. Con movimiento reducido desaparece el viaje, no la
+navegación. Nunca se mueve mientras alguien lo usa con el teclado. En la portada adopta el
+cristal ahumado oscuro del dock para no destacar sobre las fotografías.
+
+**Fallo de uso corregido:** con ratón, `pointerenter` ya abría el panel y el clic siguiente
+lo cerraba en el mismo gesto. Ahora el primer clic sobre un panel abierto por hover lo fija.
+
+### Contacto
+
+Titular y subtítulo apilados, formulario a la izquierda, tarjeta de cristal ahumado a la
+derecha con el servicio seleccionado, y los tres bloques (Call & WhatsApp, Instagram, Email)
+debajo con sus enlaces reales. En móvil la tarjeta sube arriba, el formulario va debajo y los
+bloques quedan al final, apilados y visibles.
+
+La tarjeta **lee el valor del propio `<select>`**, nunca una copia aparte, así que no puede
+enseñar un servicio distinto del que se va a enviar. Cada servicio del índice de Servicios
+abre Contacto con ese servicio ya elegido (`contact.html?service=N`) y su tarjeta puesta.
+
+El fondo blanco con azul pulsante, que sólo estaba en Servicios y Estudio, pasa también a
+Contacto y Proyectos, **con su variante oscura**: antes se quedaba azul claro en modo noche.
+
+**Decisión deliberada:** el titular sigue siendo el texto editable de Studio, no el de la
+maqueta, para no pisar el contenido del CMS.
+
+### Studio: capa de piel
+
+`studio/studio-skin.css`, cargada después de `studio.css`. **Quitando su `<link>` el panel
+vuelve exactamente al aspecto anterior.** No toca la lógica, ni los permisos, ni el HTML.
+
+El panel estaba bien construido pero hablaba otro idioma visual: paleta de plantilla con
+iconos rojos, verdes, morados y azules a la vez; naranja también de día cuando la web de día
+es azul eléctrico; y ni cristal ni fondo pulsante. La piel reúne los dos:
+
+- Mismos tokens de marca que la web pública, día y noche.
+- Mismo fondo pulsante, con su variante oscura.
+- Cristal reservado al armazón (barra lateral y cabecera), no a cada tarjeta: ponerlo en
+  todas cargaría la GPU sin aportar nada.
+- Un solo acento. La jerarquía la marcan tamaño y posición, no cuatro colores de icono.
+- Foco visible de 3px, radios y tipografía alineados con el sitio.
+
+**Fallos anteriores encontrados y corregidos por el camino:**
+
+| Fallo | Estado |
+|---|---|
+| En móvil el panel se desbordaba: 588px de contenido en 393px de pantalla | Corregido. La causa no era la rejilla —que sí colapsa— sino sus hijos: una celda de grid no encoge por debajo de su contenido sin `min-width:0` |
+| `.og-btn-solid` llevaba el naranja escrito a mano en su sombra: de día, halo naranja en un botón azul | Corregido, la sombra sigue al acento |
+| Pestaña activa en modo noche: blanco sobre naranja = 3.34:1, por debajo del mínimo | Corregido oscureciendo la píldora hasta 4.78:1 |
+| Texto secundario de día: 3.9:1 sobre tarjeta | Corregido a 6.05:1 |
+| Proyecto sin portada: rectángulo gris sin explicación | Ahora dice «Sin portada todavía» |
+
+### Pruebas realmente ejecutadas (Chromium, sitio completo en local)
+
+| Suite | Resultado |
+|---|---|
+| Notch arriba→derecha→arriba, hover, toque, teclado, movimiento reducido, 5 páginas | **38/38** |
+| Formulario: vacío, inválido, sin consentimiento, correcto, doble envío, error de red, conservación de datos al traducir y cambiar tema | **39/39** |
+| Tarjeta de servicio, conexión Servicios→Contacto, tres bloques, móvil, modo noche en 5 páginas | **23/23** |
+| Diseño idéntico al original, 5 páginas × 2 temas, píxel a píxel | **10/10** |
+| Studio: 13 pestañas × 2 temas, 7 anchos (320→1440), contraste WCAG AA en ambos modos | **18/18** |
+
+Para poder ver Studio sin credenciales se construyó un **simulador local de Supabase** que
+vive sólo en el espacio de pruebas, nunca en el repositorio, y devuelve datos evidentemente
+de muestra («Cliente de prueba») para que no puedan confundirse con datos reales.
+
+### Lo que NO está probado
+
+- **Supabase real.** No hay credenciales en este entorno. No está demostrado que una
+  solicitud del formulario llegue a `enquiries` ni que se vea en Studio.
+- **Safari/WebKit, lectores de pantalla y dispositivos físicos.**
+- **Las páginas legales, el 404, robots.txt y sitemap.xml**: no existen todavía.
+
+### Trabajo pendiente
+
+**Bloqueado por falta de material de Adama**
+
+- `PROMPT_PARA_CLAUDE.txt` — lo mencionó pero nunca llegó a subirse. Sin él, ese encargo
+  no se ha aplicado.
+- `CONTACTO_DIA_NOCHE.png` — tampoco llegó. El modo noche de Contacto usa los colores de
+  marca existentes (#121313 y #ff4b24); queda pendiente de contrastar con su referencia.
+
+**Del encargo de «production readiness», acordado y no ejecutado todavía**
+
+Adama eligió «aplico todo menos el diseño de páginas»: lo invisible más las páginas legales
+y la 404 reutilizando el diseño de `aviso-legal.html`. Se aparcó al llegar los encargos de
+Contacto y Studio. Queda:
+
+- Páginas legales que faltan: **Términos** y **Política de cancelación/reservas**. Existen
+  ya `privacidad.html`, `cookies.html` y `aviso-legal.html`.
+- **Página 404** integrada con la marca.
+- `robots.txt` y `sitemap.xml`.
+- Cabeceras de seguridad en `vercel.json` (CSP, Referrer-Policy, Permissions-Policy,
+  X-Content-Type-Options, protección de frame).
+- **Validación de servidor y consentimiento**: `supabase/migration_enquiry_consent.sql` se
+  preparó en la sesión 0n pero **se perdió al revertir** y hay que rehacerla. Hoy la casilla
+  de privacidad sólo se comprueba en el navegador; cualquiera puede insertar en `enquiries`
+  con la clave anónima. **Requiere acceso al proyecto de Supabase.**
+- **Anti-abuso**: no hay límite de frecuencia. Con RLS no basta; hace falta una Edge Function
+  o un endpoint delante de la tabla.
+- Revisión de metadatos por página, OpenGraph y enlace «Saltar al contenido».
+
+**Fallos conocidos, pendientes de decisión**
+
+- En la web pública, el botón «Contacto» del notch es blanco sobre naranja en modo noche:
+  **3.34:1**, por debajo del mínimo legible. En Studio ya se corrigió oscureciendo la
+  píldora; en la web pública no se ha tocado porque sería un cambio visual.
+- El campo de fecha muestra `mm/dd/yyyy`: lo decide el navegador según su idioma y no se
+  puede forzar a `dd/mm` sin sustituir el campo nativo.
+- Los campos del formulario están a 15px. Por debajo de 16px, Safari en iPhone hace zoom
+  automático al enfocarlos. Subirlo cambia la altura de los campos, así que se dejó como
+  estaba, a la espera de decisión.
+- La portada no lleva el fondo azul pulsante: destruiría el mosaico de fotografías sobre
+  negro. Decisión deliberada, pendiente de confirmar.
+- En el Mac hay una carpeta `_a_borrar/` dentro del proyecto, con `dynamic-island-nav.js` y
+  archivos de bloqueo de git que Claude no puede eliminar desde su entorno. **Adama puede
+  borrarla a mano.** Está en `.gitignore`.
+
+## 0n. Notch arriba → izquierda, formulario validado y reestructuración UX (PARCIALMENTE REVERTIDA — ver 0ñ)
+
+> **Atención.** La reestructuración visual de esta entrega (banda de texto en la portada,
+> descripciones en Servicios, botones en la vista ampliada, mosaico finito, orden del
+> formulario en móvil) llegó a publicarse y **Adama pidió revertirla**: quería su diseño
+> de siempre. La sección 0ñ la deshace y conserva sólo el notch y las correcciones que no
+> se ven. El resto de esta sección se mantiene como histórico de decisiones y hallazgos.
 
 Encargo: corregir la web existente a partir del paquete `OPEN_GRAIN_Correcciones`
 (`PROMPT_MAESTRO.md` + `INTEGRACION.md` + tres módulos base). Rama de trabajo:

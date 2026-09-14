@@ -1,0 +1,259 @@
+/* ==========================================================================
+   OPEN GRAIN — Studio, capa de piel
+   Cargar DESPUÉS de studio.css. Quitando su <link> el panel vuelve
+   exactamente al aspecto anterior: esto no toca ni la lógica, ni los
+   permisos, ni la estructura del HTML.
+
+   Por qué existe: el panel estaba bien construido, pero hablaba otro idioma
+   visual que la web pública. Usaba una paleta de plantilla —iconos rojos,
+   verdes, morados y azules a la vez—, naranja también de día cuando la web
+   de día es azul eléctrico, y ni rastro del cristal ni del fondo que late.
+   Aquí se reúnen los dos: mismos tokens de marca, mismo material, mismo
+   pulso. Lo que cambia es la piel, no el esqueleto.
+   ========================================================================== */
+
+/* ---------- 1. La misma paleta que la web pública ---------- */
+body.studio-body{
+  /* Día: papel cálido y un único azul eléctrico, como el sitio. */
+  --og-bg:#f2eee6;
+  --og-bg-soft:#ece7dd;
+  --og-card:color-mix(in srgb,#f2eee6,white 42%);
+  --og-card-2:#ffffff;
+  --og-fg:#171714;
+  /* Un punto más oscuro que el gris de la web pública: aquí el texto
+     secundario cae sobre tarjetas más claras y a #6d6b64 se quedaba en 3.9:1,
+     por debajo del mínimo legible. Así llega a 4.9:1. */
+  --og-muted:#5f5d56;
+  --og-line:rgba(23,23,20,.13);
+  --og-accent:#1557ff;
+  --og-accent-2:#4d80ff;
+  --og-accent-soft:rgba(21,87,255,.12);
+  --og-aura:radial-gradient(ellipse 70% 45% at 12% 2%,rgba(21,87,255,.16),transparent 67%);
+  --og-glass-bg:rgba(255,255,255,.52);
+  --og-glass-line:rgba(255,255,255,.62);
+  --og-shadow-sm:0 3px 10px rgba(23,23,20,.06), 0 10px 24px rgba(23,23,20,.08);
+  --og-shadow:0 10px 26px rgba(23,23,20,.10), 0 22px 50px rgba(23,23,20,.12);
+  --og-shadow-lg:0 20px 50px rgba(23,23,20,.14), 0 40px 90px rgba(23,23,20,.16);
+  --og-radius:22px;
+  --og-ease:cubic-bezier(.22,1,.36,1);
+}
+html[data-theme="night"] body.studio-body{
+  /* Noche: los mismos valores que .site-shell.dark-mode. */
+  --og-bg:#121313;
+  --og-bg-soft:#181919;
+  --og-card:#1b1c1c;
+  --og-card-2:#202121;
+  --og-fg:#f3efe8;
+  --og-muted:#aaa69f;
+  --og-line:rgba(255,255,255,.15);
+  --og-accent:#ff4b24;
+  --og-accent-2:#ff7a45;
+  --og-accent-soft:rgba(255,75,36,.16);
+  --og-aura:radial-gradient(ellipse 66% 44% at 12% 2%,rgba(255,75,36,.20),transparent 68%);
+  --og-glass-bg:rgba(28,29,29,.58);
+  --og-glass-line:rgba(255,255,255,.10);
+  --og-shadow-sm:0 3px 10px rgba(0,0,0,.3), 0 10px 24px rgba(0,0,0,.28);
+  --og-shadow:0 10px 26px rgba(0,0,0,.38), 0 22px 50px rgba(0,0,0,.36);
+  --og-shadow-lg:0 20px 50px rgba(0,0,0,.5), 0 40px 90px rgba(0,0,0,.45);
+}
+
+/* ---------- 2. El fondo que late, igual que en la web ----------
+   Se pinta con un pseudoelemento del body: no hace falta tocar el HTML.
+   La amplitud es mínima —la saturación se mueve unos puntos y la escala un
+   1%— para que se lea como la página cogiendo color, nunca como un destello. */
+body.studio-body{ position:relative; background:var(--og-bg); }
+body.studio-body::before{
+  content:""; position:fixed; inset:-15%; z-index:0; pointer-events:none;
+  transform-origin:50% 50%;
+  /* Exactamente el fondo de .site-shell en la web pública: papel cálido con
+     dos velos azules muy tenues. El azul se insinúa, no invade. */
+  background:
+    radial-gradient(ellipse 70% 45% at 12% 2%,rgba(21,87,255,.16),transparent 67%),
+    radial-gradient(ellipse 45% 34% at 92% 23%,rgba(21,87,255,.08),transparent 72%),
+    linear-gradient(145deg,#f6f1e8 0%,#eeeae3 52%,#f3eee6 100%);
+  animation:og-studio-pulse 1.9s ease-in-out infinite;
+}
+html[data-theme="night"] body.studio-body::before{
+  background:
+    radial-gradient(ellipse 66% 44% at 12% 2%,rgba(255,75,36,.20),transparent 68%),
+    radial-gradient(ellipse 44% 34% at 92% 23%,rgba(255,116,61,.09),transparent 72%),
+    linear-gradient(145deg,#101111 0%,#171514 54%,#111212 100%);
+}
+@keyframes og-studio-pulse{
+  0%   { filter:saturate(.9)  brightness(1.015); transform:scale(1); }
+  10%  { filter:saturate(1.1) brightness(1);     transform:scale(1.012); }
+  20%  { filter:saturate(.97) brightness(1.01);  transform:scale(1.004); }
+  29%  { filter:saturate(1.05) brightness(1.004);transform:scale(1.008); }
+  44%  { filter:saturate(.9)  brightness(1.015); transform:scale(1); }
+  100% { filter:saturate(.9)  brightness(1.015); transform:scale(1); }
+}
+/* Todo lo demás va por encima del fondo. */
+.studio-shell, .login-screen{ position:relative; z-index:1; }
+
+/* ---------- 3. Cristal en el armazón ----------
+   El material pesado se reserva para la estructura —barra lateral y cabecera—,
+   como en la web. Ponerlo en cada tarjeta cargaría la GPU en portátiles sin
+   aportar nada: las tarjetas llevan superficie sólida y sombra en capas. */
+.og-sidebar, .og-topbar{
+  background:var(--og-glass-bg);
+  border-color:var(--og-line);
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .og-sidebar, .og-topbar{
+    backdrop-filter:blur(22px) saturate(1.5);
+    -webkit-backdrop-filter:blur(22px) saturate(1.5);
+  }
+}
+/* Sin blur disponible, la superficie se vuelve opaca para no perder contraste. */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .og-sidebar, .og-topbar{ background:var(--og-bg); }
+}
+
+/* ---------- 4. Tarjetas: papel cálido, filo fino, sombra en capas ---------- */
+.og-card, .og-stat, .og-quick, .client-card, .list-row, .category-row{
+  border-radius:var(--og-radius);
+  border:1px solid var(--og-line);
+  background:var(--og-card);
+  box-shadow:var(--og-shadow-sm);
+  transition:box-shadow .2s var(--og-ease), transform .09s var(--og-ease),
+             border-color .2s var(--og-ease);
+}
+.og-quick:hover, .og-stat:hover{
+  box-shadow:var(--og-shadow);
+  border-color:color-mix(in srgb,var(--og-accent) 34%,transparent);
+}
+.og-quick:active{ transform:scale(.985); }
+
+/* ---------- 5. Un solo acento ----------
+   El panel usaba cuatro colores de icono a la vez, que es lenguaje de
+   plantilla. La jerarquía la marcan ahora el tamaño y la posición; el color
+   queda reservado para lo que de verdad es una acción. */
+.og-stat-icon,
+.og-stat-icon.a, .og-stat-icon.b, .og-stat-icon.c, .og-stat-icon.d,
+[data-theme="night"] .og-stat-icon.a, [data-theme="night"] .og-stat-icon.b,
+[data-theme="night"] .og-stat-icon.c, [data-theme="night"] .og-stat-icon.d{
+  background:color-mix(in srgb,var(--og-fg) 7%,transparent);
+  color:var(--og-fg);
+  border-radius:13px;
+}
+/* La primera acción rápida sí manda: es la que se espera pulsar. */
+.og-quick:first-child .og-quick-icon{
+  background:var(--og-accent); color:#fff;
+}
+.og-quick .og-quick-icon{
+  background:color-mix(in srgb,var(--og-fg) 7%,transparent);
+  color:var(--og-fg);
+  border-radius:13px;
+}
+
+/* ---------- 6. Tipografía: la escala de la web ---------- */
+.og-greeting, .og-page-title, .studio-panel h1{
+  letter-spacing:-.03em; line-height:1.05;
+}
+.og-stat-num{ font-size:2.1rem; font-weight:800; letter-spacing:-.03em; }
+.og-eyebrow, .og-section-label{
+  font:10px ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--og-muted);
+}
+
+/* ---------- 7. Navegación ---------- */
+.og-nav-item{ border-radius:14px; transition:background .18s var(--og-ease); }
+.og-nav-item:hover{ background:color-mix(in srgb,var(--og-fg) 7%,transparent); }
+.og-nav-item.active, .og-nav-item[aria-current="page"]{
+  background:var(--og-accent); color:#fff;
+  box-shadow:0 6px 18px color-mix(in srgb,var(--og-accent) 34%,transparent);
+}
+.og-nav-item.active svg, .og-nav-item[aria-current="page"] svg{ color:#fff; }
+
+/* ---------- 8. Botones y campos, con el aire de la web ---------- */
+.og-btn, .og-btn-dark, .og-btn-ghost, button.og-btn{
+  border-radius:999px; min-height:40px;
+  transition:transform .09s var(--og-ease), background .2s var(--og-ease),
+             box-shadow .2s var(--og-ease);
+}
+.og-btn:active, .og-btn-dark:active{ transform:scale(.97); }
+.og-btn-primary, .og-btn.primary{ background:var(--og-accent); color:#fff; border-color:transparent; }
+.og-btn-primary:hover, .og-btn.primary:hover{ background:color-mix(in srgb,var(--og-accent) 86%,#000); }
+
+input, select, textarea, .og-input{ border-radius:12px; }
+input:focus, select:focus, textarea:focus{
+  border-color:var(--og-accent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--og-accent) 22%,transparent);
+  outline:none;
+}
+
+/* ---------- 9. Foco visible, igual que en la web pública ----------
+   3px del color de acento y separado del elemento: se ve sobre cristal,
+   sobre papel y sobre fotografía. */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible,
+.og-nav-item:focus-visible, .og-quick:focus-visible{
+  outline:3px solid var(--og-accent); outline-offset:3px; border-radius:12px;
+}
+
+/* ---------- 10. Estados ---------- */
+.og-badge, .badge{ border-radius:999px; font-weight:700; letter-spacing:.04em; }
+
+/* ---------- 11. Movimiento reducido ---------- */
+@media(prefers-reduced-motion:reduce){
+  body.studio-body::before{ animation:none; transform:none; }
+  .og-card, .og-stat, .og-quick, .og-nav-item, .og-btn{ transition:none; }
+}
+
+/* ---------- 12. Menos transparencia, más contraste ----------
+   Quien pide menos transparencia en el sistema recibe superficies sólidas;
+   quien pide más contraste recibe además filos definidos. */
+@media(prefers-reduced-transparency:reduce){
+  .og-sidebar, .og-topbar{
+    background:var(--og-bg); backdrop-filter:none; -webkit-backdrop-filter:none;
+  }
+  body.studio-body::before{ opacity:.35; }
+}
+@media(prefers-contrast:more){
+  .og-card, .og-stat, .og-quick{ border-color:var(--og-fg); }
+  .og-sidebar, .og-topbar{ background:var(--og-bg); backdrop-filter:none; }
+}
+
+/* ---------- 13. El resplandor del botón sigue al acento ----------
+   .og-btn-solid llevaba el naranja escrito a mano en su sombra, así que de
+   día quedaba un halo naranja alrededor de un botón azul. */
+.og-btn-solid{
+  background:linear-gradient(135deg,var(--og-accent),var(--og-accent-2));
+  box-shadow:0 8px 20px color-mix(in srgb,var(--og-accent) 30%,transparent);
+}
+
+/* ---------- 14. Estado vacío de la portada ----------
+   Cuando un proyecto todavía no tiene imagen de portada, el hueco quedaba
+   como un rectángulo gris sin explicación. Ahora dice qué falta. */
+.og-featured-photo{ position:relative; }
+.og-featured-photo:empty::after{
+  content:"Sin portada todavía";
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font:10px ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--og-muted);
+  border:1px dashed var(--og-line); border-radius:inherit;
+}
+
+/* ---------- 15. El panel, usable en el móvil ----------
+   Fallo anterior a esta piel: en un teléfono el panel se desbordaba
+   (588px de contenido en 393px de pantalla) y había que arrastrar en
+   horizontal para leer. La causa no era la rejilla —que sí colapsa a una
+   columna— sino sus hijos: por defecto una celda de grid no encoge por
+   debajo de su contenido. Con min-width:0 vuelven a caber.
+   Las tablas, que sí necesitan su ancho, se desplazan dentro de su caja. */
+@media(max-width:900px){
+  .og-columns > *,
+  .og-card > *,
+  .studio-panel > *{ min-width:0; }
+  .og-card table,
+  .studio-panel table{ display:block; overflow-x:auto; max-width:100%; }
+}
+
+/* ---------- 16. La pestaña activa, legible también de noche ----------
+   Blanco sobre el naranja de marca se queda en 3.34:1, por debajo del mínimo.
+   En vez de cambiar el color del texto —que rompería la lectura de la marca—
+   se oscurece la píldora lo justo para llegar a 4.8:1. De día el azul ya
+   cumple de sobra y se deja como está. */
+html[data-theme="night"] .og-nav-item.active,
+html[data-theme="night"] .og-nav-item[aria-current="page"]{
+  background:color-mix(in srgb,var(--og-accent) 82%,#000);
+}
