@@ -179,7 +179,7 @@ function homeTileMarkup(p, i, isRepeat) {
   const repeatAttrs = isRepeat ? ' aria-hidden="true" tabindex="-1"' : ' tabindex="0"';
   return `
     <figure class="project-tile"${repeatAttrs} data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
-      <img src="${p.image}" alt="${isRepeat ? '' : attrEscape(p.title) + ' — ' + attrEscape(p.type)}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}">
+      ${photoMarkup(p.image, `alt="${isRepeat ? '' : attrEscape(p.title) + ' — ' + attrEscape(p.type)}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_HOME)}
       <figcaption><span>${attrEscape(p.title)}</span><span>${attrEscape(p.type)}</span></figcaption>
     </figure>`;
 }
@@ -279,7 +279,49 @@ window.addEventListener('resize', () => {
   }, 150);
 }, { passive: true });
 
-function attrEscape(str) { return String(str ?? '').replace(/"/g, '&quot;'); }
+// Escapa texto que va a acabar dentro de una plantilla HTML. Sirve tanto para
+// un atributo entre comillas dobles como para contenido de texto, porque
+// neutraliza los cuatro caracteres que pueden cambiar la estructura del
+// documento. El & va primero: si no, se re-escaparían los que genera el resto.
+// Los títulos de los proyectos vienen de Supabase, así que un título con un
+// «<» o un «&» rompía la cuadrícula antes de esto.
+function attrEscape(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ---------- Fotos: WebP en dos anchos, con el JPEG de siempre de respaldo ----
+// Las fotos del portafolio viven en el repositorio y tienen, junto a ellas,
+// versiones WebP de 480 y 960 píxeles de ancho. Envolviendo la <img> en un
+// <picture> el navegador elige el ancho que de verdad necesita: un móvil se
+// descarga 0,96 MB en vez de 7,46 MB para la misma cuadrícula.
+//
+// Cualquier otra ruta —una foto subida desde Studio, que vive en Supabase—
+// devuelve la <img> de siempre sin tocar nada, porque de esas no hay versiones
+// generadas. El <picture> lleva display:contents en el CSS, así que para la
+// maquetación la <img> sigue siendo hija directa de la tarjeta y no cambia
+// absolutamente nada de cómo se ve.
+const LOCAL_PHOTO = /^assets\/portfolio\/([^/]+)\.jpe?g$/i;
+
+function photoMarkup(src, attrs, sizes) {
+  const img = `<img src="${attrEscape(src)}" ${attrs}>`;
+  const match = LOCAL_PHOTO.exec(String(src || ''));
+  if (!match) return img;
+  const base = attrEscape(`assets/portfolio/${match[1]}`);
+  return `<picture>` +
+    `<source type="image/webp" srcset="${base}-480.webp 480w, ${base}-960.webp 960w" sizes="${attrEscape(sizes)}">` +
+    img +
+  `</picture>`;
+}
+
+// Anchos reales de cada hueco, para que el navegador no elija a ciegas.
+// Portada: 2 columnas hasta 560px, 3 hasta 900, 4 hasta 1400, 5 por encima.
+const SIZES_HOME = '(max-width:560px) 50vw, (max-width:900px) 33vw, (max-width:1400px) 25vw, 20vw';
+// Work: el mosaico pasa de 4 columnas a 3 en 1050px y a 2 en 700px.
+const SIZES_WORK = '(max-width:700px) 50vw, (max-width:1050px) 33vw, 25vw';
 
 function renderWork() {
   const grid = $('masonry-grid');
@@ -287,10 +329,13 @@ function renderWork() {
   const t = copy[lang];
   if ($('work-label')) $('work-label').textContent = t.selected;
   if ($('work-lede')) $('work-lede').textContent = t.workBlurb;
-  grid.innerHTML = projects.map(p => `
-    <article class="project-tile ${p.ratio}" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
-      <img src="${p.image}" alt="${p.title} — ${p.type}">
-      <div><span>/ ${p.id}</span><h3>${p.title}</h3><p>${p.type}</p></div>
+  // Las cuatro primeras se cargan de inmediato y el resto en diferido, igual
+  // que en la portada: antes esta cuadrícula pedía las 24 fotos a la vez,
+  // incluidas las que están cinco pantallas más abajo.
+  grid.innerHTML = projects.map((p, i) => `
+    <article class="project-tile ${attrEscape(p.ratio)}" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
+      ${photoMarkup(p.image, `alt="${attrEscape(p.title)} — ${attrEscape(p.type)}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_WORK)}
+      <div><span>/ ${attrEscape(p.id)}</span><h3>${attrEscape(p.title)}</h3><p>${attrEscape(p.type)}</p></div>
     </article>`).join('');
 }
 

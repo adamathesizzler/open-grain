@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# El panel privado y sus datos no deben aparecer en buscadores.
+Disallow: /studio
+Disallow: /studio/
+Disallow: /api/
+
+Sitemap: https://open-grain.vercel.app/sitemap.xml

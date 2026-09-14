@@ -811,3 +811,160 @@ Verificado de nuevo con Playwright tras el cambio: los tests anteriores de Studi
 ## 9. Siguiente acción recomendada
 
 Cuando el usuario vuelva: confirmar que ha hecho el `git push` y ejecutado `migration_gallery_v2.sql` (y las anteriores si faltaban) en Supabase, y entonces probar la función real de punta a punta con fotos y vídeos reales, un PIN de verdad, y un archivo adjunto real.
+
+---
+
+## 10. Auditoría completa con tres agentes (14.09.2026)
+
+### Qué se pidió
+Adama pidió, antes de irse a trabajar: auditoría con **tres agentes diferentes**, intentar atacar/hackear la web, verificar que aguanta **1000 visitantes simultáneos** sin saturarse, recomendaciones visuales **separadas por Studio y web pública**, y que cada página vaya fluida sin lag.
+
+### Qué se hizo
+Tres agentes en paralelo (seguridad, rendimiento, diseño), limitados por instrucción a **código + pruebas locales, nunca contra producción**. Después verifiqué a mano los hallazgos más graves antes de reportarlos. Entregado como artefacto: **«Auditoría OPEN GRAIN»** (36 hallazgos, seguimiento de estado persistente vía capacidad `db`).
+
+### Correcciones que hice a los agentes (importante)
+- **XSS en `renderWork()` — REBAJADO de crítico a bajo.** El mecanismo es real (`main.js:290` y `:222` meten `p.title` sin escapar en `innerHTML`, y `projects` sí se reemplaza con datos de Supabase en `main.js:821-822`), pero solo un admin puede escribir en `portfolio_projects` (`admin full access projects`). No es vía de entrada externa; es fallo de robustez. Arreglo: pasar el título por `attrEscape`/escape de texto.
+- **«PIN en texto plano» — FALSO, retirado.** El agente lo dio por roto; al leer `migration_gallery_v2.sql` resultó que el PIN usa bcrypt (`crypt`/`gen_salt('bf')`), el texto plano se anula en la migración (`update client_galleries set pin = null where pin_hash is not null`), hay bloqueo de 5 min tras 5 intentos, y hay `revoke select on client_galleries from anon` + lista blanca de columnas que excluye `pin`/`pin_hash`/`pin_attempts`/`pin_locked_until`. Ya estaba probado contra Postgres real (ver sección 7).
+- **«8 de 13 secciones inalcanzables en móvil (Studio)» — MATIZADO.** `studio.css:897-916` convierte la barra lateral en barra inferior con `overflow-x:auto`: sí se alcanzan, pero sin ninguna señal visual de que se puede deslizar. Problema de usabilidad, no funcional.
+
+### Hallazgos verificados por mí (línea a línea)
+**Seguridad**
+- **SEC-01 (crítico)**: `gallery_is_reachable()` (`schema.sql:473-475`) = `status='published' and not expired`. **No mira el PIN.** La política de `gallery_photos` (`schema.sql:550-554`) se apoya en ella → las fotos de cualquier galería publicada se pueden pedir por REST sin PIN. Además `share_token` y `client_name` están en la lista blanca de columnas anon (`schema.sql:640-643`) → enumeración de galerías. El PIN protege la página, no los datos.
+- **SEC-03 (alto)**: `public manage favorites` es `for all` → anon puede UPDATE y DELETE favoritos.
+- **SEC-04 (alto)**: `public read revisions on active galleries` → notas privadas del cliente legibles.
+- **SEC-05 (alto)**: `enquiries` insert = `with check (true)` (`schema.sql:150-151`). Sin límite de frecuencia, sin tope de tamaño, consentimiento solo validado en cliente (problema RGPD además de técnico).
+- **SEC-06 (medio)**: `vercel.json` solo tiene `cleanUrls`/`trailingSlash`. Sin CSP, X-Frame-Options, HSTS, Referrer-Policy.
+- **SEC-07 (medio)**: `supabase-js@2` desde jsdelivr — versión flotante, sin SRI, sin `defer`.
+- **SEC-08 (medio)**: `is_admin()` (`schema.sql:17-21`) compara por email del JWT, no por `auth.uid()`. Riesgo real depende del ajuste «Confirm email» en el panel de Supabase, que no se puede comprobar desde aquí.
+- **Bien**: sin secretos filtrados; `api/ai-assist.js` autoriza correctamente; Studio escapa contenido de visitantes; RLS aguanta aunque la puerta de `/studio` sea solo visual.
+
+**Rendimiento — veredicto: sí aguanta 1000 simultáneos, porque lo sirve el CDN de Vercel, no el código**
+- **PERF-01 (alto)**: 28 JPEG, 7,46 MB, sin WebP y sin `srcset`. WebP+srcset bajaría la portada móvil de 6,37 MB a 0,29 MB (19×).
+- **PERF-02 (alto)**: `renderWork()` (`main.js:290-291`) no pone atributo `loading` → work.html carga todo en eager. La portada sí lo hace bien (`main.js:182`: 6 eager, resto lazy).
+- **PERF-03 (alto, CAUSA DEL LAG)**: `@keyframes og-heartbeat` (`styles.css:197-203`) anima `filter: saturate()/brightness()` sobre `.pulse-bg` (capa fija a pantalla completa), en bucle infinito de 1,9 s. `filter` no va por el compositor → repintado continuo de todo el viewport. Medido: **41,8 fps vs 59,6**. El `transform:scale()` de la misma animación es gratis. `prefers-reduced-motion` ya lo desactiva (`styles.css:609`). **Pendiente de decisión de Adama**: (a) quitar solo las líneas de `filter` — pierde el matiz de color; (b) rehacer el pulso de color con `opacity` sobre una segunda capa — más trabajo, visualmente idéntico.
+- **PERF-04 (medio)**: ninguno de los 6 `<script>` de `index.html` lleva `defer`; Supabase va el primero y bloquea el pintado (3.053 ms hasta contenido con 3 s de retardo del CDN).
+- **PERF-05 (medio)**: 3 consultas Supabase por carga en las 5 páginas; 2 a menudo sin usar.
+- **PERF-06 (medio)**: CLS 0,52 en servicios y 0,29 en sobre-mí.
+- **PERF-07 (alto, negocio)**: 1000 visitantes ≈ 7,9 GB. Vercel Hobby incluye 100 GB/mes → **~12-13 oleadas de 1000** antes de agotarse. Además el plan Hobby es **no comercial**: una web de estudio que vende servicios está fuera de sus condiciones. Arreglar PERF-01 multiplica ese margen por más de diez.
+
+**Visual — web pública (nada aplicado, todo son propuestas)**
+- **WEB-01 (fallo real)**: `.light-page` (`styles.css:285`) fija `color:#141c2b` a fuego → servicios y sobre-mí quedan rotos en modo noche (títulos casi invisibles). Arreglarlo no cambia nada en modo día.
+- **WEB-02**: píldora «Contacto» del notch, blanco sobre naranja en noche = 3,34:1 (mínimo 4,5:1). Ya corregido en Studio, no en la web pública.
+- WEB-03 tarjeta de servicio ilegible sobre la camisa clara · WEB-04 select/date/checkbox nativos sin vestir + fecha en `mm/dd/yyyy` · WEB-05 banner de cookies ocupa 43 % del móvil · WEB-06 dos sistemas de pie de página · WEB-07 notch con poca definición en el borde derecho de páginas claras · WEB-08 el acento azul casi no se usa · WEB-09 sobre-mí vacía con serif suelta, y la portada no tiene `pulse-bg`.
+
+**Visual — Studio**
+- **STU-01**: 13 secciones en barra inferior con scroll horizontal sin señal; caben 4-5.
+- STU-02 estados vacíos sin diseñar · STU-03 jerarquía tipográfica plana · STU-04 densidad baja en vistas de lista · STU-05 rejilla de Analíticas 6-en-5-columnas · STU-06 16 radios distintos, verde fuera de paleta, emojis · STU-07 tarjetas sin definición en modo noche.
+- **Ya arreglado por mí en `studio-skin.css`**: acento único (antes 4 «primarios» y los `.og-stat-icon.a/.b/.c/.d` en arcoíris), desbordamiento móvil de 588 px (`min-width:0` en hijos de grid; comprobado que era preexistente), estado vacío de la foto de portada.
+
+### Pendiente (arrastrado de encargos anteriores)
+Condiciones de contratación, política de cancelación, 404, `robots.txt`, `sitemap.xml`, cabeceras de seguridad en `vercel.json`, y **reescribir `supabase/migration_enquiry_consent.sql`** (validación de consentimiento en servidor; se perdió en la reversión del diseño). Nunca probado: Supabase real, Safari/WebKit, lectores de pantalla, dispositivos físicos. Adama debe borrar a mano `_a_borrar/` en su Mac.
+
+### Siguiente acción recomendada
+Esperar la decisión de Adama sobre PERF-03 (opción a o b) y sobre si autoriza el bloque invisible (SEC-06 cabeceras, SEC-07 versión fija + SRI, PERF-02/04/05, WEB-01), que no cambia nada de lo que se ve. SEC-01/03/04/05 requieren acceso a Supabase o que él pegue el SQL en el editor.
+
+---
+
+## 11. Arreglos aplicados tras la auditoría (14.09.2026)
+
+Adama autorizó con «haz los arreglos pertinentes». Se aplicó **sólo el bloque
+invisible**: nada que cambie el aspecto en modo día. Lo que sí cambia de
+aspecto (contraste de la píldora «Contacto», tarjeta de servicio, banner de
+cookies, pies de página, Studio) **no se ha tocado** y sigue esperando su
+decisión.
+
+### Hecho
+
+| # | Qué | Archivos |
+|---|-----|----------|
+| SEC-06 | Cabeceras de seguridad: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, HSTS, Permissions-Policy, COOP. `/studio` marcado noindex + no-store. | `vercel.json` |
+| SEC-09 | `attrEscape()` ahora escapa `&`, `<`, `>` y `"` (antes sólo comillas). Arregla de golpe todos los puntos donde se insertaba texto de Supabase como HTML: `renderWork`, `homeTileMarkup`, servicios, marquesina, botón de envío, posts sociales. | `main.js` |
+| PERF-01 | 56 WebP generados (480 y 960 px) para las 28 fotos. Nuevo `photoMarkup()` que envuelve en `<picture>` sólo las rutas locales `assets/portfolio/*.jpg`; las de Supabase siguen como `<img>` normal. `sizes` calculado a partir de los cortes reales de columnas. | `main.js`, `styles.css`, `assets/portfolio/` |
+| PERF-02 | `renderWork()` pasa a cargar en diferido a partir de la 5.ª foto (antes: las 24 de golpe). | `main.js` |
+| PERF-03 | El latido del fondo ya no anima `filter`. Son dos capas: el degradado en reposo y, encima, un `::after` con el degradado saturado al que sólo se le anima `opacity`. Los colores de ambas capas son los extremos exactos de la animación anterior pasados por la matriz de `saturate`/`brightness`, así que los valores intermedios salen solos del fundido. | `styles.css` |
+| PERF-04 | `defer` en los siete `<script>` de las cinco páginas con JS. Supabase deja de bloquear el pintado. Las tres páginas legales no tienen scripts. | los 5 HTML |
+| WEB-01 | Modo noche arreglado en Servicios y Sobre mí. **No se tocó ni un valor de día**: se añadió un bloque `.light-page.dark-mode` con los equivalentes nocturnos, manteniendo la identidad azul fría de esas dos páginas. | `styles.css` |
+| TODO-02 | `robots.txt` y `sitemap.xml`. | nuevos |
+| limpieza | `index.html.tmp` (fragmento suelto de una edición antigua, versionado y por tanto servido públicamente) eliminado del repositorio. | — |
+
+### Preparado pero NO aplicado a la base de datos
+
+`supabase/migration_gallery_access.sql` (nuevo). Cubre SEC-01, SEC-03, SEC-04
+y la mitad que faltaba de SEC-05. Requiere acceso a Supabase: hay que pegarlo
+en el editor SQL. Contiene:
+- `gallery_open(token, pin)`: función `security definer` que devuelve galería,
+  fotos y adjuntos sólo tras acertar el PIN, reutilizando `gallery_check_pin()`
+  con su bcrypt y su bloqueo por intentos. Nunca devuelve columnas de PIN.
+- Se retiran las políticas que dejaban leer fotos, adjuntos y revisiones con
+  sólo estar la galería publicada.
+- `gallery_favorites` deja de ser `for all`: se parte en select + insert, así
+  que nadie de fuera puede borrar los favoritos de un cliente.
+- Límite de 5 envíos por IP y hora en `enquiries`, vía trigger que lee
+  `request.headers -> x-forwarded-for` (el archivo de consentimiento decía que
+  hacía falta una Edge Function; con un trigger basta). Nueva columna
+  `submit_ip`, ilegible para `anon`.
+- Sección final comentada y NO ejecutable con el endurecimiento opcional de
+  `is_admin()` por `auth.uid()` (SEC-08), con el orden seguro de pasos para no
+  quedarse fuera del panel.
+
+### Bloqueado
+
+**SEC-07 (fijar versión de Supabase + SRI).** El proxy de este entorno y el de
+la VM del Mac bloquean `cdn.jsdelivr.net`, y `npm pack @supabase/supabase-js`
+también está bloqueado. Sin poder descargar el archivo no se puede calcular su
+hash de integridad ni confirmar el número de versión exacto, y escribir una
+versión a ojo rompería la web entera. Dos salidas: (a) hacerlo desde una
+máquina con acceso, (b) servir la librería desde el propio repositorio, que
+además la sacaría del CSP y quitaría una conexión externa del arranque.
+
+### Hallazgo nuevo, no buscado
+
+**`gallery.html` no existe en el repositorio ni en `origin/main`.** Toda la
+función de galerías de cliente que describe la sección 6 de este documento se
+creó en el commit `dcc71d2` (el rediseño que Adama rechazó) y desapareció al
+revertirlo. El SQL sí sobrevivió en `supabase/`. Consecuencias: (1) la función
+no está publicada, aunque la sección 7 la dé por probada; (2) SEC-01 sólo es
+explotable si las migraciones llegaron a aplicarse en el Supabase real —
+conviene comprobarlo; (3) es recuperable con `git show dcc71d2:gallery.html`.
+
+### Pruebas realizadas
+
+- **Comparación pixel a pixel contra la versión anterior**, usando un
+  `git worktree` del commit anterior servido en paralelo: 5 páginas × 2 temas ×
+  2 tamaños = 20 combinaciones, con las fotos ocultas para aislar maquetación.
+  **Altura idéntica en las 20.** Diferencia 0,00 % en modo día en todas salvo
+  dos casos que un control A/A demostró ser ruido de la propia medición
+  (marquesina pausada en distinto punto: el viejo comparado consigo mismo daba
+  0,14 %). En modo noche cambian sólo Servicios y Sobre mí — que es exactamente
+  el arreglo pedido.
+- **Geometría de la portada en móvil medida a mano**: 24 tarjetas, 2 columnas,
+  mismas alturas y mismo alto total (3016,45 px) antes y después.
+- **Cero errores de JavaScript** en las 20 combinaciones. El único error de red
+  que aparece es jsdelivr bloqueado por el proxy del entorno, idéntico antes y
+  después.
+- **Imágenes**: las 24 tarjetas cargan WebP, ninguna rota, ningún 404. El
+  navegador elige el ancho correcto (480w para huecos de ~190 px).
+- **Fotogramas por segundo** en Contacto: 50,1 → 54,7. La mejora real debería
+  ser mayor: este entorno es headless y sin GPU, que es justo donde `opacity`
+  gana a `filter`. Lo estructural es que `filter` ya no está en la animación.
+- **El notch sigue bien**: arranca arriba, abre con 7 enlaces al pulsar, y
+  viaja al borde derecho al bajar.
+- `node --check main.js`, `vercel.json` y `sitemap.xml` validados.
+
+### Peso
+
+Las fotos originales en JPEG (7,46 MB) se conservan como respaldo. El
+repositorio crece 3,75 MB en WebP, pero **un móvil descarga 0,96 MB en vez de
+7,46 MB** (7,8× menos) y un portátil 2,79 MB (2,7× menos). Eso multiplica por
+más de siete el margen del plan gratuito de Vercel que se describe en PERF-07.
+
+### Siguiente acción recomendada
+
+1. Que Adama pegue `migration_gallery_access.sql` en el editor SQL de Supabase
+   (antes conviene mirar si las tablas de galerías existen siquiera allí).
+2. Decidir sobre lo visual pendiente: contraste de la píldora «Contacto»,
+   tarjeta de servicio sobre la camisa clara, banner de cookies, unificar los
+   dos pies de página, y el bloque entero de Studio.
+3. Resolver SEC-07 desde una máquina con acceso a la red, o servir la librería
+   desde el repositorio.
+4. Sincronizar con el Mac y hacer el `git push` — que sigue sin autorizar.

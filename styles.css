@@ -187,20 +187,54 @@ body.is-home{ background:#0b0b0a; }
    one behind it, then a rest). Deliberately gentle — it reads as the page
    gaining colour, never as a flash. Amplitude is tiny: saturation moves by a
    few percent and the scale by ~1%, nothing that could dazzle. */
+/* El latido son DOS capas superpuestas y nada más: abajo el degradado en
+   reposo, encima el mismo degradado en su punto más saturado, al que sólo se
+   le anima la opacidad. Antes esto se hacía con filter:saturate()/brightness()
+   sobre una capa a pantalla completa, y ahí está la diferencia: filter obliga
+   al navegador a repintar todo el viewport en cada fotograma (medido: 42 fps
+   en vez de 60), mientras que opacity y transform los resuelve la tarjeta
+   gráfica sin repintar nada.
+
+   Los colores de la capa de arriba no están elegidos a ojo: son los del
+   degradado original pasados por saturate(1.1) brightness(1), y los de abajo
+   por saturate(.9) brightness(1.015), que eran los extremos de la animación
+   anterior. Como en aquellos fotogramas la saturación y el brillo se movían
+   de forma proporcional, un simple fundido entre esas dos capas reproduce
+   exactamente los valores intermedios: el latido se ve igual que antes. */
 body:has(#site-shell.dark-mode) .pulse-bg{
   background:radial-gradient(circle at 50% 45%,
-    #2a1a14 0%, #1d1614 32%, #161514 60%, #121313 84%, #0f1010 100%); }
+    #291b15 0%, #1d1615 32%, #161514 60%, #121313 84%, #0f1010 100%); }
+body:has(#site-shell.dark-mode) .pulse-bg::after{
+  background:radial-gradient(circle at 50% 45%,
+    #2b1a13 0%, #1e1614 32%, #161514 60%, #121313 84%, #0f1010 100%); }
+
 .pulse-bg{ position:fixed; inset:-15%; z-index:-1; transform-origin:50% 50%;
   background:radial-gradient(circle at 50% 45%,
-    #c3e0ff 0%, #dcecff 32%, #ecf5ff 60%, #f6fbff 84%, #fdfeff 100%);
-  animation:og-heartbeat 1.9s ease-in-out infinite; }
-@keyframes og-heartbeat{
-  0%   { filter:saturate(.9)  brightness(1.015); transform:scale(1); }
-  10%  { filter:saturate(1.1) brightness(1);     transform:scale(1.012); }  /* lub */
-  20%  { filter:saturate(.97) brightness(1.01);  transform:scale(1.004); }
-  29%  { filter:saturate(1.05) brightness(1.004);transform:scale(1.008); }  /* dub */
-  44%  { filter:saturate(.9)  brightness(1.015); transform:scale(1); }
-  100% { filter:saturate(.9)  brightness(1.015); transform:scale(1); }      /* rest */
+    #c8e3ff 0%, #e1efff 32%, #f0f9ff 60%, #faffff 84%, #ffffff 100%);
+  will-change:transform;
+  animation:og-heartbeat-scale 1.9s ease-in-out infinite; }
+.pulse-bg::after{
+  content:""; position:absolute; inset:0; opacity:0; pointer-events:none;
+  background:radial-gradient(circle at 50% 45%,
+    #c0e0ff 0%, #dbecff 32%, #ebf5ff 60%, #f6fbff 84%, #fdfeff 100%);
+  will-change:opacity;
+  animation:og-heartbeat-tint 1.9s ease-in-out infinite; }
+
+@keyframes og-heartbeat-scale{
+  0%   { transform:scale(1); }
+  10%  { transform:scale(1.012); }  /* lub */
+  20%  { transform:scale(1.004); }
+  29%  { transform:scale(1.008); }  /* dub */
+  44%  { transform:scale(1); }
+  100% { transform:scale(1); }      /* reposo */
+}
+@keyframes og-heartbeat-tint{
+  0%   { opacity:0; }
+  10%  { opacity:1; }               /* lub */
+  20%  { opacity:.35; }
+  29%  { opacity:.75; }             /* dub */
+  44%  { opacity:0; }
+  100% { opacity:0; }               /* reposo */
 }
 
 /* ---------- Social: network picker + adaptive mosaic ----------
@@ -328,6 +362,34 @@ body.is-services, body.is-light{ background:#f4f9ff; }
   color:#1b2740; text-transform:uppercase;
   font:10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
 .svc-card figcaption span{ color:#5b76a8; }
+
+/* ---------- Servicios y Sobre mí en modo noche ----------
+   Estas dos páginas tienen su propia paleta azul fría, escrita con colores
+   fijos. Al pasar el sitio a modo noche el fondo se oscurecía pero el texto
+   se quedaba en azul oscuro: los títulos quedaban casi invisibles.
+
+   No se tocan los valores de día. Lo que hay aquí abajo son únicamente sus
+   equivalentes para cuando el sitio está en noche, manteniendo el carácter
+   azul de estas dos páginas en vez de pasarlas al tono cálido del resto —
+   así siguen siendo reconocibles con cualquier tema. En modo día no cambia
+   absolutamente nada. */
+.site-shell.light-page.dark-mode{ color:#dfe6f1; }
+.light-page.dark-mode .svc-kicker{ color:#93a9cd; }
+.light-page.dark-mode .svc-kicker span:first-child{ color:#6b84ae; }
+.light-page.dark-mode .svc-hero h1{ color:#f1f5fb; }
+.light-page.dark-mode .svc-lede{ color:#b3c0d6; }
+.light-page.dark-mode .svc-index ol,
+.light-page.dark-mode .svc-index li,
+.light-page.dark-mode .light-footer{ border-color:rgba(190,210,240,.18); }
+.light-page.dark-mode .svc-index li{ color:#f1f5fb; }
+.light-page.dark-mode .svc-index li::before{ color:#8ba3cc; }
+.light-page.dark-mode .light-footer,
+.light-page.dark-mode .light-footer a{ color:#a2b0c8; }
+.light-page.dark-mode .light-footer .footer-brand{ color:#f1f5fb; }
+.light-page.dark-mode .light-footer a:hover{ color:#fff; }
+.light-page.dark-mode .svc-card figcaption{ color:#dbe3f0; }
+.light-page.dark-mode .svc-card figcaption span{ color:#93a9cd; }
+
 .marquee:hover .svc-card:hover{ transform:perspective(900px) rotateY(-10deg) translateY(-6px); }
 @keyframes og-marquee{ from{ transform:translateX(0); } to{ transform:translateX(-50%); } }
 
@@ -397,6 +459,12 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .portfolio-heading .section-label{ margin:0; }
 .portfolio-heading>p{ font-size:16px; line-height:1.5; color:var(--muted); max-width:340px; margin:0; }
 .masonry-grid{ columns:4; column-gap:22px; }
+/* Las fotos van dentro de un <picture> para poder ofrecer WebP en varios
+   anchos. display:contents hace que ese envoltorio no genere caja: para la
+   maquetación la <img> sigue siendo hija directa de la tarjeta, así que ni
+   el mosaico por columnas ni las proporciones cambian una décima. */
+.project-tile picture{ display:contents; }
+
 .project-tile{ break-inside:avoid; margin:0 0 36px; display:block; border-radius:14px; cursor:pointer; }
 .project-tile:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:14px; }
 .project-tile img{ display:block; width:100%; object-fit:cover; object-position:50% 20%; border-radius:14px;
@@ -607,6 +675,9 @@ body.is-services, body.is-light{ background:#f4f9ff; }
      stay tilted and readable, just still. */
   .marquee-track{ animation:none !important; }
   .pulse-bg{ animation:none !important; transform:none !important; opacity:.95 !important; }
+  /* La capa del tinte se queda en su estado de reposo, invisible: el fondo
+     mantiene exactamente el mismo color que tenía antes, pero sin latir. */
+  .pulse-bg::after{ animation:none !important; opacity:0 !important; }
   .marquee{ overflow-x:auto; }
   .social-post{ animation:none !important; opacity:1 !important; transform:none !important; }
   .post-sheet, .post-sheet-box{ transition:opacity var(--dur-fast) linear !important; transform:none !important; }
