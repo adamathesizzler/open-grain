@@ -46,42 +46,53 @@
   }
 }
 
-/* ---------- El botón: la forma del notch ---------- */
+/* ---------- El botón: la forma del notch ----------
+   Sólo tres puntos, sin texto. El lado que toca el borde mide 48px, igual que
+   el lienzo, para que la cápsula quede encajada a ras y no flotando. */
 .og-notch-toggle{
   position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  width:128px; height:48px; padding:0 14px;
-  display:flex; gap:9px; justify-content:center; align-items:center;
+  width:72px; height:48px; padding:0;
+  display:flex; justify-content:center; align-items:center;
   cursor:pointer;
   /* Arriba: esquinas redondeadas sólo abajo → encajado en el borde. */
-  border-radius:0 0 26px 26px;
+  border-radius:0 0 24px 24px;
   border-top-color:transparent;
-  font:600 13px/1.2 inherit;
-  letter-spacing:.02em;
-  transition:width .34s cubic-bezier(.22,1,.36,1),
-             height .34s cubic-bezier(.22,1,.36,1),
-             border-radius .34s cubic-bezier(.22,1,.36,1);
+  /* Más corta que el viaje: la forma se contrae nada más arrancar y se abre
+     al llegar, en vez de ir por su cuenta a mitad de camino. */
+  transition:width .22s cubic-bezier(.5,0,.15,1),
+             height .22s cubic-bezier(.5,0,.15,1),
+             border-radius .22s cubic-bezier(.5,0,.15,1);
   touch-action:manipulation; -webkit-tap-highlight-color:transparent;
 }
-.og-notch-grip{font-size:15px; letter-spacing:2px; line-height:1; opacity:.75;}
-.og-notch-label{white-space:nowrap;}
+.og-notch-grip{
+  font-size:17px; letter-spacing:3px; line-height:1; opacity:.72;
+  /* El punto de más a la derecha lleva el letter-spacing detrás: se compensa
+     para que los tres puntos queden ópticamente centrados. */
+  text-indent:3px;
+  transition:opacity .22s ease;
+}
+.og-notch-toggle:hover .og-notch-grip{opacity:1;}
 
-/* Derecha: encajado en el borde derecho, vertical. */
+/* Derecha: encajado en el borde derecho, y los puntos giran con él. */
 .og-notch[data-edge="right"] .og-notch-toggle{
-  width:48px; height:112px; flex-direction:column; padding:12px 4px; gap:10px;
-  border-radius:26px 0 0 26px;
+  width:48px; height:72px;
+  border-radius:24px 0 0 24px;
   border-top-color:var(--line,rgba(23,23,20,.13));
   border-right-color:transparent;
 }
-.og-notch[data-edge="right"] .og-notch-label{writing-mode:vertical-rl;}
+.og-notch[data-edge="right"] .og-notch-grip{
+  writing-mode:vertical-rl; text-indent:0; padding-top:3px;
+}
 
 /* En viaje: se contrae en bolita. Es el mismo nodo, sólo cambia de forma. */
 .og-notch.og-is-travelling .og-notch-toggle{
-  width:46px; height:46px; border-radius:50%;
+  width:44px; height:44px; border-radius:50%;
   border-color:var(--line,rgba(23,23,20,.13));
   box-shadow:var(--elev-3,0 20px 50px rgba(0,0,0,.2));
 }
-.og-notch.og-is-travelling .og-notch-label{display:none;}
-.og-notch.og-is-travelling .og-notch-grip{opacity:1;}
+.og-notch.og-is-travelling .og-notch-grip{
+  opacity:1; writing-mode:horizontal-tb; text-indent:3px; padding-top:0;
+}
 
 .og-notch-toggle:hover{background:color-mix(in srgb,var(--bg,#f2eee6) 80%,transparent);}
 

@@ -61,10 +61,11 @@
       this.toggle = el('button', 'og-notch-toggle');
       this.toggle.type = 'button';
       this.toggle.setAttribute('aria-expanded', 'false');
-      const icon = el('span', 'og-notch-grip', '•••');
-      icon.setAttribute('aria-hidden', 'true');
-      this.label = el('span', 'og-notch-label');
-      this.toggle.append(icon, this.label);
+      // Sólo los tres puntos. El botón no lleva texto visible: su nombre
+      // accesible va en aria-label, que se actualiza con el idioma.
+      const grip = el('span', 'og-notch-grip', '•••');
+      grip.setAttribute('aria-hidden', 'true');
+      this.toggle.append(grip);
       this.panel = el('div', 'og-notch-panel');
       this.panel.id = `og-notch-panel-${++serial}`;
       this.panel.hidden = true;
@@ -148,7 +149,6 @@
       this.options = options;
       const es = options.lang === 'es';
       this.root.setAttribute('aria-label', es ? 'Navegación principal' : 'Primary navigation');
-      this.label.textContent = es ? 'Menú' : 'Menu';
       this.toggle.setAttribute('aria-label', es ? 'Abrir o cerrar menú' : 'Open or close menu');
       const entries = (options.items || []).map(item => ({ ...item, key: item.key || item.href }));
       entries.push({ key: 'lang', action: 'lang', label: es ? 'Español · EN' : 'English · ES' });
@@ -190,7 +190,8 @@
         }
       });
     }
-    coordinates(edge) {
+    // Punto de anclaje del notch en cada borde, en píxeles del viewport.
+    point(edge) {
       // Los insets reales de safe-area se leen de la sonda invisible, no se
       // suponen: en un iPhone apaisado el lado derecho tiene muesca.
       const css = getComputedStyle(this.probe);
@@ -202,10 +203,49 @@
       const ox = vv?.offsetLeft || 0;
       const oy = vv?.offsetTop || 0;
       const size = 48; // el lienzo del notch, el mismo que fija la CSS
-      const x = edge === 'top' ? ox + width / 2 - 24 : ox + width - right - size;
-      const y = edge === 'top' ? oy + top : oy + Math.max(top + 36, height / 2 - 24);
-      return `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+      return {
+        x: edge === 'top' ? ox + width / 2 - size / 2 : ox + width - right - size,
+        y: edge === 'top' ? oy + top : oy + Math.max(top + 36, height / 2 - size / 2),
+      };
     }
+    coordinates(edge) {
+      const p = this.point(edge);
+      return `translate3d(${Math.round(p.x)}px, ${Math.round(p.y)}px, 0)`;
+    }
+
+    // El recorrido entre dos bordes no es una línea recta que cruza la
+    // pantalla, sino una curva que sigue su marco: el notch se desliza por el
+    // borde superior, redondea la esquina y baja por el lateral. Se describe
+    // con una Bézier cuadrática cuyo punto de control es justamente esa
+    // esquina compartida por los dos bordes. Ida y vuelta recorren la misma
+    // curva, sólo que al revés.
+    arc(from, to, steps = 26) {
+      const corner = { x: Math.max(from.x, to.x), y: Math.min(from.y, to.y) };
+      const frames = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const u = 1 - t;
+        const x = u * u * from.x + 2 * u * t * corner.x + t * t * to.x;
+        const y = u * u * from.y + 2 * u * t * corner.y + t * t * to.y;
+        // Una caída mínima de opacidad en el tramo rápido: el ojo lee
+        // velocidad en lugar de una pegatina deslizándose.
+        //
+        // Aquí había un desenfoque animado, que se veía mejor pero obligaba a
+        // repintar en el hilo principal cada fotograma: en Proyectos, mientras
+        // el navegador decodificaba las fotos, el notch se paraba con la
+        // página (se midió un parón de 103 ms). transform y opacity los lleva
+        // el compositor, así que el recorrido sigue fluido aunque la página
+        // esté ocupada.
+        const alpha = 1 - Math.sin(t * Math.PI) * 0.14;
+        frames.push({
+          offset: t,
+          transform: `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`,
+          opacity: alpha.toFixed(3),
+        });
+      }
+      return frames;
+    }
+
     place() { this.root.style.transform = this.coordinates(this.edge); }
     setOpen(value, returnFocus = false) {
       clearTimeout(this.timer);
@@ -236,15 +276,24 @@
       this.moving = true;
       const version = ++this.version;
       const destination = this.target;
+
+      // La contracción en bolita y el arranque ocurren a la vez. Antes había
+      // una espera de 150 ms entre una cosa y otra que se leía como un tirón.
       this.root.classList.add('og-is-travelling');
-      await new Promise(resolve => setTimeout(resolve, 150));
-      if (version !== this.version) return;
-      const next = this.coordinates(destination);
-      this.flight = this.root.animate([
-        { transform: this.root.style.transform }, { transform: next }
-      ], { duration: 420, easing: 'cubic-bezier(.22,1,.36,1)', fill: 'forwards' });
+
+      const frames = this.arc(this.point(this.edge), this.point(destination));
+      this.flight = this.root.animate(frames, {
+        duration: 620,
+        // Arranca despacio, coge cuerpo a mitad de camino y se posa en lugar
+        // de frenar en seco. (Antes iba cubic-bezier(.5,0,.15,1), que con ese
+        // segundo punto de control tan a la izquierda metía casi todo el
+        // recorrido en el primer 15% del tiempo: salía disparado.)
+        easing: 'cubic-bezier(.65,0,.35,1)',
+        fill: 'forwards',
+      });
       try { await this.flight.finished; } catch { return; }
       if (version !== this.version) return;
+      const next = this.coordinates(destination);
       this.root.style.transform = next;
       this.flight.cancel();
       this.flight = null;

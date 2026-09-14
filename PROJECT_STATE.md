@@ -28,6 +28,35 @@ cristal ahumado oscuro del dock para no destacar sobre las fotografías.
 **Fallo de uso corregido:** con ratón, `pointerenter` ya abría el panel y el clic siguiente
 lo cerraba en el mismo gesto. Ahora el primer clic sobre un panel abierto por hover lo fija.
 
+### Afinado del recorrido del notch (petición posterior de Adama)
+
+Pidió dos cosas: que el botón enseñe **sólo los tres puntos**, sin la palabra
+«Menú», y que el traslado sea más suave. Ambas hechas.
+
+**Sin texto.** El botón queda como una cápsula compacta de 72×48 arriba y 48×72
+en el lateral, con los puntos girando a vertical al llegar a la derecha. El
+nombre accesible sigue en `aria-label`, así que no se pierde para lectores de
+pantalla.
+
+**El recorrido ya no cruza la pantalla en línea recta.** Ahora sigue su marco:
+sale del borde superior, se desliza a la derecha, redondea la esquina y baja
+hasta encajar en el lateral. Es una Bézier cuadrática cuyo punto de control es
+la esquina que comparten los dos bordes, así que la ida y la vuelta recorren la
+misma curva. Medido: **139px de desviación respecto a la línea recta**.
+
+**Tres fallos de movimiento corregidos, con medición:**
+
+| Problema | Medida antes | Después |
+|---|---|---|
+| Pausa muerta de 150 ms entre contraerse y arrancar | se leía como un tirón | la contracción y el arranque son simultáneos |
+| Curva de tiempo mal elegida: `cubic-bezier(.5,0,.15,1)` metía casi todo el recorrido en el primer 15% del tiempo | salida a 88 px/fotograma | `cubic-bezier(.65,0,.35,1)`: velocidad 0.80 → 2.56 → 1.19 → 0.22 px/ms, sube y baja |
+| Desenfoque animado: obligaba a repintar en el hilo principal cada fotograma | parón de **103 ms** en Proyectos | sustituido por opacidad, que va por compositor: **40 ms** |
+
+**El dato que lo cierra:** en Proyectos, el propio bucle de medida —sin mover
+nada— sufre parones de hasta **450 ms** por la decodificación de las fotos. Con
+el notch animando se midieron 40 ms. Es decir, el recorrido va por GPU y ya no
+se entera de que la página está ocupada. Duración total 620 ms.
+
 ### Contacto
 
 Titular y subtítulo apilados, formulario a la izquierda, tarjeta de cristal ahumado a la
