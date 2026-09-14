@@ -70,6 +70,20 @@ const copy = {
     ...defaults.en,
     selected: 'Selected work',
     viewService: 'View service',
+    // Tarjeta del servicio en Contacto. Descripciones generales y honestas:
+    // qué se produce y para quién, sin cantidades, entregas ni plazos, porque
+    // esos paquetes no están confirmados. Editables desde Studio por su clave.
+    svcChip: 'Selected service', svcPricingLabel: 'Pricing',
+    svcQuote: 'Custom quote', svcLinked: 'Your selection is linked to the form.',
+    svcNone: 'No service selected', svcPickOne: 'Choose one to see its details.',
+    svcSelectedSuffix: 'selected — tell us what you have in mind.',
+    serviceBlurbs: [
+      'Stills for brands, venues, products and people. Shot on location or in a studio, selected and retouched.',
+      'Moving image: short films, vertical reels and cutdowns for social. From shoot through to edit, colour and sound.',
+      'Creator-style content made to look native in the feed, for brands that need a steady stream of everyday material.',
+      'Coverage of events, launches and parties — the room, the people and the moments, as they happen.',
+      'Ongoing content for social channels: a recurring shoot and edit rhythm instead of one-off assets.',
+    ],
     start: 'Send request', sent: 'Request sent. We’ll be in touch soon.',
     social: 'Latest from the studio',
     fName: 'Name', fPhone: 'Phone', fService: 'Service', fServicePh: 'Choose a service',
@@ -82,6 +96,17 @@ const copy = {
     ...defaults.es,
     selected: 'Trabajos seleccionados',
     viewService: 'Ver servicio',
+    svcChip: 'Servicio seleccionado', svcPricingLabel: 'Presupuesto',
+    svcQuote: 'Presupuesto personalizado', svcLinked: 'Tu selección queda enlazada al formulario.',
+    svcNone: 'Ningún servicio seleccionado', svcPickOne: 'Elige uno para ver su detalle.',
+    svcSelectedSuffix: 'seleccionado — cuéntanos qué tienes en mente.',
+    serviceBlurbs: [
+      'Fotografía para marcas, espacios, producto y personas. En localización o en estudio, con selección y retoque.',
+      'Imagen en movimiento: piezas cortas, reels verticales y versiones para redes. Del rodaje al montaje, color y sonido.',
+      'Contenido con estilo de creador, pensado para no desentonar en el feed, para marcas que necesitan material cotidiano.',
+      'Cobertura de eventos, presentaciones y fiestas: el espacio, la gente y lo que pasa, mientras ocurre.',
+      'Contenido continuado para redes: un ritmo recurrente de rodaje y edición en lugar de piezas sueltas.',
+    ],
     start: 'Enviar solicitud', sent: 'Solicitud enviada. Os responderemos pronto.',
     social: 'Lo último del estudio',
     fName: 'Nombre', fPhone: 'Teléfono', fService: 'Servicio', fServicePh: 'Selecciona un servicio',
@@ -97,6 +122,7 @@ let dark = (() => { const h = new Date().getHours(); return h < 7 || h >= 20; })
 // Se declaran aquí, antes de la primera llamada a renderAll(), porque
 // renderContact() los usa.
 let ogContactController = null;
+let contactPrefilled = false;
 
 const shell = $('site-shell');
 
@@ -288,7 +314,8 @@ function renderServices() {
     // On the services page this is a plain index list (<ol>); elsewhere it is
     // the older card grid. Same data, rendered to fit its container.
     cards.innerHTML = cards.tagName === 'OL'
-      ? t.serviceList.map(s => `<li><span>${attrEscape(s)}</span></li>`).join('')
+      ? t.serviceList.map((s, i) =>
+          `<li><a class="svc-link" href="contact.html?service=${i}"><span>${attrEscape(s)}</span></a></li>`).join('')
       : t.serviceList.map((s, i) => `
         <article>
           <span>0${i + 1}</span>
@@ -359,6 +386,60 @@ function setTrustedHtml(node, html) {
   node.replaceChildren(template.content);
 }
 
+// La tarjeta lee el valor del <select>, nunca una copia aparte: así no puede
+// enseñar un servicio distinto del que se va a enviar.
+function renderServiceCard() {
+  const card = $('service-card');
+  if (!card) return;
+  const t = copy[lang];
+  const list = t.serviceList || [];
+  const match = /^svc-(\d+)$/.exec($('service')?.value || '');
+  const i = match ? Number(match[1]) : -1;
+  const chosen = i >= 0 && i < list.length;
+
+  $('service-card-chip').textContent = t.svcChip;
+  $('service-card-label').textContent = t.svcPricingLabel;
+
+  if (chosen) {
+    const img = $('service-card-img');
+    const src = serviceImages[i % serviceImages.length];
+    if (img.getAttribute('src') !== src) img.src = src;
+    img.alt = '';
+    $('service-card-index').textContent = `${String(i + 1).padStart(2, '0')} / ${list[i]}`;
+    $('service-card-title').textContent = list[i];
+    $('service-card-desc').textContent = t.serviceBlurbs?.[i] || '';
+    $('service-card-price').textContent = t.svcQuote;
+    $('service-card-note').textContent = t.svcLinked;
+  } else {
+    $('service-card-index').textContent = '';
+    $('service-card-title').textContent = t.svcNone;
+    $('service-card-desc').textContent = t.svcPickOne;
+    $('service-card-price').textContent = t.svcQuote;
+    $('service-card-note').textContent = '';
+  }
+  // El subtítulo confirma la elección sin obligar a mirar el desplegable.
+  const lede = $('contact-lede');
+  if (lede) {
+    lede.textContent = chosen
+      ? `${list[i]} ${t.svcSelectedSuffix}`
+      : t.ctaLede;
+  }
+}
+
+// Marca «opcional» junto a la etiqueta, una sola vez por campo, para que no
+// haya que adivinar qué hace falta rellenar. Aparece en la maqueta.
+function markOptional(labelId, text) {
+  const label = $(labelId);
+  if (!label) return;
+  let tag = label.querySelector('.og-optional');
+  if (!tag) {
+    tag = document.createElement('span');
+    tag.className = 'og-optional';
+    label.firstChild?.after(tag);
+  }
+  tag.textContent = ` · ${text}`;
+}
+
 function renderContact() {
   if (!$('contact-form')) return;
   const t = copy[lang];
@@ -373,6 +454,9 @@ function renderContact() {
   $('label-message').firstChild.textContent = t.fMessage;
   $('message').placeholder = t.fMessagePh;
   setTrustedHtml($('label-consent'), t.fConsent);
+
+  const optional = es ? 'opcional' : 'optional';
+  ['label-phone', 'label-date', 'label-budget'].forEach(id => markOptional(id, optional));
 
   // setOptions conserva la selección mientras su valor siga existiendo, y
   // nunca reordena por selectedIndex.
@@ -396,6 +480,17 @@ function renderContact() {
     notice.hidden = !lostService;
   }
 
+  // Preselección al llegar desde Servicios. Sólo la primera vez: después
+  // manda lo que haya elegido la persona.
+  if (!contactPrefilled) {
+    contactPrefilled = true;
+    const index = new URLSearchParams(location.search).get('service');
+    if (service && index !== null && /^\d{1,3}$/.test(index)) {
+      const value = SERVICE_VALUE(Number(index));
+      if ([...service.options].some(o => o.value === value)) service.value = value;
+    }
+  }
+
   window.OGContact?.setOptions($('budget'), [
     { value: BUDGET_UNDECIDED, label: es ? 'Todavía no lo sé' : 'Not sure yet' },
     { value: '€500–1,000', label: '€500–1,000' },
@@ -406,6 +501,7 @@ function renderContact() {
   // La flecha se conserva; el texto vive en su propio span para que el
   // controlador pueda cambiarlo a «Enviando…» sin borrar el icono.
   $('submit-btn').innerHTML = `<span data-og-label>${attrEscape(t.start)}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`;
+  renderServiceCard();
   ogContactController?.refresh();
 }
 
@@ -705,6 +801,8 @@ if (form && window.OGContact) {
       if (error) throw error;
     },
   });
+  // La tarjeta sigue al desplegable en tiempo real.
+  $('service')?.addEventListener('change', renderServiceCard);
   // Deja etiquetas y opciones en su sitio ahora que el controlador ya existe.
   renderContact();
 }

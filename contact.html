@@ -11,7 +11,9 @@
 </head>
 <body>
 
-<main class="site-shell inner-page" id="site-shell">
+<div class="pulse-bg" aria-hidden="true"></div>
+
+<main class="site-shell inner-page pulse-page" id="site-shell">
 
   <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
   <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
@@ -25,10 +27,14 @@
   </nav>
 
   <section id="contact" class="contact section-pad" data-reveal>
+    <!-- Titular y subtítulo apilados: el subtítulo refleja el servicio
+         elegido, de modo que quien llega desde Servicios ve confirmado qué
+         ha seleccionado antes de escribir nada. -->
     <div class="contact-head">
-      <div><span>PLAN A PROJECT</span><h1 id="contact-heading"></h1></div>
+      <h1 id="contact-heading"></h1>
       <p id="contact-lede"></p>
     </div>
+
     <div class="contact-card">
       <form class="project-form" id="contact-form" novalidate>
         <label id="label-name">Name<input type="text" id="name" name="name" required></label>
@@ -46,19 +52,39 @@
         <button class="submit-btn" type="submit" id="submit-btn"></button>
       </form>
       <div class="form-success" id="form-success" hidden></div>
-      <aside>
-        <img src="assets/portfolio/editorial-interior.jpg" alt="Mallorca creative production">
-        <span>YOUR PROJECT / OPEN GRAIN</span>
+
+      <!-- Tarjeta de cristal ahumado del servicio seleccionado. La rellena
+           main.js a partir del mismo catálogo que el desplegable, así que no
+           puede desincronizarse de lo que se va a enviar. -->
+      <aside class="service-card" id="service-card">
+        <img id="service-card-img" src="assets/portfolio/portrait-studio.jpg" alt="">
+        <span class="service-card-chip" id="service-card-chip">SELECTED SERVICE</span>
+        <div class="service-card-body">
+          <p class="service-card-index" id="service-card-index"></p>
+          <h2 class="service-card-title" id="service-card-title"></h2>
+          <p class="service-card-desc" id="service-card-desc"></p>
+          <div class="service-card-rule" aria-hidden="true"></div>
+          <p class="service-card-label" id="service-card-label"></p>
+          <p class="service-card-price" id="service-card-price"></p>
+          <p class="service-card-note" id="service-card-note"></p>
+        </div>
       </aside>
     </div>
+
+    <!-- Los tres bloques de contacto siguen aquí debajo, con sus enlaces
+         reales. En móvil se apilan, no se ocultan. -->
     <div class="contact-details">
       <div>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        <h3>Call &amp; WhatsApp</h3><p><a href="https://wa.me/34677247113" target="_blank" rel="noopener">+34 677 24 71 13</a></p>
+        <h3>Call &amp; WhatsApp</h3>
+        <p>
+          <a href="tel:+34677247113">+34 677 24 71 13</a>
+          <a href="https://wa.me/34677247113" target="_blank" rel="noopener">WhatsApp</a>
+        </p>
       </div>
       <div>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v8M8 12h8"/></svg>
-        <h3>Instagram</h3><p>@opengrain.studio</p>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        <h3>Instagram</h3><p><a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">@opengrain.studio</a></p>
       </div>
       <div>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
