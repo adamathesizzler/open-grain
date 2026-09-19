@@ -15,15 +15,15 @@
 
 <main class="site-shell inner-page pulse-page" id="site-shell">
 
-  <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
+  <a class="wordmark" href="/">OPEN GRAIN<span>®</span></a>
   <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
        se sigue pudiendo navegar. El componente los sustituye al montarse. -->
   <nav class="dock" id="dock" aria-label="Primary">
-    <a href="index.html">Home</a>
-    <a href="work.html">Work</a>
-    <a href="services.html">Services</a>
-    <a href="about.html">Studio</a>
-    <a href="contact.html">Contact</a>
+    <a href="/">Home</a>
+    <a href="/work">Work</a>
+    <a href="/services">Services</a>
+    <a href="/about">Studio</a>
+    <a href="/contact">Contact</a>
   </nav>
 
   <section id="contact" class="contact section-pad" data-reveal>
@@ -73,6 +73,7 @@
 
     <!-- Los tres bloques de contacto siguen aquí debajo, con sus enlaces
          reales. En móvil se apilan, no se ocultan. -->
+    <h2 class="og-sr-only" id="contact-more-title">Other ways to reach us</h2>
     <div class="contact-details">
       <div>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -102,23 +103,12 @@
       <a href="mailto:adamabalde1998@gmail.com">Email</a>
     </div>
     <p id="footer-based"></p>
-    <span>© <span id="year"></span> OPEN GRAIN · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
+    <span>© <span id="year"></span> OPEN GRAIN · <a href="/aviso-legal" lang="es">Aviso legal</a> · <a href="/privacidad" lang="es">Privacidad</a> · <a href="/cookies" lang="es">Cookies</a></span>
   </footer>
 
 </main>
 
-<div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="Vista ampliada del proyecto">
-  <figure class="lightbox-figure">
-    <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Cerrar">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <img id="lightbox-img" src="" alt="">
-    <figcaption>
-      <span id="lightbox-eyebrow"></span>
-      <h3 id="lightbox-title"></h3>
-    </figcaption>
-  </figure>
-</div>
+<!-- Sin vista ampliada: esta página no tiene piezas del portfolio. -->
 
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script defer src="assets/config.js"></script>

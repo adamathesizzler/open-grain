@@ -212,3 +212,15 @@ body.is-home .og-notch-item{ color:#f3efe8; }
 body.is-home .og-notch-item:hover,
 body.is-home .og-notch-item[aria-current="page"]{ background:rgba(255,255,255,.14); }
 body.is-home .og-notch-toggle:hover{ background:rgba(14,14,15,.94); }
+
+/* Lo último del estudio: la sección se oculta mientras no haya publicaciones
+   seleccionadas. .social-stage fija su propio display, así que [hidden] solo
+   no bastaría. */
+.social-stage[hidden]{ display:none !important; }
+
+/* Notch lateral encima de un campo del formulario (sólo pasa fuera de la
+   portada, en pantallas estrechas): se desvanece y deja pasar el toque hasta
+   el campo mientras lo tape. Lo decide og-notch.js midiendo las dos cajas. */
+#dock.og-notch{ transition:opacity .18s ease; }
+#dock.og-notch.og-notch-yield{ opacity:0; pointer-events:none; }
+@media(prefers-reduced-motion:reduce){ #dock.og-notch{ transition:none; } }

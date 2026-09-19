@@ -48,6 +48,50 @@ const projects = [
   { id: '23', title: 'Crossing',    type: 'Motorsport',   image: 'assets/portfolio/nissan-crossing.jpg',    ratio: 'wide',   w: 1800, h: 1350 },
   { id: '24', title: 'Itaewon',     type: 'Street',       image: 'assets/portfolio/itaewon.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
 ];
+// Texto alternativo de cada fotografía: describe lo que se ve, no sólo el
+// título y la categoría. Va por idioma, igual que el resto de la web. Las fotos
+// que se publiquen desde Studio no están en esta lista y usan título y tipo.
+const PHOTO_ALT = {
+  'assets/portfolio/motorsport.jpg':         ['Front of a pink and white Formula E car, number 23, on display.', 'Frontal de un monoplaza de Fórmula E blanco y rosa, número 23, en exposición.'],
+  'assets/portfolio/todaiji.jpg':            ['Tōdai-ji temple hall reflected in a pond under a blue sky with clouds.', 'El templo Tōdai-ji reflejado en un estanque bajo un cielo azul con nubes.'],
+  'assets/portfolio/portrait-studio.jpg':    ['Smiling man in a cream T-shirt and jeans, arms crossed, against a light wall.', 'Hombre sonriente con camiseta crema y vaqueros, de brazos cruzados, contra una pared clara.'],
+  'assets/portfolio/nara-deer.jpg':          ['Two deer looking to the right beside a wooden fence in Nara.', 'Dos ciervos mirando a la derecha junto a una valla de madera en Nara.'],
+  'assets/portfolio/editorial-interior.jpg': ['Man in a white T-shirt lounging on a brown leather sofa against a deep blue wall, hand in his hair.', 'Hombre con camiseta blanca recostado en un sofá de cuero marrón ante una pared azul intenso, con la mano en el pelo.'],
+  'assets/portfolio/night-portrait.jpg':     ['Black-and-white night portrait of a woman in a light coat looking over her shoulder, with light trails behind her.', 'Retrato nocturno en blanco y negro de una mujer con abrigo claro que mira por encima del hombro, con estelas de luz detrás.'],
+  'assets/portfolio/portrait-low-key.jpg':   ['Low-key portrait of a man in a cream T-shirt, arms crossed, looking aside in a dark room lit by wall lamps.', 'Retrato en clave baja de un hombre con camiseta crema, de brazos cruzados, mirando a un lado en una sala oscura con apliques encendidos.'],
+  'assets/portfolio/platform.jpg':           ['Two people with backpacks, seen from behind, choosing a drink at a vending machine on a station platform.', 'Dos personas con mochila, de espaldas, eligiendo bebida en una máquina expendedora del andén.'],
+  'assets/portfolio/documentary.jpg':        ['Older man in a straw hat resting against a white stone wall in the shade.', 'Hombre mayor con sombrero de paja descansando junto a un muro de piedra blanca, a la sombra.'],
+  'assets/portfolio/temple-gate.jpg':        ['A man walks past a wooden temple gate hung with white banners.', 'Un hombre pasa junto a la puerta de madera de un templo con estandartes blancos.'],
+  'assets/portfolio/incense.jpg':            ['Hands placing incense sticks in a large bronze burner at a temple.', 'Manos colocando varillas de incienso en un gran quemador de bronce de un templo.'],
+  'assets/portfolio/pagoda.jpg':             ['Five-storey pagoda framed by autumn leaves against a soft sky.', 'Pagoda de cinco pisos enmarcada por hojas de otoño contra un cielo suave.'],
+  'assets/portfolio/gate-tower.jpg':         ['Traditional tower beside a moat in hazy light, with red leaves in the foreground.', 'Torre tradicional junto a un foso con luz brumosa y hojas rojas en primer plano.'],
+  'assets/portfolio/roadside.jpg':           ['Red Coca-Cola vending machine against a grey building wall.', 'Máquina expendedora roja de Coca-Cola contra la pared gris de un edificio.'],
+  'assets/portfolio/namba-yasaka.jpg':       ['The giant lion-head hall of Namba Yasaka shrine, with visitors queuing below.', 'La gran cabeza de león del santuario Namba Yasaka, con visitantes haciendo cola debajo.'],
+  'assets/portfolio/ginza-nissan.jpg':       ['Nissan Formula E car on display in a glass showroom.', 'Monoplaza Nissan de Fórmula E expuesto en una sala acristalada.'],
+  'assets/portfolio/tokyo-tower.jpg':        ['Tokyo Tower in orange and white, seen from below between power lines.', 'La Torre de Tokio, naranja y blanca, vista desde abajo entre cables eléctricos.'],
+  'assets/portfolio/halo-detail.jpg':        ['Close-up of the halo and cockpit of a pink and white Formula E car.', 'Detalle del halo y la cabina de un monoplaza de Fórmula E blanco y rosa.'],
+  'assets/portfolio/last-train.jpg':         ['Empty station platform at night with a lit vending machine.', 'Andén vacío de noche con una máquina expendedora iluminada.'],
+  'assets/portfolio/shibuya.jpg':            ['A Shibuya street at night lined with neon signs.', 'Una calle de Shibuya de noche llena de rótulos de neón.'],
+  'assets/portfolio/nightlife-cheers.jpg':   ['Four friends hugging and laughing with drinks in hand on a night out.', 'Cuatro amigas abrazadas y riendo con bebidas en la mano en una noche de fiesta.'],
+  'assets/portfolio/nightlife-crew.jpg':     ['Four friends smiling close together at a party.', 'Cuatro amigas sonriendo muy juntas en una fiesta.'],
+  'assets/portfolio/nissan-crossing.jpg':    ['Front view of a red and white Formula E car on display at night.', 'Vista frontal de un monoplaza de Fórmula E rojo y blanco expuesto de noche.'],
+  'assets/portfolio/itaewon.jpg':            ['A street crossing in Itaewon with a car turning and hillside houses behind.', 'Un cruce de calles en Itaewon con un coche girando y casas en la ladera al fondo.'],
+};
+
+function photoAlt(p) {
+  const pair = PHOTO_ALT[p.image];
+  if (pair) return pair[lang === 'es' ? 1 : 0];
+  return [p.title, p.type].filter(Boolean).join(' — ');
+}
+
+// Las piezas del portfolio abren la vista ampliada, así que se anuncian como
+// botón y dicen qué abren: título, tipo y la descripción de la foto.
+function tileLabel(p) {
+  const verb = lang === 'es' ? 'Ampliar' : 'Enlarge';
+  const head = [p.title, p.type].filter(Boolean).join(', ');
+  return `${verb}: ${head}. ${photoAlt(p)}`;
+}
+
 // One image per service, in the same order as copy[].serviceList
 // (Photography, Film & Reels, UGC, Events, Social Content).
 const serviceImages = [
@@ -89,7 +133,7 @@ const copy = {
     fName: 'Name', fPhone: 'Phone', fService: 'Service', fServicePh: 'Choose a service',
     fDate: 'Preferred date', fBudget: 'Approx. budget', fMessage: 'Tell us about your idea',
     fMessagePh: 'Project, location, references…',
-    fConsent: 'I have read and accept the <a href="privacidad.html" target="_blank" rel="noopener">Privacy Policy</a>.',
+    fConsent: 'I have read and accept the <a href="/privacidad" hreflang="es" target="_blank" rel="noopener">Privacy Policy</a>.',
   },
   es: {
     work: 'Proyectos', services: 'Servicios', studio: 'Estudio', contact: 'Contacto',
@@ -112,11 +156,19 @@ const copy = {
     fName: 'Nombre', fPhone: 'Teléfono', fService: 'Servicio', fServicePh: 'Selecciona un servicio',
     fDate: 'Fecha aproximada', fBudget: 'Presupuesto aproximado', fMessage: 'Cuéntanos tu idea',
     fMessagePh: 'Proyecto, lugar, referencias…',
-    fConsent: 'He leído y acepto la <a href="privacidad.html" target="_blank" rel="noopener">Política de Privacidad</a>.',
+    fConsent: 'He leído y acepto la <a href="/privacidad" target="_blank" rel="noopener">Política de Privacidad</a>.',
   },
 };
 
-let lang = 'en';
+// Idioma de la primera visita: el del navegador. Español (y catalán, habitual
+// en Mallorca) abren en español; el resto, en inglés. Si el visitante ya eligió
+// idioma con el botón, manda su elección (se lee más abajo de localStorage).
+let lang = (() => {
+  try {
+    const first = (navigator.languages && navigator.languages[0]) || navigator.language || '';
+    return /^(es|ca)\b/i.test(first) ? 'es' : 'en';
+  } catch (e) { return 'en'; }
+})();
 let dark = (() => { const h = new Date().getHours(); return h < 7 || h >= 20; })();
 
 // Se declaran aquí, antes de la primera llamada a renderAll(), porque
@@ -133,11 +185,11 @@ function applyTheme() {
 const svg = (d) => `<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 
 const NAV_PAGES = [
-  ['index.html', 'home'],
-  ['work.html', 'work'],
-  ['services.html', 'services'],
-  ['about.html', 'studio'],
-  ['contact.html', 'contact'],
+  ['/', 'home'],
+  ['/work', 'work'],
+  ['/services', 'services'],
+  ['/about', 'studio'],
+  ['/contact', 'contact'],
 ];
 
 // La navegación es un único componente compartido por las cinco páginas:
@@ -176,10 +228,12 @@ function homeTileMarkup(p, i, isRepeat) {
   // don't jump around as images arrive. Repeats are hidden from screen
   // readers: the same photographs announced over and over would be noise.
   const ar = tileRatio(p);
-  const repeatAttrs = isRepeat ? ' aria-hidden="true" tabindex="-1"' : ' tabindex="0"';
+  const repeatAttrs = isRepeat
+    ? ' aria-hidden="true" tabindex="-1"'
+    : ` tabindex="0" role="button" aria-label="${attrEscape(tileLabel(p))}"`;
   return `
-    <figure class="project-tile"${repeatAttrs} data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
-      ${photoMarkup(p.image, `alt="${isRepeat ? '' : attrEscape(p.title) + ' — ' + attrEscape(p.type)}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_HOME)}
+    <figure class="project-tile"${repeatAttrs} data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
+      ${photoMarkup(p.image, `alt="${isRepeat ? '' : attrEscape(photoAlt(p))}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_HOME)}
       <figcaption><span>${attrEscape(p.title)}</span><span>${attrEscape(p.type)}</span></figcaption>
     </figure>`;
 }
@@ -332,11 +386,14 @@ function renderWork() {
   // Las cuatro primeras se cargan de inmediato y el resto en diferido, igual
   // que en la portada: antes esta cuadrícula pedía las 24 fotos a la vez,
   // incluidas las que están cinco pantallas más abajo.
+  // Cada pieza es un botón que abre la vista ampliada. Antes era un <article>
+  // con tabindex, que el lector de pantalla anunciaba sin decir que se podía
+  // abrir. Las reglas de estilo van por clase, así que se ve exactamente igual.
   grid.innerHTML = projects.map((p, i) => `
-    <article class="project-tile ${attrEscape(p.ratio)}" tabindex="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}">
-      ${photoMarkup(p.image, `alt="${attrEscape(p.title)} — ${attrEscape(p.type)}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_WORK)}
+    <figure class="project-tile ${attrEscape(p.ratio)}" tabindex="0" role="button" aria-label="${attrEscape(tileLabel(p))}" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}">
+      ${photoMarkup(p.image, `alt="${attrEscape(photoAlt(p))}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_WORK)}
       <div><span>/ ${attrEscape(p.id)}</span><h3>${attrEscape(p.title)}</h3><p>${attrEscape(p.type)}</p></div>
-    </article>`).join('');
+    </figure>`).join('');
 }
 
 function renderStatement() {
@@ -358,9 +415,14 @@ function renderServices() {
   if (cards) {
     // On the services page this is a plain index list (<ol>); elsewhere it is
     // the older card grid. Same data, rendered to fit its container.
+    // Cada fila dice qué se produce (las mismas descripciones que la tarjeta
+    // de Contacto), y el nombre lleva a Contacto con el servicio ya elegido.
     cards.innerHTML = cards.tagName === 'OL'
-      ? t.serviceList.map((s, i) =>
-          `<li><a class="svc-link" href="contact.html?service=${i}"><span>${attrEscape(s)}</span></a></li>`).join('')
+      ? t.serviceList.map((s, i) => {
+          const blurb = t.serviceBlurbs?.[i];
+          return `<li><div class="svc-row"><a class="svc-link" href="/contact?service=${i}"><span>${attrEscape(s)}</span></a>` +
+            (blurb ? `<p class="svc-blurb">${attrEscape(blurb)}</p>` : '') + `</div></li>`;
+        }).join('')
       : t.serviceList.map((s, i) => `
         <article>
           <span>0${i + 1}</span>
@@ -387,7 +449,25 @@ function renderServiceMarquee() {
     </figure>`;
   const pass = (dup) => t.serviceList.map((s, i) => card(s, i, dup)).join('');
   el.innerHTML = `<div class="marquee-track">${pass(false)}${pass(true)}</div>`;
+  renderMarqueeToggle();
 }
+
+// Botón de pausa del carrusel de Servicios.
+let marqueePaused = false;
+function renderMarqueeToggle() {
+  const btn = $('marquee-toggle');
+  if (!btn) return;
+  const es = lang === 'es';
+  $('service-marquee')?.classList.toggle('is-paused', marqueePaused);
+  btn.classList.toggle('is-paused', marqueePaused);
+  $('marquee-toggle-text').textContent = marqueePaused
+    ? (es ? 'Reanudar' : 'Play')
+    : (es ? 'Pausar' : 'Pause');
+}
+$('marquee-toggle')?.addEventListener('click', () => {
+  marqueePaused = !marqueePaused;
+  renderMarqueeToggle();
+});
 
 function renderStudio() {
   if (!$('studio-heading')) return;
@@ -541,7 +621,7 @@ function renderContact() {
     { value: '€500–1,000', label: '€500–1,000' },
     { value: '€1,000–2,500', label: '€1,000–2,500' },
     { value: '€2,500+', label: '€2,500+' },
-  ], '€');
+  ], es ? 'Elige un rango (€)' : 'Choose a range (€)');
 
   // La flecha se conserva; el texto vive en su propio span para que el
   // controlador pueda cambiarlo a «Enviando…» sin borrar el icono.
@@ -585,12 +665,22 @@ const SOCIAL_PROFILES = {
 let socialNet = 'tiktok';
 let socialPosts = { tiktok: [], instagram: [], youtube: [] };
 
+// Una red sólo tiene pestaña si hay algo que enseñar en ella: publicaciones
+// seleccionadas o, al menos, un perfil real al que llevar. YouTube no tiene
+// canal todavía, así que su pestaña no aparece hasta que lo tenga o haya
+// publicaciones suyas seleccionadas en Studio.
+function visibleNetworks() {
+  return NETWORKS.filter(([id]) => (socialPosts[id] || []).length || SOCIAL_PROFILES[id]);
+}
+
 function renderNetTabs() {
   const tabs = $('net-tabs');
   if (!tabs) return;
-  tabs.innerHTML = NETWORKS.map(([id, label, icon]) => `
-    <button class="net-tab" type="button" role="tab" data-net="${id}"
-            aria-selected="${id === socialNet}">${svg(icon)}${label}</button>`).join('');
+  tabs.setAttribute('aria-label', lang === 'es' ? 'Redes sociales' : 'Social networks');
+  tabs.innerHTML = visibleNetworks().map(([id, label, icon]) => `
+    <button class="net-tab" type="button" role="tab" data-net="${id}" id="net-tab-${id}"
+            aria-controls="social-grid" aria-selected="${id === socialNet}">${svg(icon)}${label}</button>`).join('');
+  $('social-grid')?.setAttribute('aria-labelledby', `net-tab-${socialNet}`);
 }
 
 function socialRatio(p) {
@@ -603,6 +693,11 @@ function socialRatio(p) {
 function renderSocialGrid() {
   const grid = $('social-grid');
   if (!grid) return;
+
+  // La sección entera sólo se enseña cuando hay publicaciones reales
+  // seleccionadas en alguna red. Sin ellas, ni hueco vacío ni textos del panel.
+  const total = NETWORKS.reduce((n, [id]) => n + (socialPosts[id] || []).length, 0);
+  if ($('social')) $('social').hidden = total === 0;
 
   const posts = (socialPosts[socialNet] || []).slice(0, SOCIAL_MAX);
   const empty = $('social-empty');
@@ -638,7 +733,8 @@ function renderSocialGrid() {
     const target = cols.reduce((a, b) => (b.height < a.height ? b : a));
     const ar = socialRatio(p);
     target.html.push(`
-      <figure class="social-post" tabindex="0" data-idx="${i}"
+      <figure class="social-post" tabindex="0" role="button" data-idx="${i}"
+              aria-label="${attrEscape((lang === 'es' ? 'Ver publicación' : 'View post') + (p.caption ? ': ' + p.caption : ''))}"
               style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
         <img src="${attrEscape(p.image_url)}" alt="${attrEscape(p.caption || '')}" loading="${i < 4 ? 'eager' : 'lazy'}">
         ${['tiktok', 'youtube'].includes(p.platform)
@@ -660,6 +756,8 @@ function openPostSheet(post) {
   $('post-sheet-img').alt = post.caption || '';
   $('post-sheet-net').textContent = (NETWORKS.find(n => n[0] === post.platform) || [, post.platform])[1];
   $('post-sheet-caption').textContent = post.caption || '';
+  // Sin pie, el encabezado sobra: un h3 vacío se anuncia como un título en blanco.
+  $('post-sheet-caption').hidden = !post.caption;
   const link = $('post-sheet-link');
   link.href = post.external_url || '#';
   link.hidden = !post.external_url;
@@ -719,6 +817,27 @@ function renderFooter() {
   if ($('footer-based')) $('footer-based').textContent = copy[lang].based;
 }
 
+// Textos que sólo oyen los lectores de pantalla: el título oculto de la
+// portada, los nombres de las ventanas emergentes y el encabezado de los
+// canales de Contacto. Siguen al idioma de la página; no se ve nada.
+function renderHiddenLabels() {
+  const es = lang === 'es';
+  const title = $('home-title');
+  if (title) {
+    title.textContent = es
+      ? 'OPEN GRAIN — estudio de producción creativa en Mallorca'
+      : 'OPEN GRAIN — creative production studio in Mallorca';
+    title.removeAttribute('lang');
+  }
+  $('lightbox')?.setAttribute('aria-label', es ? 'Vista ampliada del proyecto' : 'Enlarged project view');
+  $('lightbox-close')?.setAttribute('aria-label', es ? 'Cerrar' : 'Close');
+  $('post-sheet')?.setAttribute('aria-label', es ? 'Publicación ampliada' : 'Enlarged post');
+  $('post-sheet-close')?.setAttribute('aria-label', es ? 'Cerrar' : 'Close');
+  if ($('contact-more-title')) {
+    $('contact-more-title').textContent = es ? 'Otras formas de contactar' : 'Other ways to reach us';
+  }
+}
+
 function renderAll() {
   // El idioma del documento tiene que acompañar al de la interfaz: de él
   // dependen los lectores de pantalla, la separación silábica y el corrector.
@@ -733,6 +852,7 @@ function renderAll() {
   renderContact();
   renderSocialLabels();
   renderFooter();
+  renderHiddenLabels();
 }
 
 // Language and theme are per-visitor choices that must survive navigating
@@ -952,7 +1072,8 @@ function applyRealSocial(rows) {
     lastFocused = document.activeElement;
     imgEl.src = image;
     // El texto alternativo describe la foto; el título por sí solo no basta.
-    imgEl.alt = [tile.dataset.lightboxTitle, tile.dataset.lightboxEyebrow].filter(Boolean).join(' — ');
+    imgEl.alt = tile.dataset.lightboxAlt ||
+      [tile.dataset.lightboxTitle, tile.dataset.lightboxEyebrow].filter(Boolean).join(' — ');
     titleEl.textContent = tile.dataset.lightboxTitle || '';
     eyebrowEl.textContent = tile.dataset.lightboxEyebrow || '';
     lightbox.hidden = false;
@@ -1057,7 +1178,7 @@ function initCookieBanner() {
     <p>${isEs
       ? 'Usamos cookies analíticas solo si las aceptas. Más info en nuestra'
       : 'We use analytics cookies only if you accept them. More info in our'}
-      <a href="cookies.html">${isEs ? 'Política de Cookies' : 'Cookie Policy'}</a>.</p>
+      <a href="/cookies">${isEs ? 'Política de Cookies' : 'Cookie Policy'}</a>.</p>
     <div>
       <button type="button" id="cookie-reject">${isEs ? 'Rechazar' : 'Reject'}</button>
       <button type="button" id="cookie-accept">${isEs ? 'Aceptar' : 'Accept'}</button>

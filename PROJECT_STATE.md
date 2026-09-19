@@ -1,8 +1,78 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-14 (0o. Tarjeta de reserva del cliente: página pública y lectura por token).
+Última actualización: 2026-09-20 (0p. Arreglos de la auditoría UX/UI, sin tocar la portada).
 
-## 0o. Tarjeta de reserva del cliente (esta sesión)
+## 0p. Arreglos de la auditoría UX/UI (20.09.2026, esta sesión)
+
+### Qué se pidió
+
+Adama pidió una auditoría UX/UI de open-grain.vercel.app (accesibilidad, marca, interfaz) y
+después «hazme todo lo que hay que hacer, pero pregúntame antes». Respuestas que dio:
+
+- **La portada no se toca** («no me jodas la página hero»). Sólo se permitieron cambios
+  invisibles en su código (alt, idioma, semántica, enlaces). **Comprobado píxel a píxel.**
+- Aprobó fuera de la portada: formulario antes que la tarjeta en Contacto móvil, subir
+  contraste, botón de pausa en el carrusel de Servicios y 404 con la marca.
+- Menú (notch): sólo «que no tape campos», fuera de la portada.
+- Idioma por defecto: el del navegador. Sección de redes vacía: ocultarla.
+- Dominio: todavía no tiene opengrain.studio. Correo: se queda Gmail por ahora.
+- Contenido («dime tú»): descripciones de servicios sí; precios no (sin cifras inventadas);
+  frase de Proyectos «desde Mallorca y de viaje»; Google Analytics para después; pestaña
+  YouTube oculta mientras no haya canal.
+
+### Qué se ha hecho
+
+| Área | Cambio |
+|---|---|
+| Idioma | Primera visita según el navegador (es/ca → español; resto → inglés). La elección guardada manda. |
+| Portada (invisible) | h1 oculto en el idioma de la página; piezas con `role="button"` y `aria-label` («Ampliar: título, tipo. descripción»); alt descriptivo; enlaces sin `.html`; enlaces legales con `lang="es"`. |
+| Fotos | `PHOTO_ALT` en `main.js`: descripción ES/EN de las 24 fotos, escrita mirando cada una. Las de Studio usan título — tipo. |
+| Proyectos | Piezas `<article>` → `<figure role="button">` (mismas clases, mismo aspecto). Frase: «desde Mallorca y de viaje». |
+| Servicios | Descripción bajo cada servicio (las mismas `serviceBlurbs` de la tarjeta de Contacto). Botón Pausar/Reanudar del carrusel (a la izquierda, lejos del notch; oculto con movimiento reducido). |
+| Estudio | Sección «Lo último del estudio» oculta hasta que haya publicaciones seleccionadas; pestaña de una red sólo si tiene publicaciones o perfil (YouTube fuera). Colores de noche que faltaban (titular a 1,1:1). `socialLede` ya no es un texto del panel. |
+| Contacto | Formulario primero en móvil. h2 oculto «Otras formas de contactar». Presupuesto: «Elige un rango (€)» en vez de «€». Contraste de noche dentro de las tarjetas. |
+| Notch | Si en el lateral queda encima de un campo de formulario, se desvanece y deja pasar el toque (`og-notch-yield`). En la portada no hay campos: allí no cambia nada. Botón de idioma con nombre accesible («Switch language to Spanish»). |
+| Diálogos | Nombres de la vista ampliada y de la publicación en el idioma de la página; sin h3 vacío si la publicación no tiene pie; vista ampliada retirada de Servicios, Estudio y Contacto (no se usaba). |
+| Contraste | 21 fallos medidos contra el fondo pintado → 0 (Servicios, Estudio, Proyectos, Contacto, legales, 404; claro y oscuro; escritorio y móvil). |
+| Enlaces | Todos los internos sin `.html` (antes cada clic pasaba por un 308 de Vercel). |
+| 404 | `404.html` nueva, bilingüe, con el papel de las legales y salidas a Inicio, Proyectos y Contacto. |
+| Aviso legal | El sitio es `open-grain.vercel.app` (antes decía opengrain.studio, que aún no existe). |
+
+### Archivos
+
+Modificados: `index.html`, `work.html`, `services.html`, `about.html`, `contact.html`,
+`aviso-legal.html`, `privacidad.html`, `cookies.html`, `main.js`, `styles.css`,
+`assets/default-copy.js`, `assets/ux/og-notch.js`, `assets/ux/og-ux-fixes.css`.
+Nuevos: `404.html`, `pruebas/test_auditoria.py`, `pruebas/servidor_limpio.py`.
+
+### Pruebas realizadas (Chromium, sitio completo en local con URLs limpias)
+
+| Prueba | Resultado |
+|---|---|
+| Portada idéntica al original, píxel a píxel: 2 tamaños × 2 temas × 2 idiomas, con y sin movimiento, y con foco de teclado | **16/16 + 4/4** idénticas |
+| `pruebas/test_auditoria.py` (idioma, semántica, lightbox, servicios, pausa, redes, contacto móvil, notch, 404, enlaces, errores JS) | **70/70** |
+| Contraste real contra el fondo pintado, 6 páginas × 2 temas × 2 tamaños | **0 fallos** (antes 21) |
+| `test_formulario.py` y `test_notch.py` | Mismo resultado antes y después (38 y 33 pasan). Sus fallos son expectativas antiguas: el notch va a la derecha desde la 0ñ y la tabla ya guarda el consentimiento. |
+
+### Pendiente
+
+- **Google Analytics**: `assets/config.js` sigue con `G-XXXXXXXXXX`; no se mide nada. Falta el ID real.
+- **Dominio y correo**: cuando compre opengrain.studio, conectarlo en Vercel, redirigir
+  el .vercel.app y cambiar el correo de contacto, pie y textos legales.
+- La portada conserva lo que la auditoría marcó y Adama decidió no tocar: pie de 8px
+  sobre las fotos y ausencia de titular/botón visible.
+- `test_notch.py` y `test_formulario.py` necesitan actualizarse a la realidad actual.
+- **Siguiente encargo, ya anunciado por Adama**: sustituir el notch por una barra de
+  navegación flotante abajo, estilo Pinterest (iconos casa / lupa / perfil), fija
+  mientras se desliza, en todas las páginas incluida la portada. Hay que hacerle las
+  preguntas antes de empezar.
+
+### Siguiente acción recomendada
+
+Revisar la preview de la rama `fix/auditoria-ux` en Vercel y, si le parece bien,
+fusionarla en `main`. Después, preguntas de la barra estilo Pinterest.
+
+## 0o. Tarjeta de reserva del cliente (sesión anterior)
 
 ### Qué se pidió
 

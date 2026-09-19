@@ -141,6 +141,37 @@
         this.listen(visualViewport, 'scroll', () => this.settle(), { passive: true });
       }
       this.listen(this.reduced, 'change', () => this.settle());
+
+      // Fuera de la portada hay formularios. En pantallas estrechas el notch,
+      // encajado en el lateral, quedaba encima de algún campo (en Contacto,
+      // sobre el selector de fecha) y un toque ahí abría el menú en vez del
+      // campo. Mientras tape un campo, se aparta; al dejar de taparlo, vuelve.
+      // En la portada no hay campos, así que allí nunca ocurre.
+      this.yieldRaf = 0;
+      const scheduleYield = () => {
+        if (this.yieldRaf) return;
+        this.yieldRaf = requestAnimationFrame(() => { this.yieldRaf = 0; this.yieldCheck(); });
+      };
+      this.scheduleYield = scheduleYield;
+      this.listen(window, 'scroll', scheduleYield, { passive: true });
+      this.listen(window, 'resize', scheduleYield, { passive: true });
+      this.listen(document, 'focusin', scheduleYield);
+      scheduleYield();
+    }
+    yieldCheck() {
+      let hit = false;
+      if (this.edge === 'right' && !this.moving && !this.opened &&
+          !this.root.contains(document.activeElement)) {
+        const r = this.toggle.getBoundingClientRect();
+        const controls = document.querySelectorAll('input:not([type="hidden"]), select, textarea');
+        for (const c of controls) {
+          if (this.root.contains(c)) continue;
+          const b = c.getBoundingClientRect();
+          if (!b.width || !b.height) continue;
+          if (b.right > r.left && b.left < r.right && b.bottom > r.top && b.top < r.bottom) { hit = true; break; }
+        }
+      }
+      this.root.classList.toggle('og-notch-yield', hit);
     }
     listen(target, event, fn, options = {}) {
       target.addEventListener(event, fn, { ...options, signal: this.signal });
@@ -179,6 +210,11 @@
         const { node, text } = this.rows[index];
         text.textContent = item.label;
         node.removeAttribute('aria-current');
+        // «English · ES» no dice qué hace el botón. Para el lector de pantalla,
+        // el nombre es la acción; el texto visible no cambia.
+        if (item.key === 'lang') {
+          node.setAttribute('aria-label', options.lang === 'es' ? 'Cambiar el idioma a inglés' : 'Switch language to Spanish');
+        }
         if (!item.action) {
           const href = safeHref(item.href);
           if (href) node.href = href;
@@ -266,6 +302,7 @@
       this.root.dataset.edge = this.edge;
       this.root.classList.remove('og-is-travelling');
       this.place();
+      this.scheduleYield?.();
     }
     async move() {
       if (this.moving || this.edge === this.target) return;
@@ -301,10 +338,12 @@
       this.root.dataset.edge = destination;
       this.root.classList.remove('og-is-travelling');
       this.moving = false;
+      this.scheduleYield?.();
       if (this.edge !== this.target) this.move();
     }
     destroy() {
       this.abort.abort();
+      cancelAnimationFrame(this.yieldRaf);
       this.settle();
       clearTimeout(this.timer);
       cancelAnimationFrame(this.raf);
