@@ -1,528 +1,131 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacto - Open Grain</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --color-primary: #a855f7;
-            --color-secondary: #ec4899;
-            --color-accent: #06b6d4;
-            --bg-dark: #0f172a;
-            --bg-darker: #020617;
-            --text-light: #e2e8f0;
-            --text-muted: #94a3b8;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #1e293b 50%, var(--bg-darker) 100%);
-            color: var(--text-light);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Background animated gradient */
-        .bg-animated {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .bg-animated::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(
-                circle at 20% 50%,
-                rgba(168, 85, 247, 0.1) 0%,
-                transparent 50%
-            );
-            animation: gradientShift 8s ease-in-out infinite;
-        }
-
-        .bg-animated::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(
-                circle at 80% 80%,
-                rgba(34, 211, 238, 0.1) 0%,
-                transparent 50%
-            );
-            animation: gradientShift 8s ease-in-out infinite reverse;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.7;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .bg-animated::before,
-            .bg-animated::after {
-                animation: none;
-            }
-        }
-
-        .container {
-            position: relative;
-            z-index: 1;
-            max-width: 100%;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-        }
-
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 60px;
-        }
-
-        .header h1 {
-            font-size: clamp(2.5rem, 8vw, 4rem);
-            font-weight: 800;
-            margin-bottom: 15px;
-            background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #22d3ee 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .header p {
-            font-size: 1.25rem;
-            color: var(--text-muted);
-        }
-
-        /* Main content grid */
-        .content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
-            max-width: 1200px;
-            width: 100%;
-            align-items: center;
-        }
-
-        @media (max-width: 768px) {
-            .content {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-        }
-
-        /* Services list */
-        .services-list {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .service-card {
-            padding: 24px;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .service-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateX(-8px);
-        }
-
-        .service-card.active {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 20px 40px rgba(168, 85, 247, 0.2);
-        }
-
-        .service-emoji {
-            font-size: 2.5rem;
-            min-width: 60px;
-        }
-
-        .service-info h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .service-info p {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-
-        /* Right side - Card display */
-        .card-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 40px;
-        }
-
-        /* Service card display */
-        .service-display {
-            width: 240px;
-            height: 240px;
-            border-radius: 28px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-size: 5rem;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .service-display.film {
-            background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
-        }
-
-        .service-display.photos {
-            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
-        }
-
-        .service-display.drone {
-            background: linear-gradient(135deg, #f97316 0%, #dc2626 100%);
-        }
-
-        .service-display.events {
-            background: linear-gradient(135deg, #10b981 0%, #06d6a0 100%);
-        }
-
-        /* Shine effect */
-        .shine {
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
-            );
-            animation: shine 3s infinite;
-        }
-
-        @keyframes shine {
-            0% {
-                left: -100%;
-            }
-            50% {
-                left: 100%;
-            }
-            100% {
-                left: 100%;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .shine {
-                animation: none;
-            }
-        }
-
-        /* Message section */
-        .message-section {
-            text-align: center;
-            animation: fadeInUp 0.6s ease 0.3s both;
-        }
-
-        .message-section h2 {
-            font-size: clamp(1.8rem, 5vw, 2.8rem);
-            font-weight: 700;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, #c4b5fd 0%, #f472b6 50%, #67e8f9 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .message-section p {
-            font-size: 1rem;
-            color: var(--text-muted);
-            max-width: 400px;
-            margin: 0 auto 30px;
-        }
-
-        /* CTA Button */
-        .cta-button {
-            position: relative;
-            padding: 16px 32px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1rem;
-            font-weight: 600;
-            color: white;
-            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
-            cursor: pointer;
-            transition: all 0.3s ease;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(168, 85, 247, 0.3);
-        }
-
-        .cta-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.2);
-            transition: left 0.3s ease;
-        }
-
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 35px rgba(168, 85, 247, 0.4);
-        }
-
-        .cta-button:hover::before {
-            left: 100%;
-        }
-
-        .cta-button:active {
-            transform: translateY(0);
-        }
-
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes scaleIn {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-
-        .header h1 {
-            animation: fadeInUp 0.6s ease both;
-        }
-
-        .header p {
-            animation: fadeInUp 0.6s ease 0.1s both;
-        }
-
-        .services-list {
-            animation: fadeInUp 0.6s ease 0.2s both;
-        }
-
-        .card-container {
-            animation: fadeInUp 0.6s ease 0.3s both;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation: none !important;
-                transition: none !important;
-            }
-
-            .service-card:hover {
-                transform: none;
-            }
-        }
-
-        /* Bottom note */
-        .bottom-note {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            text-align: center;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact — OPEN GRAIN</title>
+<meta name="description" content="Plan a project with OPEN GRAIN — creative production studio in Mallorca. Photography, film and social content.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="assets/ux/og-ux-fixes.css">
 </head>
 <body>
-    <div class="bg-animated"></div>
 
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>Cuéntanos</h1>
-            <p>¿Qué quieres crear?</p>
-        </div>
+<div class="pulse-bg" aria-hidden="true"></div>
 
-        <!-- Main Content -->
-        <div class="content">
-            <!-- Left: Services list -->
-            <div class="services-list" id="servicesList"></div>
+<main class="site-shell inner-page pulse-page" id="site-shell">
 
-            <!-- Right: Card display + message -->
-            <div class="card-container">
-                <div class="service-display" id="serviceDisplay">
-                    <div class="shine"></div>
-                </div>
+  <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
+  <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
+       se sigue pudiendo navegar. El componente los sustituye al montarse. -->
+  <nav class="dock" id="dock" aria-label="Primary">
+    <a href="index.html">Home</a>
+    <a href="work.html">Work</a>
+    <a href="services.html">Services</a>
+    <a href="about.html">Studio</a>
+    <a href="contact.html">Contact</a>
+  </nav>
 
-                <div class="message-section">
-                    <h2 id="serviceName">Film & Reels</h2>
-                    <p id="serviceDescription">Vídeo profesional para tu marca</p>
-                    <button class="cta-button" onclick="openWizard()">
-                        Solicitar Presupuesto
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="bottom-note">
-            Selecciona lo que necesitas y cuéntanos más detalles →
-        </div>
+  <section id="contact" class="contact section-pad" data-reveal>
+    <!-- Titular y subtítulo apilados: el subtítulo refleja el servicio
+         elegido, de modo que quien llega desde Servicios ve confirmado qué
+         ha seleccionado antes de escribir nada. -->
+    <div class="contact-head">
+      <h1 id="contact-heading"></h1>
+      <p id="contact-lede"></p>
     </div>
 
-    <script>
-        // Service data
-        const services = [
-            {
-                id: 'film',
-                title: 'Film & Reels',
-                description: 'Vídeo profesional para tu marca',
-                emoji: '🎬',
-                color: 'film'
-            },
-            {
-                id: 'photos',
-                title: 'Fotografía Profesional',
-                description: 'Captura cada momento perfecto',
-                emoji: '📸',
-                color: 'photos'
-            },
-            {
-                id: 'drone',
-                title: 'Drone & Aéreo',
-                description: 'Perspectiva única y cinéfila',
-                emoji: '🚁',
-                color: 'drone'
-            },
-            {
-                id: 'events',
-                title: 'Eventos Especiales',
-                description: 'Bodas, corporativos y más',
-                emoji: '✨',
-                color: 'events'
-            }
-        ];
+    <div class="contact-card">
+      <form class="project-form" id="contact-form" novalidate>
+        <label id="label-name">Name<input type="text" id="name" name="name" required></label>
+        <label>Email<input type="email" id="email" name="email" required placeholder="you@example.com"></label>
+        <label id="label-phone">Phone<input type="tel" id="phone" name="phone" placeholder="+34"></label>
+        <label id="label-service">Service<select id="service" name="service"></select>
+          <span class="og-service-notice" id="service-notice" role="status" hidden></span></label>
+        <label id="label-date">Preferred date<input type="date" id="date" name="date"></label>
+        <label id="label-budget">Approx. budget<select id="budget" name="budget"></select></label>
+        <label class="full" id="label-message">Tell us about your idea<textarea id="message" name="message"></textarea></label>
+        <label class="full consent-label">
+          <input type="checkbox" id="consent" name="consent" required style="width:auto;flex:0 0 auto;">
+          <span id="label-consent"></span>
+        </label>
+        <button class="submit-btn" type="submit" id="submit-btn"></button>
+      </form>
+      <div class="form-success" id="form-success" hidden></div>
 
-        let currentService = 'film';
+      <!-- Tarjeta de cristal ahumado del servicio seleccionado. La rellena
+           main.js a partir del mismo catálogo que el desplegable, así que no
+           puede desincronizarse de lo que se va a enviar. -->
+      <aside class="service-card" id="service-card">
+        <img id="service-card-img" src="assets/portfolio/portrait-studio.jpg" alt="">
+        <span class="service-card-chip" id="service-card-chip">SELECTED SERVICE</span>
+        <div class="service-card-body">
+          <p class="service-card-index" id="service-card-index"></p>
+          <h2 class="service-card-title" id="service-card-title"></h2>
+          <p class="service-card-desc" id="service-card-desc"></p>
+          <div class="service-card-rule" aria-hidden="true"></div>
+          <p class="service-card-label" id="service-card-label"></p>
+          <p class="service-card-price" id="service-card-price"></p>
+          <p class="service-card-note" id="service-card-note"></p>
+        </div>
+      </aside>
+    </div>
 
-        // Initialize
-        function init() {
-            renderServices();
-            selectService('film');
-        }
+    <!-- Los tres bloques de contacto siguen aquí debajo, con sus enlaces
+         reales. En móvil se apilan, no se ocultan. -->
+    <div class="contact-details">
+      <div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <h3>Call &amp; WhatsApp</h3>
+        <p>
+          <a href="tel:+34677247113">+34 677 24 71 13</a>
+          <a href="https://wa.me/34677247113" target="_blank" rel="noopener">WhatsApp</a>
+        </p>
+      </div>
+      <div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="currentColor" stroke="none"/></svg>
+        <h3>Instagram</h3><p><a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">@opengrain.studio</a></p>
+      </div>
+      <div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+        <h3>Email</h3><p><a href="mailto:adamabalde1998@gmail.com">adamabalde1998@gmail.com</a></p>
+      </div>
+    </div>
+  </section>
 
-        // Render services list
-        function renderServices() {
-            const list = document.getElementById('servicesList');
-            list.innerHTML = services.map(service => `
-                <div class="service-card ${service.id === currentService ? 'active' : ''}"
-                     onclick="selectService('${service.id}')">
-                    <div class="service-emoji">${service.emoji}</div>
-                    <div class="service-info">
-                        <h3>${service.title}</h3>
-                        <p>${service.description}</p>
-                    </div>
-                </div>
-            `).join('');
-        }
 
-        // Select service with animation
-        function selectService(serviceId) {
-            currentService = serviceId;
-            const service = services.find(s => s.id === serviceId);
+  <footer class="site-footer" data-reveal>
+    <div class="footer-brand">OPEN GRAIN</div>
+    <div>
+      <a href="https://instagram.com/opengrain.studio" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://tiktok.com/@opengrain.studio" target="_blank" rel="noopener">TikTok</a>
+      <a href="mailto:adamabalde1998@gmail.com">Email</a>
+    </div>
+    <p id="footer-based"></p>
+    <span>© <span id="year"></span> OPEN GRAIN · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
+  </footer>
 
-            // Update cards
-            document.querySelectorAll('.service-card').forEach(card => {
-                card.classList.remove('active');
-            });
-            document.querySelector(`[onclick="selectService('${serviceId}')"]`).classList.add('active');
+</main>
 
-            // Animate card rotation
-            const display = document.getElementById('serviceDisplay');
-            display.className = `service-display ${service.color}`;
-            display.innerHTML = `
-                <div style="font-size: 5rem;">${service.emoji}</div>
-                <div class="shine"></div>
-            `;
+<div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="Vista ampliada del proyecto">
+  <figure class="lightbox-figure">
+    <button type="button" class="lightbox-close" id="lightbox-close" aria-label="Cerrar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <img id="lightbox-img" src="" alt="">
+    <figcaption>
+      <span id="lightbox-eyebrow"></span>
+      <h3 id="lightbox-title"></h3>
+    </figcaption>
+  </figure>
+</div>
 
-            // Animate text
-            document.getElementById('serviceName').textContent = service.title;
-            document.getElementById('serviceDescription').textContent = service.description;
-
-            // Spring animation
-            animateRotation(display);
-        }
-
-        // Simple rotation animation
-        function animateRotation(element) {
-            element.style.transform = 'rotateY(20deg) scale(0.9)';
-            element.style.opacity = '0.7';
-
-            setTimeout(() => {
-                element.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                element.style.transform = 'rotateY(0deg) scale(1)';
-                element.style.opacity = '1';
-            }, 50);
-        }
-
-        // Open wizard (placeholder)
-        function openWizard() {
-            alert(`Has seleccionado: ${services.find(s => s.id === currentService).title}\n\nAhora puedes integrar tu wizard aquí.`);
-        }
-
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="assets/config.js"></script>
+<script defer src="assets/default-copy.js"></script>
+<script defer src="assets/ux/og-notch.js"></script>
+<script defer src="assets/ux/og-contact.js"></script>
+<script defer src="main.js"></script>
+<script defer src="assets/motion.js"></script>
 </body>
 </html>

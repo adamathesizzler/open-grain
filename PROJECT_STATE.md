@@ -1,6 +1,65 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-14 (0ñ. Notch a la derecha, Contacto rediseñado y Studio alineado con la marca).
+Última actualización: 2026-09-14 (0o. Tarjeta de reserva del cliente: página pública y lectura por token).
+
+## 0o. Tarjeta de reserva del cliente (esta sesión)
+
+### Qué se pidió
+
+Adama quiere que, al confirmar una reserva, el cliente reciba una **tarjeta** con los datos
+de su sesión. Primero se diseñaron cinco conceptos (anverso y reverso, en vertical tipo pase
+móvil y en horizontal tipo email) en un lienzo de diseño aparte. Eligió llevar a código el
+concepto claro, con el ahumado como su versión oscura, y empezar por la página web; el email
+de confirmación va después y enlazará a ella.
+
+### Decisiones tomadas
+
+1. **Las reservas son la tabla `projects`** (`status in confirmed/in_progress/delivered`),
+   que es admin-only. Una página pública no puede leerla con la anon key y abrir una policy
+   expondría a todos los clientes.
+2. **Lectura por token con `security definer`, no policy abierta.** Se añade la función
+   `public_booking(token uuid)`, que devuelve sólo la reserva cuyo `public_token` coincide y
+   sólo los campos del cliente. `notes` y `budget_range` quedan fuera a propósito. RLS sigue
+   cerrada sobre la tabla.
+3. **Campos nuevos en `projects`**: `start_time`, `end_time`, `location`, `deliverables`,
+   `delivery_note`, `cover_url`, `public_code` (OG-0001, OG-0002…) y `public_token`. Antes no
+   existía hora, lugar ni entrega, así que la tarjeta no podía contarlos sin inventárselos.
+4. **La tarjeta usa el sistema del sitio, no la paleta del lienzo**: papel cálido, azul de
+   marca, etiquetas en mono y las curvas de `styles.css`. Oscuro por hora, como el resto del
+   sitio, y además gana el modo oscuro del dispositivo si lo tiene puesto.
+5. **Nada inventado**: cada fila del reverso aparece sólo si ese dato existe en la reserva.
+   Sin imagen de portada, la tarjeta usa una portada tipográfica en vez de un hueco gris.
+6. **No se ha tocado ninguna página existente.** Todo son archivos nuevos.
+
+### Movimiento (principios de Emil Kowalski)
+
+Entrada de la tarjeta desde `translateY(10px) scale(.985)`, escalonado de 50 ms, portada con
+`scale(1.045) → 1`, el check del sello se dibuja, pulsación `scale(.97)`, hover sólo en
+punteros finos, foco siempre visible y `prefers-reduced-motion` con cruce de opacidad en vez
+de giro. El paso anverso → reverso es un giro 3D hecho con **transición**, no keyframes: se
+puede interrumpir a mitad y vuelve desde donde está.
+
+### Archivos creados
+
+- `supabase/migration_booking_card.sql` — campos nuevos, código público y función de lectura.
+- `reserva.html` — página de la tarjeta (`noindex`).
+- `assets/reserva.css` — estilos de la tarjeta sobre los tokens del sitio.
+- `assets/reserva.js` — carga por token, pintado, giro, `.ics` y estados.
+
+### Pendiente
+
+1. **Ejecutar `supabase/migration_booking_card.sql`** en Supabase → SQL Editor. Hasta que no
+   se ejecute, `reserva.html` responde "No podemos cargar tu reserva ahora mismo".
+2. Rellenar en el Studio los campos nuevos de alguna reserva y probar con su enlace real
+   (`reserva.html?t=<public_token>`).
+3. Mostrar en el Studio el enlace de la tarjeta de cada reserva, para poder copiarlo.
+4. Plantilla de email de confirmación (versión sólida, sin cristal ni animación) que enlace
+   a la tarjeta.
+
+### Siguiente acción recomendada
+
+Ejecutar la migración y abrir la tarjeta de una reserva real para verla con datos de verdad.
+
 
 ## 0ñ. Notch a la derecha, Contacto rediseñado y Studio alineado con la marca (esta sesión)
 

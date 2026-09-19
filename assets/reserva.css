@@ -1,0 +1,210 @@
+/* ==========================================================================
+   OPEN GRAIN — Tarjeta de reserva del cliente (reserva.html)
+
+   Concepto "Cristal claro" del lienzo de diseño, traducido al sistema real
+   del sitio: papel cálido, azul de marca, etiquetas en mono y las curvas de
+   styles.css. En oscuro pasa a ser el "Cristal ahumado": mismo esqueleto,
+   panel ahumado sobre la portada.
+
+   Movimiento (principios de Emil Kowalski):
+   - entrada con curva propia, nada aparece desde scale(0)
+   - escalonado corto (50ms) de arriba abajo
+   - el giro anverso/reverso es una transición, no un keyframe: se puede
+     interrumpir a mitad y vuelve desde donde está
+   - solo se animan transform y opacity
+   - pulsación scale(.97); hover solo en punteros finos; foco siempre visible
+   - prefers-reduced-motion: se queda la opacidad, se va el movimiento
+   ========================================================================== */
+
+.rsv-page{
+  /* la página necesita scroll propio: .site-shell lo tiene oculto */
+  overflow:auto;
+  display:flex; flex-direction:column; align-items:center;
+  padding:clamp(20px,6vw,64px) clamp(16px,5vw,32px) clamp(40px,8vw,72px);
+  gap:clamp(24px,5vw,40px);
+
+  --rsv-card:#fffdfa;
+  --rsv-elev:0 1px 2px rgba(23,23,20,.05), 0 22px 52px -16px rgba(23,23,20,.20);
+  --rsv-cover-tint:rgba(23,23,20,.04);
+  --rsv-chip:rgba(255,255,255,.82);
+  --rsv-chip-line:rgba(255,255,255,.92);
+  --rsv-btn-fg:#fdfdfb;
+  --rsv-radius:28px;
+}
+.rsv-page.dark-mode{
+  --rsv-card:#171818;
+  --rsv-elev:0 2px 6px rgba(6,7,7,.30), 0 34px 74px -22px rgba(6,7,7,.60);
+  --rsv-cover-tint:rgba(255,255,255,.05);
+  --rsv-chip:rgba(28,29,29,.62);
+  --rsv-chip-line:rgba(255,255,255,.14);
+  --rsv-btn-fg:#141515;
+}
+
+/* ---------- cabecera mínima: la marca y la vuelta al sitio ---------- */
+.rsv-top{
+  width:100%; max-width:380px;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+}
+.rsv-top a{
+  font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+  transition:color var(--dur-fast) var(--ease-out);
+}
+.rsv-top a:first-child{ color:var(--fg); letter-spacing:.24em; }
+@media (hover:hover) and (pointer:fine){ .rsv-top a:hover{ color:var(--accent); } }
+.rsv-top a:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; border-radius:4px; }
+
+/* ---------- escenario y giro ---------- */
+.rsv-stage{ width:100%; max-width:380px; }
+
+/* Capa de entrada aparte: una animación con fill en la misma capa que gira
+   deja su transform pegado y el giro se queda a medias (el anverso se veía
+   reflejado). La perspectiva va aquí, que es el padre directo de la tarjeta. */
+.rsv-enter{
+  perspective:1600px;
+  animation:rsv-card-in var(--dur-base) var(--ease-out) both;
+}
+
+.rsv-card{
+  display:grid;
+  transform-style:preserve-3d;
+  transition:transform var(--dur-slow) var(--ease-smooth);
+}
+.rsv-card.is-flipped{ transform:rotateY(180deg); }
+@keyframes rsv-card-in{ from{ opacity:0; transform:translateY(10px) scale(.985); } }
+
+.rsv-face{
+  grid-area:1/1;
+  display:flex; flex-direction:column;
+  background:var(--rsv-card);
+  border:1px solid var(--line);
+  border-radius:var(--rsv-radius);
+  box-shadow:var(--rsv-elev);
+  overflow:hidden;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+}
+.rsv-back{ transform:rotateY(180deg); }
+/* el filo de luz superior: lo que hace que lea como cristal y no como caja */
+.rsv-face::before{
+  content:""; position:absolute; top:0; left:0; right:0; height:1px; z-index:2;
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75) 28%,rgba(255,255,255,.75) 72%,rgba(255,255,255,0));
+  pointer-events:none;
+}
+.rsv-face{ position:relative; }
+
+/* ---------- portada ---------- */
+.rsv-cover{
+  position:relative; height:clamp(220px,52vw,300px);
+  /* el sello vive dentro de la portada: se ancla aquí */
+  background:var(--rsv-cover-tint) center/cover no-repeat;
+  animation:rsv-cover-in calc(var(--dur-base) + 240ms) var(--ease-out) both;
+}
+@keyframes rsv-cover-in{ from{ opacity:.55; transform:scale(1.045); } }
+/* sin imagen: portada tipográfica, nunca un hueco gris */
+.rsv-cover.is-blank{
+  /* sin foto no hace falta tanto alto: se queda en una banda de marca */
+  height:clamp(148px,34vw,190px);
+  display:flex; align-items:flex-start; padding:22px;
+  /* el tinte sigue al acento de la marca: azul en claro, naranja en oscuro */
+  background:
+    radial-gradient(120% 120% at 20% 0%, rgba(21,87,255,.10), transparent 60%),
+    var(--rsv-cover-tint);
+  background:
+    radial-gradient(120% 120% at 20% 0%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 60%),
+    var(--rsv-cover-tint);
+}
+.rsv-cover.is-blank > span{
+  font:12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.3em; text-transform:uppercase; color:var(--muted);
+}
+
+.rsv-chip{
+  position:absolute; left:20px; bottom:18px; z-index:2;
+  display:inline-flex; align-items:center; gap:7px;
+  padding:6px 12px 6px 9px; border-radius:999px;
+  background:var(--rsv-chip); border:1px solid var(--rsv-chip-line); color:var(--fg);
+  backdrop-filter:blur(14px) saturate(1.3); -webkit-backdrop-filter:blur(14px) saturate(1.3);
+  font-size:12px; font-weight:500; white-space:nowrap;
+}
+.rsv-tick{ stroke-dasharray:9.2; animation:rsv-tick 400ms var(--ease-out) 280ms both; }
+@keyframes rsv-tick{ from{ stroke-dashoffset:9.2; } to{ stroke-dashoffset:0; } }
+
+/* ---------- cuerpo ---------- */
+.rsv-body{ display:flex; flex-direction:column; gap:16px; padding:22px 24px 24px; flex:1; }
+.rsv-back .rsv-body{ gap:18px; padding:28px 24px 24px; }
+
+.rsv-brand{
+  font:10px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.3em; text-transform:uppercase; color:var(--muted);
+}
+.rsv-title{ margin:0; font-size:clamp(28px,7vw,33px); font-weight:600; line-height:1.06;
+  letter-spacing:-.025em; color:var(--fg); text-wrap:pretty; }
+.rsv-back .rsv-title{ font-size:clamp(24px,6vw,28px); }
+.rsv-sub{ font-size:14px; color:var(--muted); letter-spacing:-.005em; }
+.rsv-when{ display:flex; align-items:center; gap:9px; color:var(--muted);
+  font-size:13px; letter-spacing:.02em; }
+
+/* filas del reverso */
+.rsv-rows{ border-top:1px solid var(--line); }
+.rsv-row{ display:flex; align-items:center; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+.rsv-row:last-child{ border-bottom:0; }
+.rsv-row svg{ color:var(--muted); flex:none; }
+.rsv-row dt{ margin:0; font-size:13px; color:var(--muted); letter-spacing:-.004em; }
+.rsv-row dd{ margin:0 0 0 auto; font-size:14px; font-weight:500; color:var(--fg);
+  letter-spacing:-.008em; text-align:right; }
+
+.rsv-code{ display:flex; align-items:center; gap:12px;
+  font:11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+  letter-spacing:.18em; color:var(--muted); }
+.rsv-code::before, .rsv-code::after{ content:""; flex:1; height:1px; background:var(--line); }
+
+/* ---------- botones ---------- */
+.rsv-actions{ margin-top:auto; display:flex; flex-direction:column; gap:10px; }
+.rsv-btn{
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  min-height:48px; padding:0 20px; border-radius:999px; border:1px solid transparent;
+  font-size:14px; font-weight:500; letter-spacing:-.005em; white-space:nowrap;
+  cursor:pointer; -webkit-tap-highlight-color:transparent; user-select:none;
+  background:none; color:inherit;
+  transition:transform var(--dur-instant) var(--ease-out), filter var(--dur-fast) ease,
+             background-color var(--dur-fast) ease, border-color var(--dur-fast) ease;
+}
+.rsv-btn-primary{ background:var(--fg); color:var(--rsv-btn-fg); }
+.rsv-btn-secondary{ background:transparent; border-color:var(--line); color:var(--fg); }
+.rsv-btn:active{ transform:scale(.97); }
+.rsv-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+@media (hover:hover) and (pointer:fine){
+  .rsv-btn-primary:hover{ filter:brightness(1.45); }
+  .rsv-page.dark-mode .rsv-btn-primary:hover{ filter:brightness(.93); }
+  .rsv-btn-secondary:hover{ background:var(--rsv-cover-tint); }
+}
+
+/* ---------- escalonado ---------- */
+.rise{ animation:rsv-rise 340ms var(--ease-out) both; }
+@keyframes rsv-rise{ from{ opacity:0; transform:translateY(7px); } }
+
+/* ---------- estados ---------- */
+.rsv-state{
+  width:100%; max-width:380px; padding:48px 24px; text-align:center;
+  border:1px solid var(--line); border-radius:var(--rsv-radius); background:var(--rsv-card);
+}
+.rsv-state p{ margin:0 0 6px; font-size:15px; color:var(--fg); }
+.rsv-state small{ font-size:13px; color:var(--muted); }
+.rsv-state a{ color:var(--accent); }
+
+/* ---------- menos movimiento, no menos información ---------- */
+@media (prefers-reduced-motion:reduce){
+  /* sin giro: las dos caras se cruzan en opacidad, y la que no toca
+     se retira del todo para que no quede por debajo */
+  .rsv-card, .rsv-card.is-flipped, .rsv-back{ transform:none; transition:none; }
+  .rsv-enter{ perspective:none; }
+  .rsv-face{ backface-visibility:visible; -webkit-backface-visibility:visible;
+             transition:opacity var(--dur-fast) ease; }
+  .rsv-back{ opacity:0; visibility:hidden; }
+  .rsv-card.is-flipped .rsv-front{ opacity:0; visibility:hidden; }
+  .rsv-card.is-flipped .rsv-back{ opacity:1; visibility:visible; }
+  .rsv-enter, .rsv-cover, .rise{ animation:rsv-fade 220ms ease both; }
+  @keyframes rsv-fade{ from{ opacity:0; } }
+  .rsv-tick{ animation:none; stroke-dasharray:none; }
+  .rsv-btn:active{ transform:none; }
+}

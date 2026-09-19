@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tu reserva · OPEN GRAIN</title>
+<!-- La tarjeta es privada: se abre con el enlace que recibe el cliente y no
+     debe aparecer en buscadores. -->
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Detalle de tu reserva con OPEN GRAIN.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="assets/reserva.css">
+</head>
+<body>
+
+<main class="site-shell rsv-page" id="site-shell">
+
+  <header class="rsv-top">
+    <a href="index.html">OPEN GRAIN</a>
+    <a href="contact.html">Contacto</a>
+  </header>
+
+  <!-- La tarjeta la monta assets/reserva.js con los datos reales de la
+       reserva; aquí solo queda el estado de carga. -->
+  <div id="rsv-root">
+    <div class="rsv-state">
+      <p>Cargando tu reserva…</p>
+      <small>Un momento.</small>
+    </div>
+  </div>
+
+</main>
+
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script defer src="assets/config.js"></script>
+<script defer src="assets/reserva.js"></script>
+</body>
+</html>

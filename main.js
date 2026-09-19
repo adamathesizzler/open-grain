@@ -841,6 +841,9 @@ if (form && window.OGContact) {
         service: serviceLabel(payload.service),
         // «Todavía no lo sé» significa que no hay presupuesto que registrar.
         budget_range: payload.budget_range === BUDGET_UNDECIDED ? null : payload.budget_range,
+        // Consentimiento obligatorio (verificado en navegador y servidor)
+        consent_accepted: consent,
+        consent_at: new Date().toISOString(),
       };
       const { error } = await supabaseClient.from('enquiries').insert(row);
       if (error) throw error;
