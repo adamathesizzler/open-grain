@@ -119,7 +119,10 @@ with sync_playwright() as pw:
               row.get("service") and not str(row["service"]).startswith("svc-"), row.get("service"))
         check("correcto: presupuesto tal cual", row.get("budget_range") == "€1,000–2,500", row.get("budget_range"))
         check("correcto: no se inventan columnas",
-              set(row) <= {"name", "email", "phone", "service", "preferred_date", "budget_range", "message"},
+              # consent_accepted/consent_at: columnas reales desde la migración de
+              # consentimiento (commit b9b134d), no inventadas.
+              set(row) <= {"name", "email", "phone", "service", "preferred_date", "budget_range", "message",
+                           "consent_accepted", "consent_at"},
               sorted(row))
     p.close()
 
@@ -186,9 +189,8 @@ with sync_playwright() as pw:
         "budget": p.input_value("#budget"), "consent": p.is_checked("#consent"),
         "lang": p.evaluate("() => document.documentElement.lang"),
     }
-    p.click("#dock .og-notch-toggle")
-    p.wait_for_timeout(250)
-    p.click('#dock [data-action="lang"]')
+    # El idioma se cambia con el botón de arriba a la derecha (sesión 0q).
+    p.click("#lang-switch")
     p.wait_for_timeout(500)
     after = {
         "name": p.input_value("#name"), "email": p.input_value("#email"),
@@ -206,20 +208,15 @@ with sync_playwright() as pw:
           p.evaluate("""() => {const s=document.getElementById('service');
               return s.options[s.selectedIndex].textContent;}""") is not None)
 
-    # --- 9. Conservar datos al cambiar de tema ---
-    theme_before = p.input_value("#message")
-    if not p.locator("#dock .og-notch-panel").is_visible():
-        p.click("#dock .og-notch-toggle"); p.wait_for_timeout(250)
-    dark_before = p.evaluate("() => document.getElementById('site-shell').classList.contains('dark-mode')")
-    p.click('#dock [data-action="theme"]'); p.wait_for_timeout(400)
-    check("el botón de tema cambia el tema de verdad",
-          p.evaluate("() => document.getElementById('site-shell').classList.contains('dark-mode')") != dark_before)
-    check("cambio de tema conserva lo escrito", p.input_value("#message") == theme_before)
+    # --- 9. Tema ---
+    # Desde la sesión 0q el tema sigue la hora y no hay botón: no hay nada que
+    # pulsar que pueda borrar lo escrito.
+    check("no hay botón de tema que pueda borrar lo escrito", p.locator('[data-action="theme"]').count() == 0)
     p.close()
 
     browser.close()
 
 ok = sum(1 for r in results if r["ok"])
 print(f"\n{ok}/{len(results)} comprobaciones superadas")
-json.dump(results, open("/tmp/claude-0/-home-claude/4e195ff9-b257-56a5-94cc-dc87fbd52317/scratchpad/res_form.json", "w"), indent=1, ensure_ascii=False)
+json.dump(results, open("/tmp/resultado_formulario.json", "w"), indent=1, ensure_ascii=False)
 sys.exit(0 if ok == len(results) else 1)

@@ -1,5 +1,5 @@
-"""Arreglos de la auditoría UX/UI (20.09.2026): idioma, semántica, contenido,
-Contacto en móvil, notch que no tapa campos, pausa del carrusel y 404.
+"""Arreglos de la auditoría UX/UI (20.09.2026) y barra inferior estilo Pinterest:
+idioma, semántica, contenido, Contacto en móvil, barra, pausa del carrusel y 404.
 
 Necesita el sitio servido con URLs limpias (como Vercel), p. ej.:
     python3 pruebas/servidor_limpio.py . 8777 &
@@ -71,7 +71,7 @@ with sync_playwright() as pw:
         check(f"portada {lang}: Escape cierra y el foco vuelve a la foto", pg.evaluate("document.activeElement.classList.contains('project-tile')"))
         legal = pg.locator(".home-footer-legal a").evaluate_all("els=>els.map(a=>a.getAttribute('href')+'|'+a.lang)")
         check(f"portada {lang}: enlaces legales sin .html y marcados en español", legal == ["/aviso-legal|es", "/privacidad|es", "/cookies|es"], legal)
-        lang_btn = pg.locator('[data-action="lang"]').get_attribute("aria-label")
+        lang_btn = pg.locator('#lang-switch').get_attribute("aria-label")
         check(f"portada {lang}: el botón de idioma dice su acción", lang_btn and ("inglés" in lang_btn if lang == "es" else "Spanish" in lang_btn), lang_btn)
         ctx.close()
 
@@ -153,36 +153,89 @@ with sync_playwright() as pw:
     check("contacto: encabezado oculto para los canales", pg.text_content("#contact-more-title") == "Otras formas de contactar")
     ph = pg.evaluate("document.querySelector('#budget option').textContent")
     check("contacto: el presupuesto ya no muestra sólo «€»", ph != "€" and "€" in ph, ph)
-    # Recorrer el formulario: en cada posición, el notch debe apartarse sólo
-    # cuando de verdad tapa un campo.
-    samples = []
-    for y in range(300, 1700, 50):
-        pg.evaluate(f"scrollTo(0, {y})"); pg.wait_for_timeout(160)
-        samples.append(pg.evaluate("""() => {
-            const d = document.getElementById('dock');
-            if (d.dataset.edge !== 'right' || d.classList.contains('og-is-travelling')) return null;
-            const t = document.querySelector('.og-notch-toggle').getBoundingClientRect();
-            const hits = [...document.querySelectorAll('input:not([type=hidden]),select,textarea')].some(c => {
-                const b = c.getBoundingClientRect();
-                return b.width && b.right > t.left && b.left < t.right && b.bottom > t.top && b.top < t.bottom; });
-            return { hits, yielded: d.classList.contains('og-notch-yield'), pe: getComputedStyle(d).pointerEvents };
-        }"""))
-    samples = [x for x in samples if x]
-    overlap = [x for x in samples if x["hits"]]
-    check("contacto móvil: hay posiciones en las que el notch caería sobre un campo", len(overlap) > 0, f"{len(overlap)} de {len(samples)}")
-    check("contacto móvil: en todas ellas se aparta y deja pasar el toque",
-          all(x["yielded"] and x["pe"] == "none" for x in overlap), overlap[:2])
-    check("contacto móvil: donde no tapa nada, sigue visible",
-          all(not x["yielded"] for x in samples if not x["hits"]))
-    # Donde no hay campos detrás, el notch sigue a mano.
-    pg.evaluate("scrollTo(0, document.body.scrollHeight)"); pg.wait_for_timeout(1200)
-    info2 = pg.evaluate("({edge: document.getElementById('dock').dataset.edge, yielded: document.getElementById('dock').classList.contains('og-notch-yield')})")
-    check("contacto móvil: lejos de los campos el notch vuelve", not info2["yielded"], info2)
+    # Escribiendo en el móvil, la barra se aparta del teclado y vuelve al salir.
+    pg.locator("#name").tap(); pg.wait_for_timeout(350)
+    away = pg.evaluate("document.getElementById('dock').classList.contains('og-tabbar-away')")
+    check("contacto móvil: al escribir, la barra se aparta", away)
+    pg.evaluate("document.activeElement.blur()"); pg.wait_for_timeout(350)
+    check("contacto móvil: al terminar, la barra vuelve", not pg.evaluate("document.getElementById('dock').classList.contains('og-tabbar-away')"))
     ctx.close()
     ctx = context(br, saved_lang="en", viewport={"width": 1440, "height": 900})
     pg = ctx.new_page(); pg.goto(f"{BASE}/contact", wait_until="load"); pg.wait_for_timeout(300)
-    pg.evaluate("scrollTo(0, 500)"); pg.wait_for_timeout(1200)
-    check("contacto escritorio: el notch no se aparta sin motivo", not pg.evaluate("document.getElementById('dock').classList.contains('og-notch-yield')"))
+    pg.locator("#name").click(); pg.wait_for_timeout(300)
+    check("contacto escritorio: la barra no se esconde al escribir", not pg.evaluate("document.getElementById('dock').classList.contains('og-tabbar-away')"))
+    ctx.close()
+
+    # --- Barra inferior (estilo Pinterest) ---
+    NAMES = {"es": ["Inicio", "Proyectos", "Servicios", "Estudio", "Contacto"],
+             "en": ["Home", "Work", "Services", "Studio", "Contact"]}
+    for lang in ["es", "en"]:
+        for vw, vh in [(1440, 900), (390, 844)]:
+            ctx = context(br, saved_lang=lang, viewport={"width": vw, "height": vh})
+            pg = ctx.new_page(); pg.on("pageerror", lambda e: errors.append(str(e)))
+            for page, cur in [("/", "/"), ("/work", "/work"), ("/services", "/services"), ("/about", "/about"), ("/contact", "/contact")]:
+                pg.goto(f"{BASE}{page}", wait_until="load"); pg.wait_for_timeout(350)
+                tabs = pg.locator("#dock .og-tab")
+                labels = tabs.evaluate_all("els=>els.map(a=>a.getAttribute('aria-label'))")
+                hrefs = tabs.evaluate_all("els=>els.map(a=>a.getAttribute('href'))")
+                current = pg.locator('#dock .og-tab[aria-current="page"]').evaluate_all("els=>els.map(a=>a.getAttribute('href'))")
+                tag = f"barra {lang} {vw}px {page}"
+                check(f"{tag}: cinco iconos con nombre", labels == NAMES[lang], labels)
+                check(f"{tag}: enlaces limpios y página actual marcada", hrefs == ["/", "/work", "/services", "/about", "/contact"] and current == [cur], current)
+                bb = pg.locator("#dock").bounding_box()
+                centered = abs((bb["x"] + bb["width"] / 2) - vw / 2) <= 1
+                check(f"{tag}: abajo y centrada", centered and bb["y"] + bb["height"] <= vh and bb["y"] > vh * 0.6, bb)
+                sizes = tabs.evaluate_all("els=>els.map(a=>{const r=a.getBoundingClientRect();return Math.min(r.width,r.height)})")
+                check(f"{tag}: cada botón mide al menos 44px", min(sizes) >= 44, sizes)
+                # Sigue ahí al deslizar
+                pg.evaluate("scrollTo({top: document.body.scrollHeight / 2, behavior: 'instant'})"); pg.wait_for_timeout(250)
+                bb2 = pg.locator("#dock").bounding_box()
+                check(f"{tag}: fija al deslizar", abs(bb2["y"] - bb["y"]) < 1, (bb["y"], bb2["y"]))
+                if page == "/":
+                    fb = pg.locator(".home-footer").bounding_box()
+                    check(f"{tag}: en la portada flota encima del pie sin taparlo", bb2["y"] + bb2["height"] <= fb["y"] + 1, (bb2, fb))
+                else:
+                    pg.evaluate("scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})"); pg.wait_for_timeout(1200)
+                    last = pg.evaluate("""() => { const f = document.querySelector('.site-footer, .light-footer');
+                        const r = f.getBoundingClientRect(); return r.bottom; }""")
+                    bar_top = pg.locator("#dock").bounding_box()["y"]
+                    check(f"{tag}: al final de la página, el pie queda por encima de la barra", last <= bar_top + 1, (last, bar_top))
+            ctx.close()
+    ctx = context(br, saved_lang="es", viewport={"width": 1440, "height": 900})
+    pg = ctx.new_page(); pg.goto(f"{BASE}/services", wait_until="load"); pg.wait_for_timeout(300)
+    pg.locator('#dock .og-tab[href="/work"]').hover(); pg.wait_for_timeout(500)
+    op = pg.evaluate("getComputedStyle(document.querySelector('#dock .og-tab[href=\"/work\"] .og-tab-tip')).opacity")
+    check("barra: al pasar el ratón aparece el nombre del icono", float(op) > 0.9, op)
+    check("barra: Contacto destacado con el color de marca", pg.locator("#dock .og-tab-contact").count() == 1)
+    pg.keyboard.press("Tab")
+    ctx.close()
+    # Idioma arriba a la derecha
+    ctx = context(br, locale="en-US", viewport={"width": 390, "height": 844})
+    pg = ctx.new_page(); pg.goto(f"{BASE}/work", wait_until="load"); pg.wait_for_timeout(300)
+    lb = pg.locator("#lang-switch").bounding_box()
+    check("idioma: botón arriba a la derecha, de al menos 44px de alto", lb["x"] + lb["width"] > 390 - 20 and lb["y"] < 20 and lb["height"] >= 44, lb)
+    pg.locator("#lang-switch").click(); pg.wait_for_timeout(250)
+    check("idioma: el botón cambia a español", pg.evaluate("document.documentElement.lang") == "es" and pg.text_content("#work-label") == "Trabajos seleccionados")
+    pg.goto(f"{BASE}/services", wait_until="load"); pg.wait_for_timeout(250)
+    check("idioma: la elección se mantiene al cambiar de página", pg.evaluate("document.documentElement.lang") == "es")
+    check("idioma: el menú ya no tiene botón de tema", pg.locator('[data-action="theme"]').count() == 0)
+    ctx.close()
+    # Tema automático por la hora, aunque hubiera uno guardado del botón antiguo
+    for hour, want in [(22, True), (12, False)]:
+        ctx = context(br, saved_lang="es")
+        ctx.add_init_script("localStorage.setItem('og_theme', 'light')" if want else "localStorage.setItem('og_theme', 'dark')")
+        pg = ctx.new_page()
+        pg.clock.set_fixed_time(f"2026-09-20T{hour:02d}:00:00")
+        pg.goto(f"{BASE}/services", wait_until="load"); pg.wait_for_timeout(250)
+        dark = pg.evaluate("document.getElementById('site-shell').classList.contains('dark-mode')")
+        check(f"tema: a las {hour}:00 es {'noche' if want else 'día'} aunque hubiera otro guardado", dark == want)
+        ctx.close()
+    # Aviso de cookies por encima de la barra
+    ctx = br.new_context(viewport={"width": 390, "height": 844})
+    ctx.route("**/*", lambda r: r.continue_() if r.request.url.startswith(BASE) else r.abort())
+    pg = ctx.new_page(); pg.goto(f"{BASE}/", wait_until="load"); pg.wait_for_timeout(500)
+    cb = pg.locator("#cookie-banner").bounding_box(); db = pg.locator("#dock").bounding_box()
+    check("cookies: el aviso queda por encima de la barra", cb and cb["y"] + cb["height"] <= db["y"], (cb, db))
     ctx.close()
 
     # --- 404 y enlaces ---

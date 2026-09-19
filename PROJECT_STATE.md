@@ -1,8 +1,52 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-20 (0p. Arreglos de la auditoría UX/UI, sin tocar la portada).
+Última actualización: 2026-09-20 (0q. Barra de navegación inferior estilo Pinterest; antes, 0p. arreglos de la auditoría).
 
-## 0p. Arreglos de la auditoría UX/UI (20.09.2026, esta sesión)
+## 0q. Barra de navegación inferior estilo Pinterest (20.09.2026, esta sesión)
+
+### Qué se pidió
+
+Con la auditoría ya aplicada, Adama pidió cambiar el notch de los tres puntos por una barra
+como la de Pinterest en iPad: abajo, con iconos, siempre ahí mientras se desliza y sin
+molestar. En todas las páginas, **también en la portada**. Mandó una captura de referencia
+(cápsula oscura con casa, lupa y perfil). Sus respuestas:
+
+- Cinco botones: Inicio, Proyectos, Servicios, Estudio, Contacto. Sólo iconos.
+- Oscura siempre. Contacto destacado con el color de marca (azul de día, naranja de noche).
+- En todas las pantallas; el notch desaparece del todo.
+- Idioma: botón arriba a la derecha. Tema: automático por la hora, sin botón.
+- Portada: la barra flota encima de la franja del pie, sin taparla.
+
+### Qué se ha hecho
+
+- `assets/ux/og-tabbar.js` (nuevo) sustituye a `og-notch.js` (retirado). Monta la barra sobre
+  `#dock`: cinco enlaces con `aria-label`, `aria-current` en la página actual (punto bajo el
+  icono), etiqueta al pasar el ratón o con teclado, botones de 56×52.
+- En móvil, al escribir en un campo, la barra se aparta del teclado y vuelve al salir.
+- Mide su hueco (`--og-bar-space`) para que el aviso de cookies y el final de cada página
+  queden por encima; en la portada mide la franja del pie (`--og-home-footer`) y flota encima.
+- Respaldo sin JavaScript: los enlaces de texto dentro de la misma cápsula.
+- `#lang-switch` arriba a la derecha («ES · EN», el actual resaltado), con el mismo
+  tratamiento que el logo (blanco en modo diferencia).
+- Tema: sólo por la hora (noche de 20:00 a 7:00). Se borra `og_theme` que guardaba el botón
+  antiguo, para que nadie se quede atascado en un tema.
+- CSS del notch retirado de `og-ux-fixes.css`; `pruebas/test_notch.py` retirado.
+
+### Pruebas
+
+| Prueba | Resultado |
+|---|---|
+| `pruebas/test_auditoria.py` (ya incluye la barra: 5 páginas × 2 idiomas × 2 tamaños, fija al deslizar, encima del pie, final de página libre, teclado del móvil, etiqueta, idioma, tema por la hora, cookies) | **197/197** |
+| Portada: igual que antes ocultando sólo la navegación (barra, idioma y el antiguo notch), escritorio y móvil, con y sin movimiento | **4/4 idénticas** |
+| Contraste real, 6 páginas × 2 temas (por hora) × 2 tamaños | **0 fallos** |
+| `test_formulario.py` (puesto al día: idioma con el botón nuevo, columnas de consentimiento) | **38/38** |
+
+### Siguiente acción recomendada
+
+Adama hace `git push` de la rama `fix/auditoria-ux` (lleva la auditoría y la barra), revisa
+la preview de Vercel en su iPhone y, si le gusta, se fusiona en `main`.
+
+## 0p. Arreglos de la auditoría UX/UI (20.09.2026)
 
 ### Qué se pidió
 
@@ -62,15 +106,11 @@ Nuevos: `404.html`, `pruebas/test_auditoria.py`, `pruebas/servidor_limpio.py`.
 - La portada conserva lo que la auditoría marcó y Adama decidió no tocar: pie de 8px
   sobre las fotos y ausencia de titular/botón visible.
 - `test_notch.py` y `test_formulario.py` necesitan actualizarse a la realidad actual.
-- **Siguiente encargo, ya anunciado por Adama**: sustituir el notch por una barra de
-  navegación flotante abajo, estilo Pinterest (iconos casa / lupa / perfil), fija
-  mientras se desliza, en todas las páginas incluida la portada. Hay que hacerle las
-  preguntas antes de empezar.
+- Barra estilo Pinterest: hecha en la 0q.
 
 ### Siguiente acción recomendada
 
-Revisar la preview de la rama `fix/auditoria-ux` en Vercel y, si le parece bien,
-fusionarla en `main`. Después, preguntas de la barra estilo Pinterest.
+Ver la 0q (la misma rama lleva también la barra inferior).
 
 ## 0o. Tarjeta de reserva del cliente (sesión anterior)
 

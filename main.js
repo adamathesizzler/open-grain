@@ -192,30 +192,55 @@ const NAV_PAGES = [
   ['/contact', 'contact'],
 ];
 
-// La navegación es un único componente compartido por las cinco páginas:
-// assets/ux/og-notch.js monta el notch sobre #dock y se encarga del recorrido
-// arriba → derecha, del hover, del toque y del teclado. Aquí sólo le pasamos
-// los datos (idioma, tema y enlaces) y él actualiza sus nodos sin rehacer el
-// DOM, así no se pierde el foco al cambiar de idioma.
+// La navegación es una barra inferior, estilo Pinterest, compartida por las
+// cinco páginas: assets/ux/og-tabbar.js la monta sobre #dock. Aquí sólo le
+// pasamos el idioma y los enlaces; ella actualiza sus nodos sin rehacer el DOM,
+// así no se pierde el foco al cambiar de idioma.
 //
 // Si el script no llega a ejecutarse, el <nav> conserva sus enlaces HTML de
-// respaldo y la web se sigue pudiendo navegar.
-//
-// La página activa la detecta el componente normalizando la ruta, de modo que
-// /work y /work.html cuentan como la misma página.
+// respaldo (con aspecto de barra, ver og-ux-fixes.css) y la web se sigue
+// pudiendo navegar.
 function renderNav() {
   const dock = $('dock');
-  if (!dock || !window.OGNotch) return;
-  const t = copy[lang];
-  window.OGNotch.mount(dock, {
-    lang,
-    dark,
-    items: NAV_PAGES.map(([href, key]) => ({
-      key,
-      href,
-      label: key === 'home' ? (lang === 'es' ? 'Inicio' : 'Home') : t[key],
-    })),
-  });
+  if (dock && window.OGTabbar) {
+    const t = copy[lang];
+    window.OGTabbar.mount(dock, {
+      lang,
+      items: NAV_PAGES.map(([href, key]) => ({
+        key,
+        href,
+        label: key === 'home' ? (lang === 'es' ? 'Inicio' : 'Home') : t[key],
+      })),
+    });
+  }
+  renderLangSwitch();
+}
+
+// Cambio de idioma: arriba a la derecha, frente al logo y con su mismo
+// tratamiento (blanco en modo diferencia), así se lee sobre fotos y sobre
+// fondos claros. Muestra los dos idiomas con el actual resaltado; para el
+// lector de pantalla, el nombre es la acción.
+function renderLangSwitch() {
+  const shell = $('site-shell');
+  if (!shell) return;
+  let btn = $('lang-switch');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'lang-switch';
+    btn.className = 'lang-switch';
+    btn.innerHTML = '<span data-l="es">ES</span><span class="lang-switch-dot" aria-hidden="true">·</span><span data-l="en">EN</span>';
+    const mark = shell.querySelector('.wordmark');
+    if (mark) mark.after(btn); else shell.prepend(btn);
+    btn.addEventListener('click', () => {
+      lang = lang === 'en' ? 'es' : 'en';
+      try { localStorage.setItem('og_lang', lang); } catch (err) { /* ignore */ }
+      renderAll();
+    });
+  }
+  const es = lang === 'es';
+  btn.setAttribute('aria-label', es ? 'Cambiar el idioma a inglés' : 'Switch language to Spanish');
+  btn.querySelectorAll('[data-l]').forEach(s => s.classList.toggle('is-on', s.dataset.l === lang));
 }
 
 // ---------- Home: the full-bleed work grid ----------
@@ -855,32 +880,17 @@ function renderAll() {
   renderHiddenLabels();
 }
 
-// Language and theme are per-visitor choices that must survive navigating
-// between pages now that the site is multi-page, so they persist locally.
+// El idioma es una elección de cada visitante y tiene que sobrevivir al paso
+// de una página a otra, así que se guarda en el navegador.
+//
+// El tema ya no se elige: sigue la hora (noche de 20:00 a 7:00). Se borra la
+// preferencia que guardaba el antiguo botón de tema, para que nadie se quede
+// atascado en un tema que ya no puede cambiar.
 try {
   const savedLang = localStorage.getItem('og_lang');
   if (savedLang === 'en' || savedLang === 'es') lang = savedLang;
-  const savedTheme = localStorage.getItem('og_theme');
-  if (savedTheme === 'dark' || savedTheme === 'light') dark = savedTheme === 'dark';
+  localStorage.removeItem('og_theme');
 } catch (e) { /* private mode / blocked storage — fall back to defaults */ }
-
-// Delegated, because renderNav() rebuilds the dock's markup whenever the
-// language or theme changes — listeners bound to the old buttons would die
-// with them.
-$('dock')?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action]');
-  if (!btn) return;
-  if (btn.dataset.action === 'lang') {
-    lang = lang === 'en' ? 'es' : 'en';
-    try { localStorage.setItem('og_lang', lang); } catch (err) { /* ignore */ }
-    renderAll();
-  } else if (btn.dataset.action === 'theme') {
-    dark = !dark;
-    try { localStorage.setItem('og_theme', dark ? 'dark' : 'light'); } catch (err) { /* ignore */ }
-    applyTheme();
-    renderNav();
-  }
-});
 
 renderAll();
 

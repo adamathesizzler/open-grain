@@ -1,149 +1,111 @@
-/* OPEN GRAIN — notch de navegación (arriba → derecha) y estados del formulario.
-   Cargar DESPUÉS de styles.css.
+/* OPEN GRAIN — barra de navegación inferior (estilo Pinterest), cambio de
+   idioma y estados del formulario. Cargar DESPUÉS de styles.css.
 
-   Esta hoja toca DOS cosas y nada más: el notch, que sustituye al dock lateral
-   antiguo, y los estados de error del formulario de contacto, que sólo se ven
-   cuando hay un error. El diseño del resto de la web queda intacto.
+   La barra sustituye al notch de los tres puntos. Es una cápsula oscura,
+   abajo y centrada, con las cinco páginas en iconos; se queda fija mientras
+   se desliza. La monta assets/ux/og-tabbar.js sobre #dock. */
 
-   El notch es un único objeto que cambia de forma y de sitio: arriba (cápsula
-   encajada en el borde superior) → bolita en viaje → derecha (cápsula encajada
-   en el borde derecho, a media altura, donde vivía el dock). La posición la
-   mueve JS con transform; la forma la cambia este CSS según data-edge, para que
-   las dos cosas se puedan animar a la vez. */
-
-/* ---------- Raíz: un lienzo de 48px que JS traslada ---------- */
-#dock.og-notch{
-  position:fixed; top:0; left:0; right:auto; bottom:auto; z-index:60;
-  width:48px; height:48px; margin:0; padding:0; display:block;
-  border:0; border-radius:0; background:transparent; box-shadow:none;
-  backdrop-filter:none; -webkit-backdrop-filter:none;
-  transition:none; overflow:visible;
-  color:var(--fg,#171714); font-family:inherit;
-}
-
-/* Sonda invisible: JS lee de aquí los safe-area insets reales. */
-.og-notch-safe-area{
-  position:absolute; visibility:hidden; pointer-events:none;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-right:env(safe-area-inset-right,0px);
-}
-
-/* ---------- Material ---------- */
-.og-notch-toggle,
-.og-notch-panel{
-  color:var(--fg,#171714);
-  background:color-mix(in srgb,var(--bg,#f2eee6) 88%,transparent);
-  border:1px solid var(--line,rgba(23,23,20,.13));
-  box-shadow:var(--elev-2,0 10px 26px rgba(0,0,0,.12)),
-             inset 0 1px 0 color-mix(in srgb,#fff 34%,transparent);
+/* ---------- Barra inferior ---------- */
+#dock{
+  position:fixed; left:50%; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:60;
+  transform:translateX(-50%);
+  margin:0; padding:6px 8px;
+  display:flex; align-items:center; gap:2px;
+  border-radius:999px;
+  background:rgba(26,26,24,.9);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 12px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.06);
+  color:#f3efe8; font-family:inherit;
+  transition:transform .26s cubic-bezier(.3,.7,.4,1), opacity .2s ease;
 }
 @supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  .og-notch-toggle,
-  .og-notch-panel{
-    background:color-mix(in srgb,var(--bg,#f2eee6) 68%,transparent);
-    backdrop-filter:blur(20px) saturate(1.5);
-    -webkit-backdrop-filter:blur(20px) saturate(1.5);
-  }
+  #dock{ background:rgba(26,26,24,.8); backdrop-filter:blur(18px) saturate(1.4); -webkit-backdrop-filter:blur(18px) saturate(1.4); }
+}
+/* En la portada flota justo encima de la franja del pie, sin taparla. */
+body.is-home #dock{ bottom:calc(var(--og-home-footer,44px) + 6px); }
+
+/* Respaldo sin JavaScript: los cinco enlaces de texto, dentro de la cápsula. */
+#dock:not(.og-tabbar) a{
+  display:inline-flex; align-items:center; min-height:44px; padding:0 12px;
+  color:#f3efe8; font-size:13px; font-weight:600; text-decoration:none; border-radius:999px;
 }
 
-/* ---------- El botón: la forma del notch ----------
-   Sólo tres puntos, sin texto. El lado que toca el borde mide 48px, igual que
-   el lienzo, para que la cápsula quede encajada a ras y no flotando. */
-.og-notch-toggle{
-  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  width:72px; height:48px; padding:0;
-  display:flex; justify-content:center; align-items:center;
-  cursor:pointer;
-  /* Arriba: esquinas redondeadas sólo abajo → encajado en el borde. */
-  border-radius:0 0 24px 24px;
-  border-top-color:transparent;
-  /* Más corta que el viaje: la forma se contrae nada más arrancar y se abre
-     al llegar, en vez de ir por su cuenta a mitad de camino. */
-  transition:width .22s cubic-bezier(.5,0,.15,1),
-             height .22s cubic-bezier(.5,0,.15,1),
-             border-radius .22s cubic-bezier(.5,0,.15,1);
-  touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+.og-tabbar-list{ display:flex; align-items:center; gap:2px; margin:0; padding:0; list-style:none; }
+.og-tab{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  width:56px; height:52px; border-radius:999px;
+  color:#f3efe8; text-decoration:none;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
 }
-.og-notch-grip{
-  font-size:17px; letter-spacing:3px; line-height:1; opacity:.72;
-  /* El punto de más a la derecha lleva el letter-spacing detrás: se compensa
-     para que los tres puntos queden ópticamente centrados. */
-  text-indent:3px;
-  transition:opacity .22s ease;
+.og-tab-icon{
+  display:grid; place-items:center; width:40px; height:40px; border-radius:50%;
+  opacity:.66;
+  transition:opacity .16s ease, background-color .16s ease, transform .14s cubic-bezier(.3,.7,.4,1);
 }
-.og-notch-toggle:hover .og-notch-grip{opacity:1;}
+.og-tab[aria-current="page"] .og-tab-icon{ opacity:1; }
+/* La página actual: un punto bajo el icono. */
+.og-tab[aria-current="page"]::after{
+  content:""; position:absolute; left:50%; bottom:3px; width:4px; height:4px;
+  margin-left:-2px; border-radius:50%; background:currentColor;
+}
+/* Contacto destacado con el color de marca: azul de día, naranja de noche. */
+.og-tab-contact .og-tab-icon{ opacity:1; background:var(--accent,#1557ff); color:#fff; }
+.og-tab:active .og-tab-icon{ transform:scale(.9); }
+@media (hover:hover) and (pointer:fine){
+  .og-tab:hover .og-tab-icon{ opacity:1; background:rgba(255,255,255,.1); }
+  .og-tab-contact:hover .og-tab-icon{ background:color-mix(in srgb,var(--accent,#1557ff) 86%,#000); }
+}
+.og-tab:focus-visible{ outline:none; }
+.og-tab:focus-visible .og-tab-icon{ opacity:1; box-shadow:0 0 0 2px #1a1a18, 0 0 0 4px #f3efe8; }
 
-/* Derecha: encajado en el borde derecho, y los puntos giran con él. */
-.og-notch[data-edge="right"] .og-notch-toggle{
-  width:48px; height:72px;
-  border-radius:24px 0 0 24px;
-  border-top-color:var(--line,rgba(23,23,20,.13));
-  border-right-color:transparent;
+/* Nombre de cada icono: aparece encima al pasar el ratón o con el teclado. */
+.og-tab-tip{
+  position:absolute; left:50%; bottom:calc(100% + 12px);
+  padding:6px 10px; border-radius:8px; white-space:nowrap; pointer-events:none;
+  background:rgba(26,26,24,.94); color:#f3efe8; font-size:12px; font-weight:600; line-height:1;
+  box-shadow:0 6px 18px rgba(0,0,0,.24);
+  opacity:0; transform:translate(-50%,4px);
+  transition:opacity .14s ease, transform .14s ease;
 }
-.og-notch[data-edge="right"] .og-notch-grip{
-  writing-mode:vertical-rl; text-indent:0; padding-top:3px;
-}
-
-/* En viaje: se contrae en bolita. Es el mismo nodo, sólo cambia de forma. */
-.og-notch.og-is-travelling .og-notch-toggle{
-  width:44px; height:44px; border-radius:50%;
-  border-color:var(--line,rgba(23,23,20,.13));
-  box-shadow:var(--elev-3,0 20px 50px rgba(0,0,0,.2));
-}
-.og-notch.og-is-travelling .og-notch-grip{
-  opacity:1; writing-mode:horizontal-tb; text-indent:3px; padding-top:0;
+.og-tab:focus-visible .og-tab-tip{ opacity:1; transform:translate(-50%,0); }
+@media (hover:hover) and (pointer:fine){
+  .og-tab:hover .og-tab-tip{ opacity:1; transform:translate(-50%,0); transition-delay:.25s; }
 }
 
-.og-notch-toggle:hover{background:color-mix(in srgb,var(--bg,#f2eee6) 80%,transparent);}
+/* Escribiendo en el móvil: la barra se aparta del teclado y vuelve al salir. */
+#dock.og-tabbar-away{ transform:translate(-50%,calc(100% + 40px)); opacity:0; pointer-events:none; }
 
-/* ---------- El panel: se despliega hacia dentro de la pantalla ---------- */
-.og-notch-panel{
-  position:absolute; left:50%; top:calc(100% + 10px); transform:translateX(-50%);
-  width:min(700px,calc(100vw - 24px));
-  max-height:calc(100dvh - 100px);
-  overflow-y:auto; overscroll-behavior:contain;
-  padding:8px; border-radius:24px;
-  display:flex; flex-wrap:wrap; gap:4px;
-}
-/* Desde la derecha se abre a su izquierda, hacia el interior. */
-.og-notch[data-edge="right"] .og-notch-panel{
-  left:auto; right:calc(100% + 10px); top:50%; transform:translateY(-50%);
-  width:min(290px,calc(100vw - 82px));
-  max-height:calc(100dvh - 32px);
-  flex-direction:column; flex-wrap:nowrap;
+@media(prefers-reduced-motion:reduce){
+  #dock, .og-tab-icon, .og-tab-tip{ transition:opacity .12s linear; }
+  #dock.og-tabbar-away{ transform:translateX(-50%); }
+  .og-tab:active .og-tab-icon{ transform:none; }
 }
 
-.og-notch-item{
-  display:flex; align-items:center; justify-content:center; gap:9px;
-  min-height:48px; min-width:48px; flex:1 0 auto; margin:0; padding:12px 14px;
-  border:0; border-radius:15px; background:transparent;
-  color:var(--fg,#171714);
-  font:500 14px/1.3 inherit;
-  cursor:pointer; text-decoration:none;
-  touch-action:manipulation; overflow-wrap:anywhere;
-  transition:background .18s ease;
+/* El aviso de cookies y el final de cada página quedan por encima de la barra. */
+#cookie-banner{ bottom:calc(var(--og-bar-space,84px) + 10px); }
+body:not(.is-home) .site-shell{ padding-bottom:calc(var(--og-bar-space,84px) + 8px); }
+
+/* ---------- Cambio de idioma, arriba a la derecha ----------
+   Mismo tratamiento que el logo (blanco en modo diferencia): se lee igual
+   sobre las fotos de la portada y sobre los fondos claros. */
+.lang-switch{
+  position:fixed; top:16px; right:calc(3vw - 10px); z-index:55;
+  display:flex; align-items:center; gap:6px; min-height:44px; padding:0 10px;
+  border:0; background:transparent; cursor:pointer;
+  color:#fff; mix-blend-mode:difference;
+  font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.14em;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
 }
-.og-notch[data-edge="right"] .og-notch-item{justify-content:flex-start; flex-shrink:0;}
-.og-notch-item:hover,
-.og-notch-item[aria-current="page"]{
-  background:color-mix(in srgb,var(--fg,#171714) 10%,transparent);
-}
-.og-notch-item[aria-current="page"]{font-weight:700;}
-.og-notch-item.og-notch-contact{
-  background:var(--accent,#1557ff); color:#fff; font-weight:700;
-}
-.og-notch-item.og-notch-contact:hover{
-  background:color-mix(in srgb,var(--accent,#1557ff) 86%,#000);
-}
-.og-notch-item:focus-visible,
-.og-notch-toggle:focus-visible{
-  outline:3px solid var(--accent,#1557ff); outline-offset:3px;
-}
+.lang-switch [data-l]{ opacity:.55; transition:opacity .16s ease; }
+.lang-switch [data-l].is-on{ opacity:1; }
+.lang-switch-dot{ opacity:.55; }
+.lang-switch:hover [data-l]{ opacity:1; }
+.lang-switch:focus-visible{ outline:2px solid #fff; outline-offset:2px; border-radius:6px; }
+@media(max-width:700px){ .lang-switch{ top:6px; right:6px; } }
 
 /* Los estados ocultos de ESTOS componentes, y sólo de estos.
    #contact-form lo necesita porque .project-form{display:grid} le ganaba a
    [hidden] y el formulario seguía visible tras enviarse. */
-.og-notch-panel[hidden],
 #contact-form[hidden],
 #form-success[hidden],
 .og-form-summary[hidden],
@@ -169,17 +131,6 @@
 .og-service-notice{font-size:13px; line-height:1.45; color:var(--accent,#1557ff);}
 .og-service-notice[hidden]{display:none !important;}
 
-@media(max-width:800px){
-  .og-notch-panel{width:min(350px,calc(100vw - 24px));}
-  .og-notch-item{flex-basis:calc(50% - 4px);}
-  .og-notch[data-edge="right"] .og-notch-item{flex-basis:auto;}
-}
-
-@media(prefers-reduced-motion:reduce){
-  .og-notch-toggle,
-  .og-notch-item{transition:none;}
-}
-
 /* ---------- Encabezados: mismo aspecto, mejor estructura ----------
    Cada página necesita un h1 para quien navega con lector de pantalla. Estos
    cambios son sólo semánticos: el h1 hereda exactamente los estilos que tenía
@@ -194,33 +145,7 @@
    esto, durante medio segundo una capa invisible se traga los clics. */
 .lightbox:not(.is-open){ pointer-events:none; }
 
-/* En la portada el fondo es siempre oscuro, tenga el tema que tenga, y las
-   fotografías mandan. El notch usa ahí el mismo cristal ahumado que tenía el
-   dock antiguo, para no convertirse en un bloque claro encima de las fotos. */
-body.is-home .og-notch-toggle,
-body.is-home .og-notch-panel{
-  background:rgba(14,14,15,.86);
-  border-color:rgba(255,255,255,.12);
-  color:#f3efe8;
-  box-shadow:0 14px 40px rgba(0,0,0,.36), inset 0 1px 0 rgba(255,255,255,.12);
-}
-@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-  body.is-home .og-notch-toggle,
-  body.is-home .og-notch-panel{ background:rgba(14,14,15,.78); }
-}
-body.is-home .og-notch-item{ color:#f3efe8; }
-body.is-home .og-notch-item:hover,
-body.is-home .og-notch-item[aria-current="page"]{ background:rgba(255,255,255,.14); }
-body.is-home .og-notch-toggle:hover{ background:rgba(14,14,15,.94); }
-
 /* Lo último del estudio: la sección se oculta mientras no haya publicaciones
    seleccionadas. .social-stage fija su propio display, así que [hidden] solo
    no bastaría. */
 .social-stage[hidden]{ display:none !important; }
-
-/* Notch lateral encima de un campo del formulario (sólo pasa fuera de la
-   portada, en pantallas estrechas): se desvanece y deja pasar el toque hasta
-   el campo mientras lo tape. Lo decide og-notch.js midiendo las dos cajas. */
-#dock.og-notch{ transition:opacity .18s ease; }
-#dock.og-notch.og-notch-yield{ opacity:0; pointer-events:none; }
-@media(prefers-reduced-motion:reduce){ #dock.og-notch{ transition:none; } }

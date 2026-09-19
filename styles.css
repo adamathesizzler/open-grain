@@ -79,12 +79,10 @@ img { max-width: 100%; display: block; }
   linear-gradient(145deg,#101111 0%,#171514 54%,#111212 100%)}
 
 /* ---------- Navegación ----------
-   El dock lateral de iconos se ha sustituido por el notch: un único
-   componente que arranca encajado en el borde superior y viaja hasta el
-   borde derecho al bajar, justo donde estaba el dock. Vive en
-   assets/ux/og-notch.js y assets/ux/og-ux-fixes.css. Aquí sólo queda el
-   wordmark. Las reglas de .dock se han retirado para no tener dos sistemas
-   de estilos peleándose por el mismo elemento. */
+   La navegación es una barra inferior estilo Pinterest (antes fue un dock
+   lateral y después un notch). Vive en assets/ux/og-tabbar.js y
+   assets/ux/og-ux-fixes.css, igual que el cambio de idioma de arriba a la
+   derecha. Aquí sólo queda el wordmark. */
 .wordmark{ position:fixed; top:24px; left:3vw; z-index:55;
   font-size:15px; font-weight:800; letter-spacing:-.03em; color:#fff;
   mix-blend-mode:difference; }
@@ -890,3 +888,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .nf-body .legal-updated{ margin-bottom:14px; }
 /* Pie de Servicios y Estudio: en móvil queda sobre la zona más azul del fondo. */
 .light-footer, .light-footer a{ color:#52617a; }
+/* Pie de Proyectos y Contacto: con el hueco de la barra inferior queda sobre
+   una zona algo más azul del fondo pulsante. */
+.pulse-page:not(.dark-mode) .site-footer p,
+.pulse-page:not(.dark-mode) .site-footer>span{ color:#5f5d57; }
