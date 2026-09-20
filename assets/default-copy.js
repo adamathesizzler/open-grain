@@ -14,7 +14,7 @@ window.DEFAULT_COPY = {
     eyebrow: 'Creative production studio · Mallorca',
     headline: 'Ideas without limits. Stories with texture.',
     explore: 'Explore work',
-    workBlurb: 'Photography, stories and campaigns created in Mallorca.',
+    workBlurb: 'Photography, stories and campaigns — from Mallorca and on the road.',
     intro: 'Creating what words can’t explain.',
     introBody: 'Photography, film and digital content shaped around people, places and brands.',
     capabilities: 'What we create',
@@ -25,13 +25,13 @@ window.DEFAULT_COPY = {
     cta: 'Tell us what you want to create.',
     ctaLede: 'Tell us what you need and we’ll reply with availability and next steps.',
     based: 'Based in Mallorca · Available across the island',
-    socialLede: 'Posts can be selected from the studio panel.',
+    socialLede: 'What we’ve been posting lately.',
   },
   es: {
     eyebrow: 'Estudio de producción creativa · Mallorca',
     headline: 'Ideas sin límites. Historias con textura.',
     explore: 'Ver proyectos',
-    workBlurb: 'Fotografía, historias y campañas creadas en Mallorca.',
+    workBlurb: 'Fotografía, historias y campañas desde Mallorca y de viaje.',
     intro: 'Creamos lo que las palabras no pueden explicar.',
     introBody: 'Fotografía, vídeo y contenido digital creado alrededor de personas, lugares y marcas.',
     capabilities: 'Lo que creamos',
@@ -42,7 +42,7 @@ window.DEFAULT_COPY = {
     cta: 'Cuéntanos qué quieres crear.',
     ctaLede: 'Dinos qué necesitas y te responderemos con disponibilidad y próximos pasos.',
     based: 'En Mallorca · Disponibles en toda la isla',
-    socialLede: 'Las publicaciones podrán elegirse desde el panel.',
+    socialLede: 'Lo último que hemos publicado.',
   },
 };
 

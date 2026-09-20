@@ -15,15 +15,16 @@
 
 <main class="site-shell inner-page pulse-page" id="site-shell">
 
-  <a class="wordmark" href="index.html">OPEN GRAIN<span>®</span></a>
-  <!-- Enlaces reales de respaldo: si og-notch.js no llega a ejecutarse, la web
-       se sigue pudiendo navegar. El componente los sustituye al montarse. -->
+  <a class="wordmark" href="/">OPEN GRAIN<span>®</span></a>
+  <!-- Barra de navegación inferior. Enlaces reales de respaldo: si
+       og-tabbar.js no llega a ejecutarse, la web se sigue pudiendo navegar.
+       El componente los sustituye por iconos al montarse. -->
   <nav class="dock" id="dock" aria-label="Primary">
-    <a href="index.html">Home</a>
-    <a href="work.html">Work</a>
-    <a href="services.html">Services</a>
-    <a href="about.html">Studio</a>
-    <a href="contact.html">Contact</a>
+    <a href="/">Home</a>
+    <a href="/work">Work</a>
+    <a href="/services">Services</a>
+    <a href="/about">Studio</a>
+    <a href="/contact">Contact</a>
   </nav>
 
   <section id="work" class="work-section section-pad" data-reveal>
@@ -43,7 +44,7 @@
       <a href="mailto:adamabalde1998@gmail.com">Email</a>
     </div>
     <p id="footer-based"></p>
-    <span>© <span id="year"></span> OPEN GRAIN · <a href="aviso-legal.html">Aviso legal</a> · <a href="privacidad.html">Privacidad</a> · <a href="cookies.html">Cookies</a></span>
+    <span>© <span id="year"></span> OPEN GRAIN · <a href="/aviso-legal" lang="es">Aviso legal</a> · <a href="/privacidad" lang="es">Privacidad</a> · <a href="/cookies" lang="es">Cookies</a></span>
   </footer>
 
 </main>
@@ -64,7 +65,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script defer src="assets/config.js"></script>
 <script defer src="assets/default-copy.js"></script>
-<script defer src="assets/ux/og-notch.js"></script>
+<script defer src="assets/ux/og-tabbar.js"></script>
 <script defer src="assets/ux/og-contact.js"></script>
 <script defer src="main.js"></script>
 <script defer src="assets/motion.js"></script>

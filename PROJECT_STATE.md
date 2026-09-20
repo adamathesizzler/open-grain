@@ -1,8 +1,132 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-14 (0o. Tarjeta de reserva del cliente: página pública y lectura por token).
+Última actualización: 2026-09-20 (0q. Barra de navegación inferior estilo Pinterest; antes, 0p. arreglos de la auditoría).
 
-## 0o. Tarjeta de reserva del cliente (esta sesión)
+## 0q. Barra de navegación inferior estilo Pinterest (20.09.2026, esta sesión)
+
+### Qué se pidió
+
+Con la auditoría ya aplicada, Adama pidió cambiar el notch de los tres puntos por una barra
+como la de Pinterest en iPad: abajo, con iconos, siempre ahí mientras se desliza y sin
+molestar. En todas las páginas, **también en la portada**. Mandó una captura de referencia
+(cápsula oscura con casa, lupa y perfil). Sus respuestas:
+
+- Cinco botones: Inicio, Proyectos, Servicios, Estudio, Contacto. Sólo iconos.
+- Oscura siempre. Contacto destacado con el color de marca (azul de día, naranja de noche).
+- En todas las pantallas; el notch desaparece del todo.
+- Idioma: botón arriba a la derecha. Tema: automático por la hora, sin botón.
+- Portada: la barra flota encima de la franja del pie, sin taparla.
+
+### Qué se ha hecho
+
+- `assets/ux/og-tabbar.js` (nuevo) sustituye a `og-notch.js` (retirado). Monta la barra sobre
+  `#dock`: cinco enlaces con `aria-label`, `aria-current` en la página actual (punto bajo el
+  icono), etiqueta al pasar el ratón o con teclado, botones de 56×52.
+- En móvil, al escribir en un campo, la barra se aparta del teclado y vuelve al salir.
+- Mide su hueco (`--og-bar-space`) para que el aviso de cookies y el final de cada página
+  queden por encima; en la portada mide la franja del pie (`--og-home-footer`) y flota encima.
+- Respaldo sin JavaScript: los enlaces de texto dentro de la misma cápsula.
+- `#lang-switch` arriba a la derecha («ES · EN», el actual resaltado), con el mismo
+  tratamiento que el logo (blanco en modo diferencia).
+- Tema: sólo por la hora (noche de 20:00 a 7:00). Se borra `og_theme` que guardaba el botón
+  antiguo, para que nadie se quede atascado en un tema.
+- CSS del notch retirado de `og-ux-fixes.css`; `pruebas/test_notch.py` retirado.
+
+### Ajuste posterior: pastilla en ordenador, se esconde al bajar en móvil
+
+Al verla en la preview, Adama propuso esconderla abajo y que se desplegara al pasar el
+cursor. Se le recomendó no esconderla del todo (nadie sabría que está) y eligió:
+
+- **Ordenador** (`hover:hover` y puntero fino): recogida en una pastilla de 64×26 con una
+  rayita, como la del iPhone. Se despliega al acercar el ratón (zona algo mayor que la
+  pastilla) o al llegar con el teclado; se recoge sola 380 ms después de apartarse. La
+  primera página de cada visita la enseña desplegada 1,8 s (`sessionStorage og_bar_seen`).
+  Recogida, lo invisible deja pasar los clics a la página. El fondo es una capa aparte
+  (`.og-tabbar-bg`) que cambia de tamaño, para no deformar iconos ni perder la sombra.
+- **Táctil**: completa; se esconde al bajar (tras 14px seguidos) y vuelve al subir (8px).
+  Siempre visible arriba del todo y al final de la página. Sigue apartándose del teclado.
+
+### Pruebas
+
+| Prueba | Resultado |
+|---|---|
+| `pruebas/test_auditoria.py` (barra en 5 páginas × 2 idiomas × ordenador/móvil, pastilla que se despliega y se recoge, vistazo inicial, clics a través, teclado, esconderse al bajar y volver al subir, encima del pie, final de página, teclado del móvil, idioma, tema por la hora, cookies) | **190/190** |
+| Portada: igual que antes ocultando sólo la navegación (barra, idioma y el antiguo notch), escritorio y móvil, con y sin movimiento | **4/4 idénticas** |
+| Contraste real, 6 páginas × 2 temas (por hora) × 2 tamaños | **0 fallos** |
+| `test_formulario.py` (puesto al día: idioma con el botón nuevo, columnas de consentimiento) | **38/38** |
+
+### Siguiente acción recomendada
+
+Adama hace `git push` de la rama `fix/auditoria-ux` (lleva la auditoría y la barra), revisa
+la preview de Vercel en su iPhone y, si le gusta, se fusiona en `main`.
+
+## 0p. Arreglos de la auditoría UX/UI (20.09.2026)
+
+### Qué se pidió
+
+Adama pidió una auditoría UX/UI de open-grain.vercel.app (accesibilidad, marca, interfaz) y
+después «hazme todo lo que hay que hacer, pero pregúntame antes». Respuestas que dio:
+
+- **La portada no se toca** («no me jodas la página hero»). Sólo se permitieron cambios
+  invisibles en su código (alt, idioma, semántica, enlaces). **Comprobado píxel a píxel.**
+- Aprobó fuera de la portada: formulario antes que la tarjeta en Contacto móvil, subir
+  contraste, botón de pausa en el carrusel de Servicios y 404 con la marca.
+- Menú (notch): sólo «que no tape campos», fuera de la portada.
+- Idioma por defecto: el del navegador. Sección de redes vacía: ocultarla.
+- Dominio: todavía no tiene opengrain.studio. Correo: se queda Gmail por ahora.
+- Contenido («dime tú»): descripciones de servicios sí; precios no (sin cifras inventadas);
+  frase de Proyectos «desde Mallorca y de viaje»; Google Analytics para después; pestaña
+  YouTube oculta mientras no haya canal.
+
+### Qué se ha hecho
+
+| Área | Cambio |
+|---|---|
+| Idioma | Primera visita según el navegador (es/ca → español; resto → inglés). La elección guardada manda. |
+| Portada (invisible) | h1 oculto en el idioma de la página; piezas con `role="button"` y `aria-label` («Ampliar: título, tipo. descripción»); alt descriptivo; enlaces sin `.html`; enlaces legales con `lang="es"`. |
+| Fotos | `PHOTO_ALT` en `main.js`: descripción ES/EN de las 24 fotos, escrita mirando cada una. Las de Studio usan título — tipo. |
+| Proyectos | Piezas `<article>` → `<figure role="button">` (mismas clases, mismo aspecto). Frase: «desde Mallorca y de viaje». |
+| Servicios | Descripción bajo cada servicio (las mismas `serviceBlurbs` de la tarjeta de Contacto). Botón Pausar/Reanudar del carrusel (a la izquierda, lejos del notch; oculto con movimiento reducido). |
+| Estudio | Sección «Lo último del estudio» oculta hasta que haya publicaciones seleccionadas; pestaña de una red sólo si tiene publicaciones o perfil (YouTube fuera). Colores de noche que faltaban (titular a 1,1:1). `socialLede` ya no es un texto del panel. |
+| Contacto | Formulario primero en móvil. h2 oculto «Otras formas de contactar». Presupuesto: «Elige un rango (€)» en vez de «€». Contraste de noche dentro de las tarjetas. |
+| Notch | Si en el lateral queda encima de un campo de formulario, se desvanece y deja pasar el toque (`og-notch-yield`). En la portada no hay campos: allí no cambia nada. Botón de idioma con nombre accesible («Switch language to Spanish»). |
+| Diálogos | Nombres de la vista ampliada y de la publicación en el idioma de la página; sin h3 vacío si la publicación no tiene pie; vista ampliada retirada de Servicios, Estudio y Contacto (no se usaba). |
+| Contraste | 21 fallos medidos contra el fondo pintado → 0 (Servicios, Estudio, Proyectos, Contacto, legales, 404; claro y oscuro; escritorio y móvil). |
+| Enlaces | Todos los internos sin `.html` (antes cada clic pasaba por un 308 de Vercel). |
+| 404 | `404.html` nueva, bilingüe, con el papel de las legales y salidas a Inicio, Proyectos y Contacto. |
+| Aviso legal | El sitio es `open-grain.vercel.app` (antes decía opengrain.studio, que aún no existe). |
+
+### Archivos
+
+Modificados: `index.html`, `work.html`, `services.html`, `about.html`, `contact.html`,
+`aviso-legal.html`, `privacidad.html`, `cookies.html`, `main.js`, `styles.css`,
+`assets/default-copy.js`, `assets/ux/og-notch.js`, `assets/ux/og-ux-fixes.css`.
+Nuevos: `404.html`, `pruebas/test_auditoria.py`, `pruebas/servidor_limpio.py`.
+
+### Pruebas realizadas (Chromium, sitio completo en local con URLs limpias)
+
+| Prueba | Resultado |
+|---|---|
+| Portada idéntica al original, píxel a píxel: 2 tamaños × 2 temas × 2 idiomas, con y sin movimiento, y con foco de teclado | **16/16 + 4/4** idénticas |
+| `pruebas/test_auditoria.py` (idioma, semántica, lightbox, servicios, pausa, redes, contacto móvil, notch, 404, enlaces, errores JS) | **70/70** |
+| Contraste real contra el fondo pintado, 6 páginas × 2 temas × 2 tamaños | **0 fallos** (antes 21) |
+| `test_formulario.py` y `test_notch.py` | Mismo resultado antes y después (38 y 33 pasan). Sus fallos son expectativas antiguas: el notch va a la derecha desde la 0ñ y la tabla ya guarda el consentimiento. |
+
+### Pendiente
+
+- **Google Analytics**: `assets/config.js` sigue con `G-XXXXXXXXXX`; no se mide nada. Falta el ID real.
+- **Dominio y correo**: cuando compre opengrain.studio, conectarlo en Vercel, redirigir
+  el .vercel.app y cambiar el correo de contacto, pie y textos legales.
+- La portada conserva lo que la auditoría marcó y Adama decidió no tocar: pie de 8px
+  sobre las fotos y ausencia de titular/botón visible.
+- `test_notch.py` y `test_formulario.py` necesitan actualizarse a la realidad actual.
+- Barra estilo Pinterest: hecha en la 0q.
+
+### Siguiente acción recomendada
+
+Ver la 0q (la misma rama lleva también la barra inferior).
+
+## 0o. Tarjeta de reserva del cliente (sesión anterior)
 
 ### Qué se pidió
 
