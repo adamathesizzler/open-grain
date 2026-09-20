@@ -169,9 +169,13 @@ with sync_playwright() as pw:
     # --- Barra inferior (estilo Pinterest) ---
     NAMES = {"es": ["Inicio", "Proyectos", "Servicios", "Estudio", "Contacto"],
              "en": ["Home", "Work", "Services", "Studio", "Contact"]}
+    MODES = [("ordenador", dict(viewport={"width": 1440, "height": 900})),
+             ("móvil", dict(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True))]
+    cls = lambda pg, c: pg.evaluate(f"document.getElementById('dock').classList.contains('{c}')")
     for lang in ["es", "en"]:
-        for vw, vh in [(1440, 900), (390, 844)]:
-            ctx = context(br, saved_lang=lang, viewport={"width": vw, "height": vh})
+        for mode, kw in MODES:
+            vw, vh = kw["viewport"]["width"], kw["viewport"]["height"]
+            ctx = context(br, saved_lang=lang, **kw)
             pg = ctx.new_page(); pg.on("pageerror", lambda e: errors.append(str(e)))
             for page, cur in [("/", "/"), ("/work", "/work"), ("/services", "/services"), ("/about", "/about"), ("/contact", "/contact")]:
                 pg.goto(f"{BASE}{page}", wait_until="load"); pg.wait_for_timeout(350)
@@ -179,7 +183,7 @@ with sync_playwright() as pw:
                 labels = tabs.evaluate_all("els=>els.map(a=>a.getAttribute('aria-label'))")
                 hrefs = tabs.evaluate_all("els=>els.map(a=>a.getAttribute('href'))")
                 current = pg.locator('#dock .og-tab[aria-current="page"]').evaluate_all("els=>els.map(a=>a.getAttribute('href'))")
-                tag = f"barra {lang} {vw}px {page}"
+                tag = f"barra {lang} {mode} {page}"
                 check(f"{tag}: cinco iconos con nombre", labels == NAMES[lang], labels)
                 check(f"{tag}: enlaces limpios y página actual marcada", hrefs == ["/", "/work", "/services", "/about", "/contact"] and current == [cur], current)
                 bb = pg.locator("#dock").bounding_box()
@@ -187,28 +191,63 @@ with sync_playwright() as pw:
                 check(f"{tag}: abajo y centrada", centered and bb["y"] + bb["height"] <= vh and bb["y"] > vh * 0.6, bb)
                 sizes = tabs.evaluate_all("els=>els.map(a=>{const r=a.getBoundingClientRect();return Math.min(r.width,r.height)})")
                 check(f"{tag}: cada botón mide al menos 44px", min(sizes) >= 44, sizes)
-                # Sigue ahí al deslizar
-                pg.evaluate("scrollTo({top: document.body.scrollHeight / 2, behavior: 'instant'})"); pg.wait_for_timeout(250)
-                bb2 = pg.locator("#dock").bounding_box()
-                check(f"{tag}: fija al deslizar", abs(bb2["y"] - bb["y"]) < 1, (bb["y"], bb2["y"]))
                 if page == "/":
                     fb = pg.locator(".home-footer").bounding_box()
-                    check(f"{tag}: en la portada flota encima del pie sin taparlo", bb2["y"] + bb2["height"] <= fb["y"] + 1, (bb2, fb))
+                    check(f"{tag}: en la portada flota encima del pie sin taparlo", bb["y"] + bb["height"] <= fb["y"] + 1, (bb, fb))
                 else:
                     pg.evaluate("scrollTo({top: document.documentElement.scrollHeight, behavior: 'instant'})"); pg.wait_for_timeout(1200)
-                    last = pg.evaluate("""() => { const f = document.querySelector('.site-footer, .light-footer');
-                        const r = f.getBoundingClientRect(); return r.bottom; }""")
+                    last = pg.evaluate("document.querySelector('.site-footer, .light-footer').getBoundingClientRect().bottom")
                     bar_top = pg.locator("#dock").bounding_box()["y"]
-                    check(f"{tag}: al final de la página, el pie queda por encima de la barra", last <= bar_top + 1, (last, bar_top))
+                    check(f"{tag}: al final de la página la barra está y el pie queda por encima", last <= bar_top + 1 and not cls(pg, "og-tabbar-tucked"), (last, bar_top))
             ctx.close()
+
+    # Ordenador: pastilla que se despliega al acercar el ratón
     ctx = context(br, saved_lang="es", viewport={"width": 1440, "height": 900})
-    pg = ctx.new_page(); pg.goto(f"{BASE}/services", wait_until="load"); pg.wait_for_timeout(300)
-    pg.locator('#dock .og-tab[href="/work"]').hover(); pg.wait_for_timeout(500)
+    pg = ctx.new_page(); pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(f"{BASE}/services", wait_until="load"); pg.mouse.move(10, 10); pg.wait_for_timeout(400)
+    check("ordenador: la primera vez se enseña desplegada", not cls(pg, "og-tabbar-collapsed"))
+    pg.wait_for_timeout(2500)
+    check("ordenador: después se recoge en una pastilla", cls(pg, "og-tabbar-collapsed"))
+    pill = pg.locator("#dock .og-tabbar-bg").bounding_box()
+    check("ordenador: la pastilla es pequeña", pill["width"] <= 80 and pill["height"] <= 32, pill)
+    work_tab = pg.locator('#dock .og-tab[href="/work"]').bounding_box()
+    hit = pg.evaluate(f"!!document.elementFromPoint({work_tab['x'] + work_tab['width'] / 2}, {work_tab['y'] + work_tab['height'] / 2}).closest('#dock')")
+    check("ordenador: recogida, lo invisible no se traga los clics de la página", not hit)
+    pg.mouse.move(pill["x"] + pill["width"] / 2, pill["y"] + pill["height"] / 2); pg.wait_for_timeout(600)
+    check("ordenador: al pasar el ratón se despliega", not cls(pg, "og-tabbar-collapsed"))
+    pg.locator('#dock .og-tab[href="/work"]').hover(); pg.wait_for_timeout(600)
     op = pg.evaluate("getComputedStyle(document.querySelector('#dock .og-tab[href=\"/work\"] .og-tab-tip')).opacity")
-    check("barra: al pasar el ratón aparece el nombre del icono", float(op) > 0.9, op)
+    check("ordenador: moviéndose entre iconos sigue abierta y enseña el nombre", not cls(pg, "og-tabbar-collapsed") and float(op) > 0.9, op)
+    pg.mouse.move(700, 300); pg.wait_for_timeout(900)
+    check("ordenador: al apartar el ratón se recoge sola", cls(pg, "og-tabbar-collapsed"))
+    pg.goto(f"{BASE}/work", wait_until="load"); pg.mouse.move(10, 10); pg.wait_for_timeout(300)
+    check("ordenador: en la misma visita ya no se repite el vistazo", cls(pg, "og-tabbar-collapsed"))
+    pg.locator('#dock .og-tab[href="/"]').focus(); pg.wait_for_timeout(300)
+    check("ordenador: con el teclado se despliega", not cls(pg, "og-tabbar-collapsed"))
+    pg.evaluate("document.activeElement.blur()"); pg.wait_for_timeout(700)
+    check("ordenador: al salir con el teclado se recoge", cls(pg, "og-tabbar-collapsed"))
     check("barra: Contacto destacado con el color de marca", pg.locator("#dock .og-tab-contact").count() == 1)
-    pg.keyboard.press("Tab")
     ctx.close()
+
+    # Móvil: se esconde al bajar y vuelve al subir
+    ctx = context(br, saved_lang="es", viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    pg = ctx.new_page(); pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(f"{BASE}/work", wait_until="load"); pg.wait_for_timeout(400)
+    check("móvil: nunca se recoge en pastilla", not cls(pg, "og-tabbar-collapsed"))
+    for y in range(0, 900, 60):
+        pg.evaluate(f"scrollTo({{top:{y}, behavior:'instant'}})"); pg.wait_for_timeout(40)
+    pg.wait_for_timeout(300)
+    check("móvil: al bajar se esconde", cls(pg, "og-tabbar-tucked"))
+    for y in range(900, 820, -10):
+        pg.evaluate(f"scrollTo({{top:{y}, behavior:'instant'}})"); pg.wait_for_timeout(40)
+    pg.wait_for_timeout(300)
+    check("móvil: al subir un poco vuelve", not cls(pg, "og-tabbar-tucked"))
+    for y in range(820, 1500, 60):
+        pg.evaluate(f"scrollTo({{top:{y}, behavior:'instant'}})"); pg.wait_for_timeout(40)
+    pg.evaluate("scrollTo({top:0, behavior:'instant'})"); pg.wait_for_timeout(300)
+    check("móvil: arriba del todo siempre está", not cls(pg, "og-tabbar-tucked"))
+    ctx.close()
+
     # Idioma arriba a la derecha
     ctx = context(br, locale="en-US", viewport={"width": 390, "height": 844})
     pg = ctx.new_page(); pg.goto(f"{BASE}/work", wait_until="load"); pg.wait_for_timeout(300)

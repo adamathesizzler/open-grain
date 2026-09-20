@@ -32,11 +32,25 @@ molestar. En todas las páginas, **también en la portada**. Mandó una captura 
   antiguo, para que nadie se quede atascado en un tema.
 - CSS del notch retirado de `og-ux-fixes.css`; `pruebas/test_notch.py` retirado.
 
+### Ajuste posterior: pastilla en ordenador, se esconde al bajar en móvil
+
+Al verla en la preview, Adama propuso esconderla abajo y que se desplegara al pasar el
+cursor. Se le recomendó no esconderla del todo (nadie sabría que está) y eligió:
+
+- **Ordenador** (`hover:hover` y puntero fino): recogida en una pastilla de 64×26 con una
+  rayita, como la del iPhone. Se despliega al acercar el ratón (zona algo mayor que la
+  pastilla) o al llegar con el teclado; se recoge sola 380 ms después de apartarse. La
+  primera página de cada visita la enseña desplegada 1,8 s (`sessionStorage og_bar_seen`).
+  Recogida, lo invisible deja pasar los clics a la página. El fondo es una capa aparte
+  (`.og-tabbar-bg`) que cambia de tamaño, para no deformar iconos ni perder la sombra.
+- **Táctil**: completa; se esconde al bajar (tras 14px seguidos) y vuelve al subir (8px).
+  Siempre visible arriba del todo y al final de la página. Sigue apartándose del teclado.
+
 ### Pruebas
 
 | Prueba | Resultado |
 |---|---|
-| `pruebas/test_auditoria.py` (ya incluye la barra: 5 páginas × 2 idiomas × 2 tamaños, fija al deslizar, encima del pie, final de página libre, teclado del móvil, etiqueta, idioma, tema por la hora, cookies) | **197/197** |
+| `pruebas/test_auditoria.py` (barra en 5 páginas × 2 idiomas × ordenador/móvil, pastilla que se despliega y se recoge, vistazo inicial, clics a través, teclado, esconderse al bajar y volver al subir, encima del pie, final de página, teclado del móvil, idioma, tema por la hora, cookies) | **190/190** |
 | Portada: igual que antes ocultando sólo la navegación (barra, idioma y el antiguo notch), escritorio y móvil, con y sin movimiento | **4/4 idénticas** |
 | Contraste real, 6 páginas × 2 temas (por hora) × 2 tamaños | **0 fallos** |
 | `test_formulario.py` (puesto al día: idioma con el botón nuevo, columnas de consentimiento) | **38/38** |

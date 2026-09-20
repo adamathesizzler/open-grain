@@ -11,7 +11,7 @@ Desde la raíz del repositorio:
 
 ```bash
 python3 pruebas/servidor_limpio.py . 8777 &   # sirve el sitio con URLs limpias, como Vercel
-python3 pruebas/test_auditoria.py      # 197 — auditoría UX/UI y barra inferior estilo Pinterest
+python3 pruebas/test_auditoria.py      # 190 — auditoría UX/UI y barra inferior estilo Pinterest
 python3 pruebas/test_formulario.py     # 38  — validación, envío, errores, conservación de datos
 python3 pruebas/test_paginas.py        # 60  — (antigua: espera la portada con titular de la 0n, revertida)
 python3 pruebas/test_matriz.py         # 210 — (antigua: espera el notch, sustituido por la barra)

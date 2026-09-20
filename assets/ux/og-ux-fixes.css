@@ -2,8 +2,9 @@
    idioma y estados del formulario. Cargar DESPUÉS de styles.css.
 
    La barra sustituye al notch de los tres puntos. Es una cápsula oscura,
-   abajo y centrada, con las cinco páginas en iconos; se queda fija mientras
-   se desliza. La monta assets/ux/og-tabbar.js sobre #dock. */
+   abajo y centrada, con las cinco páginas en iconos. En ordenador vive
+   recogida en una pastilla y se despliega al acercar el ratón; en móvil se
+   esconde al bajar y vuelve al subir. La monta assets/ux/og-tabbar.js. */
 
 /* ---------- Barra inferior ---------- */
 #dock{
@@ -23,6 +24,45 @@
 }
 /* En la portada flota justo encima de la franja del pie, sin taparla. */
 body.is-home #dock{ bottom:calc(var(--og-home-footer,44px) + 6px); }
+
+/* Con JavaScript, la cápsula la pinta una capa de fondo aparte que puede
+   encogerse hasta la pastilla (ordenador) sin deformar iconos ni sombra. */
+#dock.og-tabbar{
+  background:transparent; border-color:transparent; box-shadow:none;
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+}
+.og-tabbar-bg{
+  position:absolute; left:50%; top:50%; z-index:-1;
+  width:100%; height:100%; transform:translate(-50%,-50%);
+  border-radius:999px;
+  background:rgba(26,26,24,.9);
+  border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 12px 32px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.06);
+  transition:width .34s cubic-bezier(.32,.72,0,1), height .34s cubic-bezier(.32,.72,0,1);
+}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .og-tabbar-bg{ background:rgba(26,26,24,.8); backdrop-filter:blur(18px) saturate(1.4); -webkit-backdrop-filter:blur(18px) saturate(1.4); }
+}
+.og-tabbar{ isolation:isolate; }
+.og-tabbar-list{ transition:opacity .2s ease .07s, transform .3s cubic-bezier(.32,.72,0,1); }
+/* La rayita de la pastilla recogida. */
+.og-tabbar-handle{
+  position:absolute; left:50%; top:50%; width:30px; height:4px; margin:-2px 0 0 -15px;
+  border-radius:2px; background:rgba(243,239,232,.72);
+  opacity:0; pointer-events:none; transition:opacity .14s ease;
+}
+
+/* Ordenador, recogida: sólo la pastilla. Lo invisible deja pasar los clics. */
+#dock.og-tabbar-collapsed{ pointer-events:none; }
+#dock.og-tabbar-collapsed .og-tabbar-bg{ width:64px; height:26px; pointer-events:auto; cursor:pointer; }
+#dock.og-tabbar-collapsed .og-tabbar-handle{ opacity:1; transition-delay:.12s; }
+#dock.og-tabbar-collapsed .og-tabbar-list{
+  opacity:0; transform:scale(.94) translateY(4px); pointer-events:none;
+  transition:opacity .12s ease, transform .2s ease;
+}
+
+/* Móvil: escondida mientras se baja; vuelve al subir. */
+#dock.og-tabbar-tucked{ transform:translate(-50%,calc(100% + 40px)); opacity:0; pointer-events:none; }
 
 /* Respaldo sin JavaScript: los cinco enlaces de texto, dentro de la cápsula. */
 #dock:not(.og-tabbar) a{
@@ -76,8 +116,10 @@ body.is-home #dock{ bottom:calc(var(--og-home-footer,44px) + 6px); }
 #dock.og-tabbar-away{ transform:translate(-50%,calc(100% + 40px)); opacity:0; pointer-events:none; }
 
 @media(prefers-reduced-motion:reduce){
-  #dock, .og-tab-icon, .og-tab-tip{ transition:opacity .12s linear; }
-  #dock.og-tabbar-away{ transform:translateX(-50%); }
+  #dock, .og-tab-icon, .og-tab-tip, .og-tabbar-list, .og-tabbar-handle{ transition:opacity .12s linear; }
+  .og-tabbar-bg{ transition:none; }
+  #dock.og-tabbar-away, #dock.og-tabbar-tucked{ transform:translateX(-50%); }
+  #dock.og-tabbar-collapsed .og-tabbar-list{ transform:none; }
   .og-tab:active .og-tab-icon{ transform:none; }
 }
 

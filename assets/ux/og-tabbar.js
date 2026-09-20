@@ -1,10 +1,15 @@
 /* OPEN GRAIN — barra de navegación inferior, estilo Pinterest.
    JavaScript nativo, sin dependencias. Sustituye al notch (og-notch.js).
 
-   Una cápsula oscura, abajo y centrada, con las cinco páginas en iconos. Está
-   siempre ahí mientras se desliza: no se mueve, no se abre, no tapa nada que
-   importe. Sólo se aparta en pantallas táctiles mientras se escribe en un
-   campo, porque ahí el teclado ya ocupa media pantalla.
+   Una cápsula oscura, abajo y centrada, con las cinco páginas en iconos.
+
+   - Con ratón (ordenador): recogida en una pastilla pequeña, como la rayita
+     de abajo del iPhone. Al acercar el ratón o llegar con el teclado se
+     despliega entera, y se recoge sola al apartarse. La primera vez de cada
+     visita se enseña desplegada un momento, para que se sepa que está ahí.
+   - Táctil (móvil, tablet): completa. Se esconde mientras se baja y vuelve en
+     cuanto se sube un poco; siempre visible arriba del todo y al final de la
+     página. También se aparta del teclado mientras se escribe en un campo.
 
    API (la misma forma que tenía el notch, para que main.js cambie poco):
      OGTabbar.mount(elemento, { lang, items: [{ key, href, label }] })
@@ -48,9 +53,21 @@
 
       root.replaceChildren();
       root.classList.add('og-tabbar');
+      // El fondo es una capa aparte: así puede encogerse hasta la pastilla y
+      // volver a crecer sin deformar los iconos ni perder la sombra.
+      this.bg = document.createElement('span');
+      this.bg.className = 'og-tabbar-bg';
+      this.bg.setAttribute('aria-hidden', 'true');
+      this.handle = document.createElement('span');
+      this.handle.className = 'og-tabbar-handle';
+      this.handle.setAttribute('aria-hidden', 'true');
       this.list = document.createElement('ul');
       this.list.className = 'og-tabbar-list';
-      root.append(this.list);
+      root.append(this.bg, this.handle, this.list);
+
+      this.fine = matchMedia('(hover: hover) and (pointer: fine)');
+      this.setupPointer(signal);
+      this.setupScroll(signal);
 
       // Mientras se escribe en un móvil, la barra se aparta del teclado.
       document.addEventListener('focusin', (e) => {
@@ -80,6 +97,90 @@
 
       this.update(options);
       measure();
+    }
+
+    // ---------- Ordenador: pastilla que se despliega ----------
+    setupPointer(signal) {
+      const root = this.root;
+      let timer = 0;
+      let raf = 0;
+      let px = -1, py = -1;
+      const collapse = (value) => root.classList.toggle('og-tabbar-collapsed', value);
+      const isOpen = () => !root.classList.contains('og-tabbar-collapsed');
+      const near = () => {
+        // Recogida: la zona es la pastilla y un margen generoso alrededor.
+        // Desplegada: la barra entera y un margen, para que no se cierre al
+        // moverse entre iconos.
+        const r = (isOpen() ? root : this.bg).getBoundingClientRect();
+        const mx = isOpen() ? 16 : 26, my = isOpen() ? 16 : 18;
+        return px >= r.left - mx && px <= r.right + mx && py >= r.top - my && py <= r.bottom + my;
+      };
+      const check = () => {
+        raf = 0;
+        if (!this.fine.matches) return;
+        if (near() || root.contains(document.activeElement)) {
+          clearTimeout(timer); timer = 0;
+          collapse(false);
+        } else if (isOpen() && !timer && !this.peeking) {
+          timer = setTimeout(() => {
+            timer = 0;
+            if (!near() && !root.contains(document.activeElement)) collapse(true);
+          }, 380);
+        }
+      };
+      const apply = () => {
+        clearTimeout(timer); timer = 0;
+        if (!this.fine.matches) { collapse(false); return; }
+        // Primer vistazo de la visita: desplegada un momento y luego se recoge.
+        let seen = false;
+        try { seen = sessionStorage.getItem('og_bar_seen') === '1'; sessionStorage.setItem('og_bar_seen', '1'); } catch (e) { seen = true; }
+        if (seen) { collapse(true); return; }
+        collapse(false);
+        this.peeking = true;
+        setTimeout(() => { this.peeking = false; check(); }, 1800);
+      };
+      document.addEventListener('mousemove', (e) => {
+        px = e.clientX; py = e.clientY;
+        if (!raf) raf = requestAnimationFrame(check);
+      }, { passive: true, signal });
+      document.documentElement.addEventListener('mouseleave', () => { px = py = -1; check(); }, { signal });
+      // Con el teclado se despliega al entrar y se recoge al salir.
+      root.addEventListener('focusin', () => { clearTimeout(timer); timer = 0; collapse(false); }, { signal });
+      root.addEventListener('focusout', () => setTimeout(check, 0), { signal });
+      // Un clic en la pastilla también la abre (pantallas híbridas).
+      this.bg.addEventListener('click', () => collapse(false), { signal });
+      this.fine.addEventListener('change', apply, { signal });
+      apply();
+    }
+
+    // ---------- Táctil: se esconde al bajar, vuelve al subir ----------
+    setupScroll(signal) {
+      const root = this.root;
+      let lastY = window.scrollY;
+      let run = 0;
+      let raf = 0;
+      const tuck = (value) => root.classList.toggle('og-tabbar-tucked', value);
+      const onScroll = () => {
+        raf = 0;
+        if (this.fine.matches) { tuck(false); lastY = window.scrollY; return; }
+        const y = Math.max(0, window.scrollY);
+        const dy = y - lastY;
+        lastY = y;
+        const doc = document.documentElement;
+        const atTop = y < 80;
+        const atEnd = window.innerHeight + y >= doc.scrollHeight - 40;
+        if (atTop || atEnd) { run = 0; tuck(false); return; }
+        if (dy > 0) {
+          run = Math.max(0, run) + dy;
+          if (run > 14) tuck(true);
+        } else if (dy < 0) {
+          run = Math.min(0, run) + dy;
+          if (run < -8) tuck(false);
+        }
+      };
+      window.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(onScroll); }, { passive: true, signal });
+      // Si alguien llega a la barra con el teclado, que esté a la vista.
+      root.addEventListener('focusin', () => tuck(false), { signal });
     }
 
     update(options) {
