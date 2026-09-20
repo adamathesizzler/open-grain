@@ -1,6 +1,6 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-20 (0q. Barra de navegación inferior estilo Pinterest; antes, 0p. arreglos de la auditoría).
+Última actualización: 2026-09-20 (0q. Barra inferior estilo Pinterest y auditoría 0p, publicadas en producción).
 
 ## 0q. Barra de navegación inferior estilo Pinterest (20.09.2026, esta sesión)
 
@@ -55,10 +55,17 @@ cursor. Se le recomendó no esconderla del todo (nadie sabría que está) y elig
 | Contraste real, 6 páginas × 2 temas (por hora) × 2 tamaños | **0 fallos** |
 | `test_formulario.py` (puesto al día: idioma con el botón nuevo, columnas de consentimiento) | **38/38** |
 
+### Publicado
+
+Adama revisó la preview y pidió pasarlo a producción. Fusionado en `main` con el PR #1
+(`ae78580`, 20.09.2026) y comprobado en open-grain.vercel.app: barra con sus cinco
+iconos, sin notch, idioma arriba a la derecha, 24 piezas como botón en la portada, las
+cinco páginas responden 200 y la 404 de la marca responde 404.
+
 ### Siguiente acción recomendada
 
-Adama hace `git push` de la rama `fix/auditoria-ux` (lleva la auditoría y la barra), revisa
-la preview de Vercel en su iPhone y, si le gusta, se fusiona en `main`.
+Pendientes que dependen de Adama: ID real de Google Analytics, y dominio + correo
+corporativo cuando compre opengrain.studio.
 
 ## 0p. Arreglos de la auditoría UX/UI (20.09.2026)
 
