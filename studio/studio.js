@@ -1025,6 +1025,85 @@ document.getElementById('social-form').addEventListener('submit', async (e) => {
   loadSocial();
 });
 
+// ---------- Content ideas (drafts only — never saved automatically) ----------
+function setIdeaStatus(text) {
+  const el = document.getElementById('idea-status');
+  if (!text) { el.hidden = true; el.textContent = ''; return; }
+  el.hidden = false;
+  el.textContent = text;
+}
+
+document.getElementById('idea-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const prompt = document.getElementById('idea-prompt').value.trim();
+  if (!prompt) return;
+  const platform = document.getElementById('idea-platform').value;
+  const submitBtn = document.getElementById('idea-submit');
+  submitBtn.disabled = true;
+  setIdeaStatus('Pensando…');
+  document.getElementById('idea-list').innerHTML = '';
+
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const { data: contentRows } = await supabaseClient.from('site_content').select('key, lang, value').eq('lang', 'es');
+    const overrides = {};
+    (contentRows || []).forEach(row => { overrides[row.key] = row.value; });
+    const defaultsEs = (window.DEFAULT_COPY && window.DEFAULT_COPY.es) || {};
+    const brand = {
+      serviceList: overrides.serviceList ? JSON.parse(overrides.serviceList) : defaultsEs.serviceList,
+      aboutBody: overrides.aboutBody || defaultsEs.aboutBody,
+      studioTag: overrides.studioTag || defaultsEs.studioTag,
+    };
+
+    const res = await fetch('/api/market-ideas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ prompt, platform, brand }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || `Error ${res.status}`);
+
+    renderIdeas(json.summary || '', Array.isArray(json.ideas) ? json.ideas : []);
+    setIdeaStatus(json.ideas && json.ideas.length ? '' : (json.summary || 'No he encontrado ninguna idea para eso.'));
+  } catch (err) {
+    setIdeaStatus('Error: ' + err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+function renderIdeas(summary, ideas) {
+  const container = document.getElementById('idea-list');
+  if (!ideas.length) { container.innerHTML = ''; return; }
+  container.innerHTML = `
+    ${summary ? `<p class="ai-summary">${escapeHtml(summary)}</p>` : ''}
+    ${ideas.map((idea, i) => `
+      <div class="idea-card" data-index="${i}">
+        <div class="idea-card-head">
+          <span class="idea-card-tag">${escapeHtml(idea.platform || '')} · ${escapeHtml(idea.format || '')}</span>
+        </div>
+        <div class="idea-card-hook">${escapeHtml(idea.hook || '')}</div>
+        <div class="idea-card-caption">${escapeHtml(idea.caption || '')}</div>
+        <div class="idea-card-hashtags">${escapeHtml(idea.hashtags || '')}</div>
+        <button type="button" class="og-btn og-btn-outline idea-card-copy" data-action="copy">Copiar</button>
+      </div>
+    `).join('')}
+  `;
+  container.querySelectorAll('[data-action="copy"]').forEach((btn, i) => {
+    btn.addEventListener('click', async () => {
+      const idea = ideas[i];
+      const text = `${idea.hook || ''}\n\n${idea.caption || ''}\n\n${idea.hashtags || ''}`.trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copiado';
+        setTimeout(() => { btn.textContent = 'Copiar'; }, 1500);
+      } catch (e) {
+        alert('No se pudo copiar automáticamente. Selecciona el texto a mano.');
+      }
+    });
+  });
+}
+
 // ============================================================
 // Mensajes y solicitudes (enquiries)
 // ============================================================

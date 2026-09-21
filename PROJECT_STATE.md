@@ -1,6 +1,85 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-20 (0q. Barra inferior estilo Pinterest y auditoría 0p, publicadas en producción).
+Última actualización: 2026-09-21 (0r. Ideas de contenido con IA en Instagram & TikTok, desarrollado, sin publicar).
+
+## 0r. Ideas de contenido con IA para Instagram/TikTok (esta sesión)
+
+### Qué se pidió
+
+Adama pidió revisar el repo público `zubair-trabzada/ai-marketing-claude` (una suite de
+skills/agentes de marketing para Claude Code: auditorías de web, copy, emails, calendario de
+contenido, etc.) y, después de verlo, adaptar algo útil para OPEN GRAIN.
+
+### Decisiones tomadas
+
+1. **Se instaló la suite en este entorno para probarla** (`~/.claude/skills` y
+   `~/.claude/agents`, vía su propio `install.sh` — revisado antes de ejecutarlo: sin sudo,
+   sin tocar nada fuera de `$HOME`, sin API keys). Esto es local a esta sesión/contenedor, no
+   queda en el repositorio ni en el Mac.
+2. **No se tocó `social_posts`**: esa tabla guarda publicaciones YA reales y publicadas
+   (`external_url`), y la 0n/0ñ ya retiraron una vez contenido social simulado por no ser
+   honesto. Meter ahí borradores de IA habría vuelto a mezclar datos reales con inventados.
+3. **En vez de eso, nueva herramienta separada, de solo lectura**: genera ideas de posts
+   (gancho, pie de foto, hashtags) a partir de los servicios y la voz de marca reales de
+   `site_content`/`DEFAULT_COPY`. El admin las lee, copia lo que le sirve y publica él mismo
+   a mano; nada se guarda en Supabase ni se publica solo — mismo espíritu de "proponer, nunca
+   aplicar solo" que ya usa `api/ai-assist.js`.
+4. El prompt del sistema prohibe explícitamente inventar precios, fechas, clientes,
+   testimonios o cifras de resultado; cualquier dato que falte se marca entre corchetes
+   (`[nombre del cliente]`) en vez de rellenarse con algo inventado.
+
+### Qué se ha hecho
+
+- **`api/market-ideas.js`** (nuevo) — función serverless igual de estrecha que
+  `api/ai-assist.js`: exige el token de sesión de Supabase, comprueba que el email es
+  `adamabalde1998@gmail.com`, exige `ANTHROPIC_API_KEY` en Vercel. Recibe
+  `{ prompt, platform, brand }`, llama a Claude con un prompt de sistema inspirado en las
+  skills `market-copy`/`market-social` del repo revisado, y devuelve
+  `{ summary, ideas: [{ platform, format, hook, caption, hashtags }] }`. No escribe nada en
+  la base de datos.
+- **`studio/index.html`** — nueva sub-sección "Ideas de contenido (IA)" dentro del panel
+  Instagram & TikTok: selector de plataforma, textarea de tema, botón "Generar ideas",
+  y lista de resultados.
+- **`studio/studio.js`** — `idea-form` reúne el tema + la plataforma + los servicios/voz de
+  marca reales (de `site_content`, con `DEFAULT_COPY.es` como respaldo si no hay override),
+  llama a `/api/market-ideas`, y `renderIdeas()` pinta cada idea en una tarjeta con un botón
+  "Copiar" (portapapeles). Sin guardado, sin "aplicar cambios".
+- **`studio/studio.css`** — estilos nuevos `.idea-form`/`.idea-list`/`.idea-card` a partir
+  de los tokens ya existentes del panel (mismos radios, colores y espaciados que el resto
+  de Studio; no se ha tocado ningún estilo existente).
+
+### Pruebas realizadas
+
+| Prueba | Resultado |
+|---|---|
+| `node --check` sobre `studio/studio.js` y `api/market-ideas.js` | Sin errores de sintaxis |
+| Chromium sin cabeza sobre `studio/index.html` servido en local: existencia de `#idea-form`, `#idea-platform`, `#idea-prompt`, `#idea-submit`, `#idea-status`, `#idea-list` en el DOM | **6/6 encontrados** |
+
+### No probado (limitación de este entorno, no del código)
+
+- **La llamada real a `/api/market-ideas`**: este entorno aislado no tiene `ANTHROPIC_API_KEY`
+  ni acceso de red a `api.anthropic.com`/CDN de Supabase (tunel/certificado bloqueados por el
+  proxy de la sandbox), así que no se ha podido generar ni una idea de verdad ni comprobar el
+  flujo de principio a fin.
+- **Sesión real de admin en Studio**: no hay credenciales de Supabase en este entorno para
+  iniciar sesión y ver el panel ya autenticado (mismo bloqueo que en sesiones anteriores).
+- Nada de esto se ha desplegado: falta el push del usuario (ver reglas del repo) y, una vez en
+  producción, comprobar en el Mac con la sesión real y la `ANTHROPIC_API_KEY` ya configurada
+  en Vercel (la misma que usa `ai-assist.js`, no hace falta una nueva).
+
+### Pendiente
+
+- Probar en el Mac/producción con sesión real: pedir unas ideas, copiar una, confirmar que el
+  texto en el portapapeles es el esperado.
+- Decidir si Adama quiere además el resto de la suite (`market-audit`, `market-seo`,
+  `market-competitors`…) para auditar `opengrain.vercel.app` cuando tenga la URL en vivo a
+  mano — quedó pendiente de que la compartiera.
+
+### Siguiente acción recomendada
+
+Adama: hacer `git pull` de esta rama en el Mac, revisar el diff y, si le convence, probar el
+botón "Generar ideas" en Studio con su sesión real (la `ANTHROPIC_API_KEY` ya está puesta en
+Vercel porque la usa el asistente de contenido existente).
 
 ## 0q. Barra de navegación inferior estilo Pinterest (20.09.2026, esta sesión)
 
