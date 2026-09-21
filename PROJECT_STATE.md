@@ -1,6 +1,215 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-20 (0q. Barra inferior estilo Pinterest y auditoría 0p, publicadas en producción).
+Última actualización: 2026-09-21 (0t. Victorias rápidas de la auditoría 0s implementadas, sin publicar).
+
+## 0t. Implementación de las victorias rápidas de la auditoría de marketing (esta sesión)
+
+### Qué se pidió
+
+Adama pidió implementar "todo lo que haya que hacer" a partir de la auditoría 0s. Se
+implementaron las victorias rápidas y estratégicas que no requerían inventar ningún dato
+(precio, cliente, cifra, fecha de respuesta); se dejaron explícitamente sin tocar las que sí
+lo habrían requerido.
+
+### Qué se ha hecho (código, en la misma rama del PR #2)
+
+- **SEO/compartir en redes** — en las 5 páginas públicas (`index`, `work`, `services`,
+  `about`, `contact`): `<link rel="canonical">`, etiquetas Open Graph y Twitter Card
+  completas (usando la foto real `assets/portfolio/editorial-interior.jpg` como imagen de
+  vista previa — no se ha creado ninguna imagen nueva). Datos estructurados JSON-LD
+  `LocalBusiness` en la portada, con solo datos reales ya publicados en el sitio (teléfono,
+  email, Mallorca, Instagram/TikTok) — sin dirección postal inventada.
+- **`<html lang="es">` por defecto** en las 5 páginas (antes `en` fijo aunque el contenido
+  visible es mayoritariamente español). El cambio de idioma por JavaScript sigue funcionando
+  igual para visitantes de navegador en inglés — comprobado con Chromium en local con locale
+  `en-US`: cambia a inglés correctamente.
+- **Texto de reserva estático real** en los `<h1>`/entradillas de Trabajos, Servicios,
+  Estudio y Contacto (antes vacíos en el HTML, solo se rellenaban por JavaScript). Es el
+  mismo texto que ya usa `assets/default-copy.js`; JavaScript lo sigue sobrescribiendo al
+  cargar, así que no cambia nada para un visitante real. **La portada no se ha tocado** —
+  su único `h1` ya tenía texto real (solo para lectores de pantalla) desde antes.
+- **Enlace "Ver servicios" al final de `/work`** — única página que no tenía ningún camino
+  hacia adelante.
+- **Bloque "Cómo trabajamos" en Servicios** (3 pasos genéricos: contacto → propuesta →
+  rodaje y entrega), sustituye la ausencia de precios sin publicar ninguna cifra.
+- **Botón de Contacto**: "Enviar solicitud" → "Cuéntanos tu proyecto" (y su equivalente en
+  inglés), para sonar menos a trámite.
+- **Descripción del servicio UGC** reescrita con el resultado para el cliente, no solo la
+  descripción (ES y EN).
+- **`styles.css.backup` eliminado del repositorio** (47KB sin usar). **`.vercelignore`
+  nuevo** que excluye `pruebas/` del despliegue en Vercel (se queda en el repo para seguir
+  corriendo las pruebas en local, pero deja de servirse en producción).
+
+### Pruebas realizadas
+
+| Prueba | Resultado |
+|---|---|
+| `node --check main.js` | Sin errores |
+| Las 5 páginas cargan (200) en servidor local | 5/5 |
+| `lang`, `<title>`, `<h1>` real, `canonical`, `og:title` y JSON-LD válido, por página (Chromium, locale `en-US`) | Confirmado: JavaScript corrige a inglés correctamente en las 5 páginas — el sistema de idioma sigue intacto |
+| HTML crudo (curl, sin JavaScript): `lang="es"` y texto real en los 5 `<h1>` | 5/5 |
+| Captura visual Servicios y Proyectos, escritorio y móvil, modo claro | Bloque "Cómo trabajamos" y enlace "Ver servicios" bien integrados, sin romper nada existente |
+| Captura visual Servicios en modo oscuro forzado, viewport real con scroll (no `full_page`, que da un artefacto falso con el fondo `position:fixed`) | Contraste correcto en el bloque nuevo |
+
+### Explícitamente NO implementado (necesita datos reales de Adama, no inventados)
+
+- **ID real de Google Analytics** — sigue el placeholder `G-XXXXXXXXXX` en `assets/config.js`;
+  hace falta que Adama cree la propiedad GA4 y dé el ID.
+- **Tiempo de respuesta del formulario** — no se ha añadido ninguna promesa de plazo
+  ("te respondemos en X horas") por no tener un dato real que dar.
+- **Nombrar verticales de cliente** (hoteles, marcas de moda, etc.) — necesita que Adama
+  confirme cuáles son de verdad sus clientes tipo.
+- **Testimonios, proyectos destacados, gesto de recomendación en la tarjeta de reserva** —
+  necesitan contenido real (citas de clientes, selección de proyectos) que no existe en el
+  repositorio.
+
+### Pendiente
+
+Nada de esto está publicado. Sigue en la rama `claude/review-ai-marketing-repo-mdaxfg` /
+PR #2, a la espera de que Adama lo revise en la preview y decida publicarlo.
+
+### Siguiente acción recomendada
+
+Adama revisa el PR #2 (incluye ahora tanto la sección de ideas de contenido de la 0r como
+estos cambios de la auditoría) y decide si lo fusiona a producción.
+
+
+## 0s. Auditoría de marketing con los agentes instalados (esta sesión)
+
+### Qué se pidió
+
+Adama pidió usar los 5 agentes instalados en la 0r (`market-content`, `market-conversion`,
+`market-competitive`, `market-technical`, `market-strategy`) para auditar
+`open-grain.vercel.app`, y además revisar a mano si hay páginas repetidas o páginas que
+faltan por añadir. **Pura lectura, ningún cambio de código.**
+
+### Cómo se hizo
+
+Sin acceso de red al sitio en vivo desde este entorno (proxy de la sandbox lo bloquea), así
+que en vez de `WebFetch` se leyó el código fuente real del sitio (zero-build: el HTML/JS del
+repo ES lo que está desplegado) y se pasó como "dossier" real a 5 subagentes en paralelo, cada
+uno actuando con las instrucciones exactas del agente instalado correspondiente. El agente
+`market-competitive` sí tuvo acceso a `WebSearch` y encontró 6 competidores reales de Mallorca
+(VR Creative Studio, Moony Productions, Palma Content Studio, Mandala Creative Studio, Elite
+Media Mallorca, Inquieto Studio) — ninguno inventado.
+
+### Resultado
+
+Puntuación global 43/100 (grado D del baremo genérico de la suite, pensado para SaaS/e-commerce
+— con el matiz importante de que varias notas bajas son decisiones ya tomadas por Adama, como
+la portada sin CTA o la ausencia de precios, no descuidos). Informe completo entregado como
+archivo al usuario: `MARKETING-AUDIT-open-grain.md` (no vive en el repo, es un entregable
+puntual, no código del sitio).
+
+**Hallazgos con más impacto (ninguno inventado):**
+- Cero datos estructurados JSON-LD y cero etiquetas Open Graph/Twitter Card en las 5 páginas
+  — los enlaces compartidos en WhatsApp/Instagram no muestran vista previa.
+- Google Analytics instalado pero con el ID de ejemplo (`G-XXXXXXXXXX`) — cero datos
+  recogidos todavía (ya sabido, ver 0p).
+- `styles.css.backup` (47KB) y la carpeta `pruebas/` quedan públicamente accesibles al no
+  haber `.vercelignore`.
+- `<html lang="en">` fijo en el HTML aunque el contenido visible es mayoritariamente español
+  (JS lo corrige después de cargar).
+- Todo el copy real (titulares, servicios, alt de fotos) se inyecta por JavaScript sin texto
+  de reserva estático en el HTML.
+- **Ninguna página duplicada.** Home y `/work` comparten las mismas 24 fotos por diseño
+  (escaparate vs. galería completa), no es un problema de SEO.
+- **Páginas que faltan** (consenso de los 5 análisis): un bloque "Cómo trabajamos", FAQ,
+  páginas de proyecto individuales, sección de opiniones reales (vacía hasta que existan de
+  verdad), imagen `og:image` para las vistas previas sociales.
+- 6 competidores reales de Mallorca identificados por búsqueda; ninguno publica precios
+  tampoco, así que la falta de precios de OPEN GRAIN no es una desventaja frente a ellos.
+  Palma Content Studio sí muestra testimonios reales; VR Creative Studio tiene una revista
+  editorial propia (#SISOY) — ahí es donde OPEN GRAIN queda más atrás en autoridad.
+
+### Pendiente
+
+Nada de esta auditoría se ha implementado todavía — es solo el informe. Adama tiene que decidir
+qué victorias rápidas quiere que se hagan en código (Open Graph, JSON-LD, canonical, borrar
+`styles.css.backup`/`pruebas/`, enlace de salida en `/work`, microcopy de tiempo de respuesta).
+
+### Siguiente acción recomendada
+
+Esperar a que Adama elija qué recomendaciones de la auditoría convertir en una rama de código.
+
+## 0r. Ideas de contenido con IA para Instagram/TikTok (esta sesión)
+
+### Qué se pidió
+
+Adama pidió revisar el repo público `zubair-trabzada/ai-marketing-claude` (una suite de
+skills/agentes de marketing para Claude Code: auditorías de web, copy, emails, calendario de
+contenido, etc.) y, después de verlo, adaptar algo útil para OPEN GRAIN.
+
+### Decisiones tomadas
+
+1. **Se instaló la suite en este entorno para probarla** (`~/.claude/skills` y
+   `~/.claude/agents`, vía su propio `install.sh` — revisado antes de ejecutarlo: sin sudo,
+   sin tocar nada fuera de `$HOME`, sin API keys). Esto es local a esta sesión/contenedor, no
+   queda en el repositorio ni en el Mac.
+2. **No se tocó `social_posts`**: esa tabla guarda publicaciones YA reales y publicadas
+   (`external_url`), y la 0n/0ñ ya retiraron una vez contenido social simulado por no ser
+   honesto. Meter ahí borradores de IA habría vuelto a mezclar datos reales con inventados.
+3. **En vez de eso, nueva herramienta separada, de solo lectura**: genera ideas de posts
+   (gancho, pie de foto, hashtags) a partir de los servicios y la voz de marca reales de
+   `site_content`/`DEFAULT_COPY`. El admin las lee, copia lo que le sirve y publica él mismo
+   a mano; nada se guarda en Supabase ni se publica solo — mismo espíritu de "proponer, nunca
+   aplicar solo" que ya usa `api/ai-assist.js`.
+4. El prompt del sistema prohibe explícitamente inventar precios, fechas, clientes,
+   testimonios o cifras de resultado; cualquier dato que falte se marca entre corchetes
+   (`[nombre del cliente]`) en vez de rellenarse con algo inventado.
+
+### Qué se ha hecho
+
+- **`api/market-ideas.js`** (nuevo) — función serverless igual de estrecha que
+  `api/ai-assist.js`: exige el token de sesión de Supabase, comprueba que el email es
+  `adamabalde1998@gmail.com`, exige `ANTHROPIC_API_KEY` en Vercel. Recibe
+  `{ prompt, platform, brand }`, llama a Claude con un prompt de sistema inspirado en las
+  skills `market-copy`/`market-social` del repo revisado, y devuelve
+  `{ summary, ideas: [{ platform, format, hook, caption, hashtags }] }`. No escribe nada en
+  la base de datos.
+- **`studio/index.html`** — nueva sub-sección "Ideas de contenido (IA)" dentro del panel
+  Instagram & TikTok: selector de plataforma, textarea de tema, botón "Generar ideas",
+  y lista de resultados.
+- **`studio/studio.js`** — `idea-form` reúne el tema + la plataforma + los servicios/voz de
+  marca reales (de `site_content`, con `DEFAULT_COPY.es` como respaldo si no hay override),
+  llama a `/api/market-ideas`, y `renderIdeas()` pinta cada idea en una tarjeta con un botón
+  "Copiar" (portapapeles). Sin guardado, sin "aplicar cambios".
+- **`studio/studio.css`** — estilos nuevos `.idea-form`/`.idea-list`/`.idea-card` a partir
+  de los tokens ya existentes del panel (mismos radios, colores y espaciados que el resto
+  de Studio; no se ha tocado ningún estilo existente).
+
+### Pruebas realizadas
+
+| Prueba | Resultado |
+|---|---|
+| `node --check` sobre `studio/studio.js` y `api/market-ideas.js` | Sin errores de sintaxis |
+| Chromium sin cabeza sobre `studio/index.html` servido en local: existencia de `#idea-form`, `#idea-platform`, `#idea-prompt`, `#idea-submit`, `#idea-status`, `#idea-list` en el DOM | **6/6 encontrados** |
+
+### No probado (limitación de este entorno, no del código)
+
+- **La llamada real a `/api/market-ideas`**: este entorno aislado no tiene `ANTHROPIC_API_KEY`
+  ni acceso de red a `api.anthropic.com`/CDN de Supabase (tunel/certificado bloqueados por el
+  proxy de la sandbox), así que no se ha podido generar ni una idea de verdad ni comprobar el
+  flujo de principio a fin.
+- **Sesión real de admin en Studio**: no hay credenciales de Supabase en este entorno para
+  iniciar sesión y ver el panel ya autenticado (mismo bloqueo que en sesiones anteriores).
+- Nada de esto se ha desplegado: falta el push del usuario (ver reglas del repo) y, una vez en
+  producción, comprobar en el Mac con la sesión real y la `ANTHROPIC_API_KEY` ya configurada
+  en Vercel (la misma que usa `ai-assist.js`, no hace falta una nueva).
+
+### Pendiente
+
+- Probar en el Mac/producción con sesión real: pedir unas ideas, copiar una, confirmar que el
+  texto en el portapapeles es el esperado.
+- Decidir si Adama quiere además el resto de la suite (`market-audit`, `market-seo`,
+  `market-competitors`…) para auditar `opengrain.vercel.app` cuando tenga la URL en vivo a
+  mano — quedó pendiente de que la compartiera.
+
+### Siguiente acción recomendada
+
+Adama: hacer `git pull` de esta rama en el Mac, revisar el diff y, si le convence, probar el
+botón "Generar ideas" en Studio con su sesión real (la `ANTHROPIC_API_KEY` ya está puesta en
+Vercel porque la usa el asistente de contenido existente).
 
 ## 0q. Barra de navegación inferior estilo Pinterest (20.09.2026, esta sesión)
 

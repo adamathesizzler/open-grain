@@ -422,6 +422,22 @@
           <button type="submit" class="og-btn og-btn-dark">Añadir</button>
         </form>
         <div id="social-list" class="project-list"></div>
+
+        <h3 class="panel-mt" style="margin-bottom:10px;font-size:1rem;">Ideas de contenido (IA)</h3>
+        <p class="panel-sub">Te propone borradores de publicaciones a partir de vuestros servicios reales — nunca se publican ni se guardan solos, cópialas y ajústalas.</p>
+        <form id="idea-form" class="idea-form">
+          <div class="idea-form-row">
+            <select id="idea-platform">
+              <option value="both">Instagram y TikTok</option>
+              <option value="instagram">Solo Instagram</option>
+              <option value="tiktok">Solo TikTok</option>
+            </select>
+          </div>
+          <textarea id="idea-prompt" rows="2" placeholder="Ej: ideas para esta semana sobre bodas en primavera"></textarea>
+          <button type="submit" class="og-btn og-btn-dark" id="idea-submit">Generar ideas</button>
+        </form>
+        <p id="idea-status" class="panel-sub" hidden></p>
+        <div id="idea-list" class="idea-list"></div>
       </section>
 
       <!-- ============ MENSAJES ============ -->
