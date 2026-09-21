@@ -1,6 +1,64 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-21 (0r. Ideas de contenido con IA en Instagram & TikTok, desarrollado, sin publicar).
+Última actualización: 2026-09-21 (0s. Auditoría de marketing con los 5 agentes de ai-marketing-claude, solo lectura).
+
+## 0s. Auditoría de marketing con los agentes instalados (esta sesión)
+
+### Qué se pidió
+
+Adama pidió usar los 5 agentes instalados en la 0r (`market-content`, `market-conversion`,
+`market-competitive`, `market-technical`, `market-strategy`) para auditar
+`open-grain.vercel.app`, y además revisar a mano si hay páginas repetidas o páginas que
+faltan por añadir. **Pura lectura, ningún cambio de código.**
+
+### Cómo se hizo
+
+Sin acceso de red al sitio en vivo desde este entorno (proxy de la sandbox lo bloquea), así
+que en vez de `WebFetch` se leyó el código fuente real del sitio (zero-build: el HTML/JS del
+repo ES lo que está desplegado) y se pasó como "dossier" real a 5 subagentes en paralelo, cada
+uno actuando con las instrucciones exactas del agente instalado correspondiente. El agente
+`market-competitive` sí tuvo acceso a `WebSearch` y encontró 6 competidores reales de Mallorca
+(VR Creative Studio, Moony Productions, Palma Content Studio, Mandala Creative Studio, Elite
+Media Mallorca, Inquieto Studio) — ninguno inventado.
+
+### Resultado
+
+Puntuación global 43/100 (grado D del baremo genérico de la suite, pensado para SaaS/e-commerce
+— con el matiz importante de que varias notas bajas son decisiones ya tomadas por Adama, como
+la portada sin CTA o la ausencia de precios, no descuidos). Informe completo entregado como
+archivo al usuario: `MARKETING-AUDIT-open-grain.md` (no vive en el repo, es un entregable
+puntual, no código del sitio).
+
+**Hallazgos con más impacto (ninguno inventado):**
+- Cero datos estructurados JSON-LD y cero etiquetas Open Graph/Twitter Card en las 5 páginas
+  — los enlaces compartidos en WhatsApp/Instagram no muestran vista previa.
+- Google Analytics instalado pero con el ID de ejemplo (`G-XXXXXXXXXX`) — cero datos
+  recogidos todavía (ya sabido, ver 0p).
+- `styles.css.backup` (47KB) y la carpeta `pruebas/` quedan públicamente accesibles al no
+  haber `.vercelignore`.
+- `<html lang="en">` fijo en el HTML aunque el contenido visible es mayoritariamente español
+  (JS lo corrige después de cargar).
+- Todo el copy real (titulares, servicios, alt de fotos) se inyecta por JavaScript sin texto
+  de reserva estático en el HTML.
+- **Ninguna página duplicada.** Home y `/work` comparten las mismas 24 fotos por diseño
+  (escaparate vs. galería completa), no es un problema de SEO.
+- **Páginas que faltan** (consenso de los 5 análisis): un bloque "Cómo trabajamos", FAQ,
+  páginas de proyecto individuales, sección de opiniones reales (vacía hasta que existan de
+  verdad), imagen `og:image` para las vistas previas sociales.
+- 6 competidores reales de Mallorca identificados por búsqueda; ninguno publica precios
+  tampoco, así que la falta de precios de OPEN GRAIN no es una desventaja frente a ellos.
+  Palma Content Studio sí muestra testimonios reales; VR Creative Studio tiene una revista
+  editorial propia (#SISOY) — ahí es donde OPEN GRAIN queda más atrás en autoridad.
+
+### Pendiente
+
+Nada de esta auditoría se ha implementado todavía — es solo el informe. Adama tiene que decidir
+qué victorias rápidas quiere que se hagan en código (Open Graph, JSON-LD, canonical, borrar
+`styles.css.backup`/`pruebas/`, enlace de salida en `/work`, microcopy de tiempo de respuesta).
+
+### Siguiente acción recomendada
+
+Esperar a que Adama elija qué recomendaciones de la auditoría convertir en una rama de código.
 
 ## 0r. Ideas de contenido con IA para Instagram/TikTok (esta sesión)
 
