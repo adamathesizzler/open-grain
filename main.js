@@ -113,6 +113,7 @@ const copy = {
     work: 'Work', services: 'Services', studio: 'Studio', contact: 'Contact',
     ...defaults.en,
     selected: 'Selected work',
+    workMore: 'View services',
     viewService: 'View service',
     // Tarjeta del servicio en Contacto. Descripciones generales y honestas:
     // qué se produce y para quién, sin cantidades, entregas ni plazos, porque
@@ -124,11 +125,17 @@ const copy = {
     serviceBlurbs: [
       'Stills for brands, venues, products and people. Shot on location or in a studio, selected and retouched.',
       'Moving image: short films, vertical reels and cutdowns for social. From shoot through to edit, colour and sound.',
-      'Creator-style content made to look native in the feed, for brands that need a steady stream of everyday material.',
+      'Creator-style content that looks native in the feed — made to stop the scroll, for brands that need a steady stream of everyday material.',
       'Coverage of events, launches and parties — the room, the people and the moments, as they happen.',
       'Ongoing content for social channels: a recurring shoot and edit rhythm instead of one-off assets.',
     ],
-    start: 'Send request', sent: 'Request sent. We’ll be in touch soon.',
+    processTitle: 'How we work',
+    processSteps: [
+      { t: 'Tell us your project', d: 'Write to us with your idea, a rough date and budget — nothing needs to be fully decided yet.' },
+      { t: 'We send you a proposal', d: 'We reply with availability, how we’d approach it and a tailored quote.' },
+      { t: 'Shoot and delivery', d: 'We produce the material and deliver it selected and edited.' },
+    ],
+    start: 'Tell us your project', sent: 'Request sent. We’ll be in touch soon.',
     social: 'Latest from the studio',
     fName: 'Name', fPhone: 'Phone', fService: 'Service', fServicePh: 'Choose a service',
     fDate: 'Preferred date', fBudget: 'Approx. budget', fMessage: 'Tell us about your idea',
@@ -139,6 +146,7 @@ const copy = {
     work: 'Proyectos', services: 'Servicios', studio: 'Estudio', contact: 'Contacto',
     ...defaults.es,
     selected: 'Trabajos seleccionados',
+    workMore: 'Ver servicios',
     viewService: 'Ver servicio',
     svcChip: 'Servicio seleccionado', svcPricingLabel: 'Presupuesto',
     svcQuote: 'Presupuesto personalizado', svcLinked: 'Tu selección queda enlazada al formulario.',
@@ -147,11 +155,17 @@ const copy = {
     serviceBlurbs: [
       'Fotografía para marcas, espacios, producto y personas. En localización o en estudio, con selección y retoque.',
       'Imagen en movimiento: piezas cortas, reels verticales y versiones para redes. Del rodaje al montaje, color y sonido.',
-      'Contenido con estilo de creador, pensado para no desentonar en el feed, para marcas que necesitan material cotidiano.',
+      'Contenido con estilo de creador que no desentona en el feed — pensado para que tu audiencia se detenga a mirarlo, para marcas que necesitan material cotidiano.',
       'Cobertura de eventos, presentaciones y fiestas: el espacio, la gente y lo que pasa, mientras ocurre.',
       'Contenido continuado para redes: un ritmo recurrente de rodaje y edición en lugar de piezas sueltas.',
     ],
-    start: 'Enviar solicitud', sent: 'Solicitud enviada. Os responderemos pronto.',
+    processTitle: 'Cómo trabajamos',
+    processSteps: [
+      { t: 'Cuéntanos tu proyecto', d: 'Nos escribes con tu idea, una fecha aproximada y presupuesto orientativo — no hace falta tenerlo todo decidido.' },
+      { t: 'Te enviamos una propuesta', d: 'Te respondemos con disponibilidad, cómo lo enfocaríamos y un presupuesto a medida.' },
+      { t: 'Rodaje y entrega', d: 'Producimos el material y te lo entregamos seleccionado y editado.' },
+    ],
+    start: 'Cuéntanos tu proyecto', sent: 'Solicitud enviada. Os responderemos pronto.',
     social: 'Lo último del estudio',
     fName: 'Nombre', fPhone: 'Teléfono', fService: 'Servicio', fServicePh: 'Selecciona un servicio',
     fDate: 'Fecha aproximada', fBudget: 'Presupuesto aproximado', fMessage: 'Cuéntanos tu idea',
@@ -408,6 +422,7 @@ function renderWork() {
   const t = copy[lang];
   if ($('work-label')) $('work-label').textContent = t.selected;
   if ($('work-lede')) $('work-lede').textContent = t.workBlurb;
+  if ($('work-more-link')) $('work-more-link').textContent = t.workMore;
   // Las cuatro primeras se cargan de inmediato y el resto en diferido, igual
   // que en la portada: antes esta cuadrícula pedía las 24 fotos a la vez,
   // incluidas las que están cinco pantallas más abajo.
@@ -454,6 +469,14 @@ function renderServices() {
           <img src="${serviceImages[i % serviceImages.length]}" alt="">
           <div><h3>${s}</h3><p>${t.viewService} →</p></div>
         </article>`).join('');
+  }
+
+  const processList = $('process-steps');
+  if (processList) {
+    if ($('process-heading')) $('process-heading').textContent = t.processTitle;
+    processList.innerHTML = t.processSteps.map((s, i) => `
+      <li><span class="process-step-n">0${i + 1}</span><div><h3>${attrEscape(s.t)}</h3><p>${attrEscape(s.d)}</p></div></li>
+    `).join('');
   }
 
   renderServiceMarquee();

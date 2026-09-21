@@ -477,6 +477,10 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .portfolio-heading .section-label{ margin:0; }
 .portfolio-heading>p{ font-size:16px; line-height:1.5; color:var(--muted); max-width:340px; margin:0; }
 .masonry-grid{ columns:4; column-gap:22px; }
+.work-more{ text-align:center; margin:56px 0 0; font:13px ui-monospace,SFMono-Regular,Menlo,monospace; text-transform:uppercase; letter-spacing:.08em; }
+.work-more a{ color:var(--fg); text-decoration:none; border-bottom:1px solid var(--line); padding-bottom:4px; }
+.work-more a:hover{ color:var(--accent); border-color:var(--accent); }
+.work-more a:focus-visible{ outline:3px solid var(--accent); outline-offset:6px; border-radius:4px; }
 /* Las fotos van dentro de un <picture> para poder ofrecer WebP en varios
    anchos. display:contents hace que ese envoltorio no genere caja: para la
    maquetación la <img> sigue siendo hija directa de la tarjeta, así que ni
@@ -857,6 +861,21 @@ body.is-services, body.is-light{ background:#f4f9ff; }
   font-weight:400; letter-spacing:0; color:#3c4a63; }
 .light-page.dark-mode .svc-blurb{ color:#b3c0d6; }
 @media(max-width:560px){ .svc-blurb{ font-size:14px; } }
+
+/* Bloque "Cómo trabajamos" en Servicios: sustituye la ausencia deliberada de
+   precios por algo que reduce la incertidumbre sin publicar ninguna cifra. */
+.svc-process{ padding:0 6vw clamp(70px,9vw,110px); max-width:1100px; }
+.svc-process h2{ font-size:clamp(22px,2.6vw,30px); letter-spacing:-.01em; margin:0 0 32px; color:#3f5580; }
+.svc-process ol{ list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,1fr); gap:32px; }
+.svc-process li{ display:flex; gap:14px; align-items:flex-start; }
+.svc-process .process-step-n{ flex:0 0 auto; font:13px ui-monospace,SFMono-Regular,Menlo,monospace; color:#7b93bd; padding-top:3px; }
+.svc-process h3{ margin:0 0 6px; font-size:16px; font-weight:600; color:var(--fg); }
+.svc-process p{ margin:0; font-size:14px; line-height:1.55; color:#3c4a63; max-width:32ch; }
+.light-page.dark-mode .svc-process h2{ color:#93a9cd; }
+.light-page.dark-mode .svc-process h3{ color:#f1f5fb; }
+.light-page.dark-mode .svc-process p{ color:#b3c0d6; }
+.light-page.dark-mode .svc-process .process-step-n{ color:#8ba3cc; }
+@media(max-width:760px){ .svc-process ol{ grid-template-columns:1fr; gap:22px; } }
 
 /* Marca de campo opcional bajo su etiqueta, como en la referencia. */
 .og-optional{ display:block; color:var(--muted); font-weight:400; font-size:11px; margin-top:-4px; }

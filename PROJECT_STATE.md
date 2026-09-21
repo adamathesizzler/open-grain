@@ -1,6 +1,78 @@
 # PROJECT_STATE.md — Estado del proyecto OPEN GRAIN
 
-Última actualización: 2026-09-21 (0s. Auditoría de marketing con los 5 agentes de ai-marketing-claude, solo lectura).
+Última actualización: 2026-09-21 (0t. Victorias rápidas de la auditoría 0s implementadas, sin publicar).
+
+## 0t. Implementación de las victorias rápidas de la auditoría de marketing (esta sesión)
+
+### Qué se pidió
+
+Adama pidió implementar "todo lo que haya que hacer" a partir de la auditoría 0s. Se
+implementaron las victorias rápidas y estratégicas que no requerían inventar ningún dato
+(precio, cliente, cifra, fecha de respuesta); se dejaron explícitamente sin tocar las que sí
+lo habrían requerido.
+
+### Qué se ha hecho (código, en la misma rama del PR #2)
+
+- **SEO/compartir en redes** — en las 5 páginas públicas (`index`, `work`, `services`,
+  `about`, `contact`): `<link rel="canonical">`, etiquetas Open Graph y Twitter Card
+  completas (usando la foto real `assets/portfolio/editorial-interior.jpg` como imagen de
+  vista previa — no se ha creado ninguna imagen nueva). Datos estructurados JSON-LD
+  `LocalBusiness` en la portada, con solo datos reales ya publicados en el sitio (teléfono,
+  email, Mallorca, Instagram/TikTok) — sin dirección postal inventada.
+- **`<html lang="es">` por defecto** en las 5 páginas (antes `en` fijo aunque el contenido
+  visible es mayoritariamente español). El cambio de idioma por JavaScript sigue funcionando
+  igual para visitantes de navegador en inglés — comprobado con Chromium en local con locale
+  `en-US`: cambia a inglés correctamente.
+- **Texto de reserva estático real** en los `<h1>`/entradillas de Trabajos, Servicios,
+  Estudio y Contacto (antes vacíos en el HTML, solo se rellenaban por JavaScript). Es el
+  mismo texto que ya usa `assets/default-copy.js`; JavaScript lo sigue sobrescribiendo al
+  cargar, así que no cambia nada para un visitante real. **La portada no se ha tocado** —
+  su único `h1` ya tenía texto real (solo para lectores de pantalla) desde antes.
+- **Enlace "Ver servicios" al final de `/work`** — única página que no tenía ningún camino
+  hacia adelante.
+- **Bloque "Cómo trabajamos" en Servicios** (3 pasos genéricos: contacto → propuesta →
+  rodaje y entrega), sustituye la ausencia de precios sin publicar ninguna cifra.
+- **Botón de Contacto**: "Enviar solicitud" → "Cuéntanos tu proyecto" (y su equivalente en
+  inglés), para sonar menos a trámite.
+- **Descripción del servicio UGC** reescrita con el resultado para el cliente, no solo la
+  descripción (ES y EN).
+- **`styles.css.backup` eliminado del repositorio** (47KB sin usar). **`.vercelignore`
+  nuevo** que excluye `pruebas/` del despliegue en Vercel (se queda en el repo para seguir
+  corriendo las pruebas en local, pero deja de servirse en producción).
+
+### Pruebas realizadas
+
+| Prueba | Resultado |
+|---|---|
+| `node --check main.js` | Sin errores |
+| Las 5 páginas cargan (200) en servidor local | 5/5 |
+| `lang`, `<title>`, `<h1>` real, `canonical`, `og:title` y JSON-LD válido, por página (Chromium, locale `en-US`) | Confirmado: JavaScript corrige a inglés correctamente en las 5 páginas — el sistema de idioma sigue intacto |
+| HTML crudo (curl, sin JavaScript): `lang="es"` y texto real en los 5 `<h1>` | 5/5 |
+| Captura visual Servicios y Proyectos, escritorio y móvil, modo claro | Bloque "Cómo trabajamos" y enlace "Ver servicios" bien integrados, sin romper nada existente |
+| Captura visual Servicios en modo oscuro forzado, viewport real con scroll (no `full_page`, que da un artefacto falso con el fondo `position:fixed`) | Contraste correcto en el bloque nuevo |
+
+### Explícitamente NO implementado (necesita datos reales de Adama, no inventados)
+
+- **ID real de Google Analytics** — sigue el placeholder `G-XXXXXXXXXX` en `assets/config.js`;
+  hace falta que Adama cree la propiedad GA4 y dé el ID.
+- **Tiempo de respuesta del formulario** — no se ha añadido ninguna promesa de plazo
+  ("te respondemos en X horas") por no tener un dato real que dar.
+- **Nombrar verticales de cliente** (hoteles, marcas de moda, etc.) — necesita que Adama
+  confirme cuáles son de verdad sus clientes tipo.
+- **Testimonios, proyectos destacados, gesto de recomendación en la tarjeta de reserva** —
+  necesitan contenido real (citas de clientes, selección de proyectos) que no existe en el
+  repositorio.
+
+### Pendiente
+
+Nada de esto está publicado. Sigue en la rama `claude/review-ai-marketing-repo-mdaxfg` /
+PR #2, a la espera de que Adama lo revise en la preview y decida publicarlo.
+
+### Siguiente acción recomendada
+
+Adama revisa el PR #2 (incluye ahora tanto la sección de ideas de contenido de la 0r como
+estos cambios de la auditoría) y decide si lo fusiona a producción.
+
 
 ## 0s. Auditoría de marketing con los agentes instalados (esta sesión)
 

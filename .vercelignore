@@ -1,0 +1,4 @@
+# Scripts de QA interna: viven en el repo para correr las pruebas en local,
+# pero no forman parte del sitio y no deben quedar publicados en producción
+# (sitio estático sin build: cualquier archivo del repo se sirve tal cual).
+pruebas/
