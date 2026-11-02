@@ -133,7 +133,9 @@ const tabLoaders = {
   settings: loadSettings,
 };
 
-function switchTab(tab) {
+let navigationVersion = 0;
+async function switchTab(tab) {
+  ++navigationVersion;
   document.dispatchEvent(new CustomEvent('studio:tabchange', { detail: { tab } }));
   document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => {
     const active = b.dataset.tab === tab;
@@ -144,12 +146,53 @@ function switchTab(tab) {
   const search = document.getElementById('global-search');
   if (search) search.value = '';
   const loader = tabLoaders[tab];
-  if (loader) loader();
+  const loading = loader ? loader() : Promise.resolve();
   const content = document.querySelector('.og-content');
   if (content) {
     content.scrollTo({ top: 0, behavior: 'auto' });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
+  await loading;
+}
+
+// Entity navigation uses persisted IDs, never client-name matching or private public URLs.
+async function openWorkspaceEntity(tab, id) {
+  const pending = switchTab(tab);
+  const version = navigationVersion;
+  await pending;
+  if (version !== navigationVersion) return;
+  const search = document.getElementById('global-search');
+  if (search) search.value = '';
+  if (tab === 'messages') {
+    const row = Array.from(document.querySelectorAll('[data-enquiry-id]')).find(el => el.dataset.enquiryId === id);
+    if (!row) return alert('La solicitud ya no está disponible o no se pudo cargar.');
+    const details = row.querySelector('details'); if (details) details.open = true;
+    row.scrollIntoView({block:'center'}); row.focus();
+  } else if (tab === 'projects') {
+    const row=Array.from(document.querySelectorAll('#project-list [data-id]')).find(el=>el.dataset.id===id);
+    if(!row)return alert('La pieza de portfolio ya no está disponible o no se pudo cargar.');
+    row.tabIndex=-1;row.scrollIntoView({block:'center'});row.focus();
+  } else if (tab === 'clients') {
+    if (!allClientsCache.some(c => String(c.id) === String(id))) return alert('Este cliente ya no está disponible.');
+    currentClientFilter = 'all';
+    document.querySelectorAll('#client-filters .og-filter-pill').forEach(b => b.classList.toggle('active', b.dataset.filter === 'all'));
+    openClientDetail(id);
+  } else if (!StudioWorkspace.focus(document.getElementById(tab === 'quotes' ? 'quote-list' : 'job-list'), id)) {
+    alert('El registro ya no está disponible o no se pudo cargar.');
+  }
+}
+async function draftForClient(tab, clientId) {
+  const pending = switchTab(tab), version = navigationVersion;
+  await pending;
+  if (version !== navigationVersion) return;
+  const isQuote = tab === 'quotes';
+  const select = document.getElementById(isQuote ? 'quote-client' : 'job-client');
+  if (!Array.from(select.options).some(o => o.value === clientId)) return alert('No se pudo cargar este cliente. Vuelve a abrir su ficha.');
+  const form = document.getElementById(isQuote ? 'quote-form' : 'job-form');
+  if (Array.from(form.querySelectorAll('input, select, textarea')).some(field => field.tagName === 'SELECT' ? field.value !== (Array.from(field.options).find(o => o.defaultSelected)?.value ?? field.options[0]?.value ?? '') : field.value !== field.defaultValue) && !confirm('Hay un borrador sin guardar. ¿Sustituirlo por uno nuevo para este cliente?')) return;
+  form.reset(); select.value = clientId;
+  document.getElementById(isQuote ? 'quote-create' : 'booking-create').open = true;
+  document.getElementById(isQuote ? 'quote-amount' : 'job-title').focus();
 }
 
 document.querySelectorAll('.og-nav-item[data-tab]').forEach(btn => {
@@ -232,13 +275,27 @@ async function persistOrder(container, itemSelector, table) {
 // ============================================================
 // Shared helper: populate a <select> with clients
 // ============================================================
+const clientSelectVersions = new WeakMap();
 async function populateClientSelect(selectEl) {
-  const { data, error } = await supabaseClient.from('clients').select('id, name').order('name');
-  if (error) return console.error(error);
+  const version = (clientSelectVersions.get(selectEl) || 0) + 1;
+  clientSelectVersions.set(selectEl, version);
   const current = selectEl.value;
-  selectEl.innerHTML = '<option value="">Sin cliente</option>' +
-    (data || []).map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-  selectEl.value = current;
+  selectEl.disabled = true;
+  try {
+    const { data, error } = await supabaseClient.from('clients').select('id, name').order('name');
+    if (clientSelectVersions.get(selectEl) !== version) return false;
+    if (error || !Array.isArray(data)) throw new Error('Clients unavailable');
+    selectEl.innerHTML = '<option value="">Sin cliente</option>' +
+      data.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
+    selectEl.value = current;
+    selectEl.disabled = false;
+    return true;
+  } catch (error) {
+    if (clientSelectVersions.get(selectEl) !== version) return false;
+    selectEl.innerHTML = '<option value="">No se pudieron cargar los clientes</option>';
+    selectEl.disabled = true;
+    return false;
+  }
 }
 
 // ============================================================
@@ -439,15 +496,20 @@ async function loadCategories() {
   return categories;
 }
 
+let portfolioLoadVersion=0,portfolioLoadError=false;
 async function loadProjectsData() {
-  const { data, error } = await supabaseClient.from('portfolio_projects').select('*, portfolio_categories(name)').order('sort_order');
-  if (error) { console.error(error); allProjectsCache = []; return; }
-  allProjectsCache = data || [];
+  const version=++portfolioLoadVersion;
+  const { data, error } = await supabaseClient.from('portfolio_projects').select('*, portfolio_categories(name), portfolio_workflows(project_id)').order('sort_order');
+  if(version!==portfolioLoadVersion)return;
+  portfolioLoadError=!!error||!Array.isArray(data);
+  if(portfolioLoadError){allProjectsCache=[];return;}
+  allProjectsCache=data;
 }
 
 function renderProjects() {
   const projList = document.getElementById('project-list');
   projList.innerHTML = '';
+  if(portfolioLoadError){projList.textContent='No se pudo cargar el portfolio. Vuelve a abrir esta sección para reintentarlo.';return;}
   const filtered = currentProjectFilter === 'all'
     ? allProjectsCache
     : allProjectsCache.filter(p => p.category_id === currentProjectFilter);
@@ -459,6 +521,7 @@ function renderProjects() {
 
   filtered.forEach(p => {
     const status = resolveStatus(p);
+    const origin = Array.isArray(p.portfolio_workflows) ? p.portfolio_workflows[0] : p.portfolio_workflows;
     const row = document.createElement('div');
     row.className = 'album-card';
     row.draggable = true;
@@ -469,7 +532,7 @@ function renderProjects() {
         <span class="album-ghost album-ghost-1"></span>
         <span class="album-ghost album-ghost-2"></span>
         ${p.cover_image_url
-          ? `<img class="album-photo" src="${p.cover_image_url}" alt="" draggable="false">`
+          ? `<img class="album-photo" src="${escapeAttr(p.cover_image_url)}" alt="" draggable="false">`
           : `<label class="album-photo album-photo-empty" title="Añadir foto">
                <span>+</span>
                <input type="file" accept="image/*" data-field="photo-empty" hidden>
@@ -492,10 +555,15 @@ function renderProjects() {
         </select>
       </div>
       <div class="album-controls">
+        ${origin ? (origin.project_id ? '<button type="button" class="link-btn" data-origin-open>Ver reserva de origen ↗</button>' : '<span class="panel-sub">Reserva de origen eliminada</span>') : '<button type="button" class="link-btn" data-origin-link>Vincular reserva de origen ↗</button>'}
+      </div>
+      <div class="album-controls">
         <label class="link-btn file-label">Cambiar foto<input type="file" accept="image/*" data-field="photo" hidden></label>
         <button class="link-btn" data-action="delete">Eliminar</button>
       </div>
     `;
+    row.querySelector('[data-origin-open]')?.addEventListener('click',()=>openWorkspaceEntity('bookings',origin.project_id));
+    row.querySelector('[data-origin-link]')?.addEventListener('click',()=>preparePortfolioWorkflow(p.id));
     row.querySelector('[data-field="layout"]').value = p.layout_class || 'tall';
     row.querySelector('[data-field="layout"]').addEventListener('change', async (e) => {
       await supabaseClient.from('portfolio_projects').update({ layout_class: e.target.value }).eq('id', p.id);
@@ -539,6 +607,56 @@ async function loadProjects() {
   await loadProjectsData();
   renderProjects();
 }
+
+const portfolioWorkflowDialog=document.getElementById('portfolio-workflow-dialog');
+let portfolioWorkflowIntent=null,portfolioWorkflowVersion=0,portfolioWorkflowSaving=false;
+function portfolioSnapshot(piece){return Object.fromEntries(['title','cover_image_url','is_published','status'].map(key=>[key,piece[key]??null]));}
+function bookingSnapshot(booking){return Object.fromEntries(['client_id','title','event_date','status'].map(key=>[key,booking[key]??null]));}
+function closePortfolioWorkflow(){if(portfolioWorkflowSaving)return;++portfolioWorkflowVersion;portfolioWorkflowIntent=null;portfolioWorkflowDialog.close();}
+document.getElementById('portfolio-workflow-cancel').addEventListener('click',closePortfolioWorkflow);
+portfolioWorkflowDialog.addEventListener('cancel',e=>{e.preventDefault();closePortfolioWorkflow();});
+async function preparePortfolioWorkflow(portfolioId){
+  if(portfolioWorkflowSaving)return;
+  const version=++portfolioWorkflowVersion;portfolioWorkflowIntent=null;
+  document.getElementById('portfolio-workflow-form').reset();
+  const select=document.getElementById('portfolio-workflow-project');select.disabled=true;select.innerHTML='<option value="">Selecciona una reserva existente</option>';
+  document.getElementById('portfolio-workflow-save').disabled=true;
+  document.getElementById('portfolio-workflow-source').textContent='Cargando pieza y reservas…';
+  document.getElementById('portfolio-workflow-target').textContent='';
+  const errorEl=document.getElementById('portfolio-workflow-error');errorEl.hidden=true;
+  if(!portfolioWorkflowDialog.open)portfolioWorkflowDialog.showModal();
+  try{
+    const [pieceResult,bookingsResult]=await Promise.all([
+      supabaseClient.from('portfolio_projects').select('id,title,cover_image_url,is_published,status,portfolio_workflows(project_id)').eq('id',portfolioId).single(),
+      supabaseClient.from('projects').select('id,title,client_id,event_date,status,clients(name)').neq('status','cancelled').order('event_date',{ascending:false,nullsFirst:false})
+    ]);
+    if(version!==portfolioWorkflowVersion)return;
+    const piece=pieceResult.data;
+    if(pieceResult.error||!piece||bookingsResult.error||!Array.isArray(bookingsResult.data))throw new Error('No se pudieron comprobar la pieza y las reservas. No se ha vinculado nada.');
+    const prior=Array.isArray(piece.portfolio_workflows)?piece.portfolio_workflows[0]:piece.portfolio_workflows;
+    if(prior){if(!prior.project_id)throw new Error('La reserva de origen se eliminó. No se reasigna automáticamente.');closePortfolioWorkflow();return openWorkspaceEntity('bookings',prior.project_id);}
+    document.getElementById('portfolio-workflow-source').textContent=piece.title+' · Estado público actual: '+(piece.is_published?'Publicado':'No publicado');
+    select.innerHTML='<option value="">Selecciona una reserva existente</option>'+bookingsResult.data.map(b=>`<option value="${escapeAttr(b.id)}">${escapeHtml(b.title)}${b.clients?.name?' · '+escapeHtml(b.clients.name):''}${b.event_date?' · '+escapeHtml(b.event_date):''}</option>`).join('');
+    select.disabled=false;portfolioWorkflowIntent={portfolioId:piece.id,piece:portfolioSnapshot(piece),bookings:bookingsResult.data};select.focus();
+  }catch(error){if(version!==portfolioWorkflowVersion)return;errorEl.textContent=error.message||'No se pudo preparar el vínculo.';errorEl.hidden=false;}
+}
+document.getElementById('portfolio-workflow-project').addEventListener('change',()=>{
+  const booking=portfolioWorkflowIntent?.bookings.find(b=>b.id===document.getElementById('portfolio-workflow-project').value);
+  document.getElementById('portfolio-workflow-save').disabled=!booking;
+  document.getElementById('portfolio-workflow-target').textContent=booking?[booking.title,booking.clients?.name,booking.event_date,'Estado: '+(statusLabels[booking.status]||booking.status)].filter(Boolean).join(' · '):'';
+});
+document.getElementById('portfolio-workflow-form').addEventListener('submit',async e=>{
+  e.preventDefault();if(portfolioWorkflowSaving||!portfolioWorkflowIntent)return;
+  const intent=portfolioWorkflowIntent,booking=intent.bookings.find(b=>b.id===document.getElementById('portfolio-workflow-project').value);if(!booking)return;
+  const controls=['save','cancel','project'].map(key=>document.getElementById('portfolio-workflow-'+key));
+  const errorEl=document.getElementById('portfolio-workflow-error');errorEl.hidden=true;portfolioWorkflowSaving=true;controls.forEach(el=>el.disabled=true);
+  try{
+    const {data,error}=await supabaseClient.rpc('studio_link_portfolio_booking',{p_portfolio_id:intent.portfolioId,p_expected_portfolio:intent.piece,p_project_id:booking.id,p_expected_project:bookingSnapshot(booking)});
+    if(error||!data?.project_id)throw new Error('No se pudo vincular: revisa si los registros cambiaron o si ya existe otro origen. No se ha publicado ni modificado la pieza.');
+    portfolioWorkflowSaving=false;closePortfolioWorkflow();await openWorkspaceEntity('bookings',data.project_id);
+  }catch(error){errorEl.textContent=error.message||'No se pudo guardar el vínculo.';errorEl.hidden=false;}
+  finally{portfolioWorkflowSaving=false;controls.forEach(el=>el.disabled=false);}
+});
 
 document.getElementById('new-project-btn').addEventListener('click', () => {
   const form = document.getElementById('project-form');
@@ -649,66 +767,91 @@ async function loadGalleries() {
 // ============================================================
 // Servicios (shared between the dedicated tab and the Content editor)
 // ============================================================
-function serviceFieldsMarkup(esServices, enServices) {
-  return [0, 1, 2, 3, 4].map(i => `
-    <div class="content-field draggable" draggable="true">
-      ${dragHandleSvg}
-      <div class="content-field-body">
-        <label class="content-field-label">Servicio ${i + 1}</label>
-        <div class="content-field-row">
-          <input type="text" data-service-lang="es" value="${escapeAttr((esServices || [])[i] || '')}" placeholder="Español">
-          <input type="text" data-service-lang="en" value="${escapeAttr((enServices || [])[i] || '')}" placeholder="English">
-        </div>
-      </div>
-    </div>
-  `).join('');
+const serviceEditors = new WeakMap();
+const serviceLoads = new WeakMap();
+function serviceFingerprint(rows) { return JSON.stringify(window.OGServiceCatalog.expected(rows)); }
+function serviceFieldsMarkup(catalog) {
+  return catalog.items.map((item,i)=>`<div class="content-field draggable" draggable="true" data-service-id="${escapeAttr(item.id)}">
+    ${dragHandleSvg}<div class="content-field-body"><label class="content-field-label">Servicio ${i+1}</label>
+      <div class="content-field-row"><label>Nombre ES<input maxlength="120" data-service-lang="es" value="${escapeAttr(item.labels.es)}"></label><label>Name EN<input maxlength="120" data-service-lang="en" value="${escapeAttr(item.labels.en)}"></label></div>
+      <div class="content-field-row"><label>Descripción ES<textarea maxlength="5000" data-service-description="es">${escapeHtml(item.descriptions.es)}</textarea></label><label>Description EN<textarea maxlength="5000" data-service-description="en">${escapeHtml(item.descriptions.en)}</textarea></label></div>
+      <label>Imagen (ruta assets/ o URL HTTPS)<input data-service-image value="${escapeAttr(item.image)}"></label>
+      <div class="ws-context-actions"><label><input type="checkbox" data-service-active${item.active?' checked':''}> Visible en la web</label><button type="button" class="og-btn og-btn-outline" data-service-up aria-label="Subir servicio">↑</button><button type="button" class="og-btn og-btn-outline" data-service-down aria-label="Bajar servicio">↓</button><button type="button" class="og-btn og-btn-outline" data-service-remove>Eliminar del catálogo</button></div>
+    </div></div>`).join('');
 }
-
-async function fetchServiceLists() {
-  const { data } = await supabaseClient.from('site_content').select('key, lang, value').eq('key', 'serviceList');
-  const defaults = window.DEFAULT_COPY || { en: {}, es: {} };
-  let es = defaults.es.serviceList || [];
-  let en = defaults.en.serviceList || [];
-  (data || []).forEach(row => {
-    try {
-      const list = JSON.parse(row.value);
-      if (Array.isArray(list) && list.length) { if (row.lang === 'es') es = list; else en = list; }
-    } catch (e) { /* ignore malformed override */ }
+function collectServiceCatalog(containerId) {
+  const container=document.getElementById(containerId);
+  if (!serviceEditors.has(container)) throw new Error('El catálogo no está cargado.');
+  return window.OGServiceCatalog.validate({version:1,legacyIds:[...serviceEditors.get(container).catalog.legacyIds],items:Array.from(container.querySelectorAll('[data-service-id]')).map(row=>({
+    id:row.dataset.serviceId,labels:{es:row.querySelector('[data-service-lang="es"]').value,en:row.querySelector('[data-service-lang="en"]').value},
+    descriptions:{es:row.querySelector('[data-service-description="es"]').value,en:row.querySelector('[data-service-description="en"]').value},image:row.querySelector('[data-service-image]').value.trim(),active:row.querySelector('[data-service-active]').checked
+  }))});
+}
+function renderServiceEditor(container,catalog,state) {
+  container.innerHTML=serviceFieldsMarkup(catalog)+'<button type="button" class="og-btn og-btn-outline" data-service-add>+ Añadir servicio</button>';
+  const changed=()=>{const current=serviceEditors.get(container);if(current){current.dirty=true;if(current.onChange)current.onChange();}};
+  container.querySelectorAll('input,textarea').forEach(input=>input.addEventListener('input',changed));
+  // Keyboard/touch reordering carries the entire stable-ID record (including media/descriptions).
+  container.querySelectorAll('[data-service-up],[data-service-down],[data-service-remove]').forEach(button=>button.addEventListener('click',()=>{
+    const row=button.closest('[data-service-id]');
+    if(button.hasAttribute('data-service-remove')) {if(!confirm('¿Quitar este servicio del catálogo público? Las solicitudes y reservas históricas no se modifican.'))return;row.remove();}
+    else if(button.hasAttribute('data-service-up')&&row.previousElementSibling?.hasAttribute('data-service-id')) container.insertBefore(row,row.previousElementSibling);
+    else if(button.hasAttribute('data-service-down')&&row.nextElementSibling?.hasAttribute('data-service-id'))container.insertBefore(row.nextElementSibling,row);
+    changed();
+  }));
+  container.querySelector('[data-service-add]').addEventListener('click',()=>{
+    let catalog;try{catalog=collectServiceCatalog(container.id);}catch(error){return alert(error.message);}
+    catalog.items.push({id:crypto.randomUUID(),labels:{es:'Nuevo servicio',en:'New service'},descriptions:{es:'',en:''},image:window.OGServiceCatalog.images[0],active:false});
+    renderServiceEditor(container,catalog,state);changed();
   });
-  return { es, en };
+  if(!state.dragBound){state.dragBound=true;enableDragReorder(container,'.content-field.draggable',changed);}
+}
+async function fetchServiceCatalog() {
+  const {data,error}=await supabaseClient.from('site_content').select('key,lang,value').in('key',['serviceCatalog','serviceList']);
+  if(error||!Array.isArray(data))throw new Error('No se pudo cargar el catálogo. No guardes datos de reserva como si fueran actuales.');
+  return {catalog:window.OGServiceCatalog.fromRows(window.DEFAULT_COPY,data),baseline:serviceFingerprint(data)};
+}
+async function loadServicesInto(containerId,onChange) {
+  const container=document.getElementById(containerId),version=(serviceLoads.get(container)||0)+1;
+  serviceLoads.set(container,version);
+  const prior=serviceEditors.get(container);
+  if(prior?.dirty)return; // A section switch must not erase an unsaved editor.
+  try{
+    const loaded=await fetchServiceCatalog();if(serviceLoads.get(container)!==version||serviceEditors.get(container)?.dirty)return;
+    const state={...loaded,onChange,dirty:false,dragBound:prior?.dragBound||false};serviceEditors.set(container,state);renderServiceEditor(container,loaded.catalog,state);
+  }catch(error){if(serviceLoads.get(container)!==version||serviceEditors.get(container)?.dirty)return;serviceEditors.delete(container);container.textContent=error.message;}
+}
+function serviceSaveRequest(containerId) {
+  const state=serviceEditors.get(document.getElementById(containerId));
+  if(!state)throw new Error('Primero carga el catálogo de servicios.');
+  return {p_expected:JSON.parse(state.baseline),p_catalog:collectServiceCatalog(containerId)};
+}
+function serviceSaveCompleted(containerId,saved){
+  const container=document.getElementById(containerId),state=serviceEditors.get(container);
+  if(!state)return false;
+  serviceLoads.set(container,(serviceLoads.get(container)||0)+1);
+  state.baseline=JSON.stringify(saved);
+  try{state.dirty=JSON.stringify(collectServiceCatalog(containerId))!==JSON.stringify(window.OGServiceCatalog.parse(saved.find(row=>row.key==='serviceCatalog').value));}catch{state.dirty=true;}
+  return !state.dirty;
+}
+async function persistServiceCatalog(containerId){
+  const {data,error}=await supabaseClient.rpc('studio_save_service_catalog',serviceSaveRequest(containerId));
+  if(error||!Array.isArray(data)||data.length!==3||data.some(row=>typeof row.value!=='string'))throw new Error('No se pudo publicar el catálogo: puede haber cambiado en otra pestaña o faltar su migración. Tus cambios siguen aquí; revisa antes de reintentar.');
+  // Normalize response property order for stable draft baseline comparison.
+  const saved=window.OGServiceCatalog.expected(data);
+  return serviceSaveCompleted(containerId,saved);
 }
 
-async function loadServicesInto(containerId, onChange) {
-  const container = document.getElementById(containerId);
-  const { es, en } = await fetchServiceLists();
-  container.innerHTML = serviceFieldsMarkup(es, en);
-  enableDragReorder(container, '.content-field.draggable', () => { if (onChange) onChange(); });
-  container.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { if (onChange) onChange(); }));
+async function saveServiceLists(containerId,statusEl) {
+  try{
+    const clean=await persistServiceCatalog(containerId);
+    if(statusEl){statusEl.hidden=false;statusEl.textContent=clean?'Guardado. Catálogo, descripciones e imágenes publicados juntos.':'Se guardó la versión enviada. Tus cambios más recientes siguen pendientes.';}return true;
+  }catch(error){if(statusEl){statusEl.hidden=false;statusEl.textContent=error.message||'No se pudo guardar.';}return false;}
 }
-
-async function saveServiceLists(containerId, statusEl) {
-  const container = document.getElementById(containerId);
-  const esServices = [...container.querySelectorAll('[data-service-lang="es"]')].map(el => el.value);
-  const enServices = [...container.querySelectorAll('[data-service-lang="en"]')].map(el => el.value);
-  const rows = [
-    { key: 'serviceList', lang: 'es', value: JSON.stringify(esServices) },
-    { key: 'serviceList', lang: 'en', value: JSON.stringify(enServices) },
-  ];
-  const { error } = await supabaseClient.from('site_content').upsert(rows, { onConflict: 'key,lang' });
-  if (statusEl) {
-    statusEl.hidden = false;
-    statusEl.textContent = error ? ('Error: ' + error.message) : 'Guardado. Ya está publicado en la web.';
-  }
-  return !error;
-}
-
-async function loadServices() {
-  await loadServicesInto('services-fields');
-}
-
-document.getElementById('services-save').addEventListener('click', async () => {
-  const ok = await saveServiceLists('services-fields', document.getElementById('services-status'));
-  if (ok && document.getElementById('content-services').innerHTML) await loadServicesInto('content-services', onContentFieldChanged);
+async function loadServices(){await loadServicesInto('services-fields');}
+document.getElementById('services-save').addEventListener('click',async()=>{
+  const button=document.getElementById('services-save');if(button.disabled)return;button.disabled=true;
+  try{const ok=await saveServiceLists('services-fields',document.getElementById('services-status'));if(ok&&document.getElementById('content-services').innerHTML)await loadServicesInto('content-services',onContentFieldChanged);}finally{button.disabled=false;}
 });
 
 // ============================================================
@@ -747,16 +890,16 @@ function collectFieldValues(lang) {
   return fields;
 }
 function collectServiceList(lang) {
-  return [...document.querySelectorAll(`#content-services [data-service-lang="${lang}"]`)].map(el => el.value);
+  try { return window.OGServiceCatalog.active(collectServiceCatalog('content-services'),lang).map(item=>item.label); } catch { return []; }
 }
 
 function sendPreview() {
   const frame = document.getElementById('preview-frame');
   if (!frame || !frame.contentWindow) return;
   const fields = collectFieldValues(previewLang);
-  const serviceList = collectServiceList(previewLang);
+  let serviceCatalog; try { serviceCatalog=collectServiceCatalog('content-services'); } catch { return; }
   try {
-    frame.contentWindow.postMessage({ type: 'og-preview', lang: previewLang, fields, serviceList }, window.location.origin);
+    frame.contentWindow.postMessage({ type: 'og-preview', lang: previewLang, fields, serviceCatalog }, window.location.origin);
   } catch (e) { /* iframe not same-origin-ready yet */ }
 }
 document.getElementById('preview-frame').addEventListener('load', () => sendPreview());
@@ -793,7 +936,8 @@ function setSaveBarState(state) {
 function currentFullDraft() {
   return {
     es: collectFieldValues('es'), en: collectFieldValues('en'),
-    servicesEs: collectServiceList('es'), servicesEn: collectServiceList('en'),
+    version:2, serviceCatalog:collectServiceCatalog('content-services'),
+    serviceBaseline:serviceEditors.get(document.getElementById('content-services'))?.baseline,
     savedAt: Date.now(),
   };
 }
@@ -816,9 +960,12 @@ function onContentFieldChanged() {
   scheduleAutosave();
 }
 
+let contentLoadReady=false;
 async function loadSiteContent() {
+  contentLoadReady=false;
   const { data, error } = await supabaseClient.from('site_content').select('key, lang, value');
-  if (error) console.error(error);
+  if (error || !Array.isArray(data)) { document.getElementById('content-save').disabled=true; setAiStatus('No se pudo cargar el contenido actual. Vuelve a abrir el editor antes de publicar.'); return; }
+  contentLoadReady=true; document.getElementById('content-save').disabled=false;
   contentOverrides = {};
   (data || []).filter(row => row.key !== 'studio_ai_enabled').forEach(row => { contentOverrides[contentKey(row.key, row.lang)] = row.value; });
 
@@ -838,10 +985,12 @@ async function loadSiteContent() {
     Object.entries(draft.en || {}).forEach(([key, val]) => {
       const el = document.querySelector(`[data-key="${key}"][data-lang="en"]`); if (el) el.value = val;
     });
-    const esInputs = [...document.querySelectorAll('#content-services [data-service-lang="es"]')];
-    (draft.servicesEs || []).forEach((val, i) => { if (esInputs[i]) esInputs[i].value = val; });
-    const enInputs = [...document.querySelectorAll('#content-services [data-service-lang="en"]')];
-    (draft.servicesEn || []).forEach((val, i) => { if (enInputs[i]) enInputs[i].value = val; });
+    const container=document.getElementById('content-services'),state=serviceEditors.get(container);
+    if(draft.version===2&&state&&draft.serviceBaseline===state.baseline){
+      try{const restored=window.OGServiceCatalog.parse(draft.serviceCatalog);renderServiceEditor(container,restored,state);state.dirty=true;}catch(error){alert('El borrador de servicios no es válido; se conserva el catálogo publicado.');}
+    }else if(draft.serviceCatalog||draft.servicesEs||draft.servicesEn){
+      alert('Hay un borrador de servicios anterior o con otra versión publicada. No se ha aplicado por posición: revisa los servicios para no mezclar nombres, imágenes y descripciones.');
+    }
     markContentDirty();
   } else {
     setSaveBarState('saved');
@@ -850,21 +999,19 @@ async function loadSiteContent() {
 }
 
 document.getElementById('content-save').addEventListener('click', async () => {
-  const saveBtn = document.getElementById('content-save');
-  saveBtn.disabled = true;
-  const rows = [];
-  document.querySelectorAll('#content-fields-hero textarea, #content-fields-textos textarea').forEach(el => {
-    rows.push({ key: el.dataset.key, lang: el.dataset.lang, value: el.value });
-  });
-  rows.push({ key: 'serviceList', lang: 'es', value: JSON.stringify(collectServiceList('es')) });
-  rows.push({ key: 'serviceList', lang: 'en', value: JSON.stringify(collectServiceList('en')) });
-
-  const { error } = await supabaseClient.from('site_content').upsert(rows, { onConflict: 'key,lang' });
-  saveBtn.disabled = false;
-  if (error) { alert('Error al guardar: ' + error.message); return; }
-  clearDraft();
-  setSaveBarState('saved');
-  if (document.getElementById('services-fields').innerHTML) await loadServicesInto('services-fields');
+  const saveBtn=document.getElementById('content-save');if(saveBtn.disabled||!contentLoadReady)return;saveBtn.disabled=true;
+  let catalogSaved=false;
+  try{
+    const rows=[];
+    document.querySelectorAll('#content-fields-hero textarea, #content-fields-textos textarea').forEach(el=>rows.push({key:el.dataset.key,lang:el.dataset.lang,value:el.value}));
+    const catalogClean=await persistServiceCatalog('content-services');catalogSaved=true;
+    const {error}=await supabaseClient.from('site_content').upsert(rows,{onConflict:'key,lang'});
+    if(error)throw error;
+    const fieldsClean=Array.from(document.querySelectorAll('#content-fields-hero textarea, #content-fields-textos textarea')).every(el=>rows.some(row=>row.key===el.dataset.key&&row.lang===el.dataset.lang&&row.value===el.value));
+    if(catalogClean&&!serviceEditors.get(document.getElementById('content-services'))?.dirty&&fieldsClean){clearDraft();setSaveBarState('saved');}else{markContentDirty();saveDraftToLocalStorage();}
+    if(document.getElementById('services-fields').innerHTML)await loadServicesInto('services-fields');
+  }catch(error){markContentDirty();saveDraftToLocalStorage();alert((catalogSaved?'El catálogo se guardó, pero no se pudieron guardar los textos. ':'')+(error.message||'No se pudo guardar.'));}
+  finally{saveBtn.disabled=false;}
 });
 
 // ---------- Persistent AI spending switch (server also checks every request) ----------
@@ -1003,13 +1150,18 @@ function describeAiChange(c) {
 }
 
 async function applyAiChanges() {
+  if (pendingAiChanges.some(c=>c.table==='site_content'&&['serviceList','serviceCatalog','serviceBlurbs'].includes(c.key))) { setAiStatus('Los servicios se editan en Servicios para mantener sus identificadores, imágenes y descripciones unidos. No se ha aplicado este lote.'); return; }
   setAiStatus('Aplicando…');
   for (const c of pendingAiChanges) {
     if (c.table === 'site_content') {
       await supabaseClient.from('site_content')
         .upsert({ key: c.key, lang: c.lang, value: c.new_value }, { onConflict: 'key,lang' });
     } else if (c.table === 'portfolio_projects' && c.id && c.field) {
-      await supabaseClient.from('portfolio_projects').update({ [c.field]: c.new_value }).eq('id', c.id);
+      const updates={ [c.field]:c.new_value };
+      if(c.field==='is_published')updates.status=c.new_value?'published':'draft';
+      if(c.field==='status')updates.is_published=c.new_value==='published';
+      const {error}=await supabaseClient.from('portfolio_projects').update(updates).eq('id',c.id);
+      if(error){setAiStatus('No se pudieron aplicar todos los cambios. Revisa los registros antes de reintentar.');return;}
     }
   }
   pendingAiChanges = [];
@@ -1164,31 +1316,142 @@ function renderIdeas(summary, ideas) {
 // ============================================================
 // Mensajes y solicitudes (enquiries)
 // ============================================================
+let enquiryLoadVersion = 0;
 async function loadEnquiries() {
-  const { data, error } = await supabaseClient.from('enquiries').select('*').order('created_at', { ascending: false });
-  if (error) return console.error(error);
+  const version = ++enquiryLoadVersion;
   const list = document.getElementById('enquiry-list');
+  const [{data, error}, linksResult] = await Promise.all([
+    supabaseClient.from('enquiries').select('*').order('created_at', {ascending:false}),
+    supabaseClient.from('enquiry_workflows').select('enquiry_id,client_id,project_id')
+  ]);
+  if (version !== enquiryLoadVersion) return;
+  if (error || !Array.isArray(data)) { list.textContent = 'No se pudieron cargar las solicitudes. Vuelve a abrir esta sección.'; return; }
   list.innerHTML = '';
-  if (!data.length) { list.innerHTML = '<p class="panel-sub">Todavía no hay mensajes.</p>'; return; }
+  const linksKnown = !linksResult.error && Array.isArray(linksResult.data);
+  if (!linksKnown) { const warning = document.createElement('p'); warning.className = 'panel-sub'; warning.textContent = 'No se pudo comprobar la conexión con clientes y reservas. Comprueba la migración o vuelve a abrir esta sección.'; list.appendChild(warning); }
+  if (!data.length) { const empty = document.createElement('p'); empty.textContent = 'Todavía no hay solicitudes.'; list.appendChild(empty); return; }
   data.forEach(en => {
-    const row = document.createElement('div');
-    row.className = 'list-row';
+    const link = (linksResult.data || []).find(row => row.enquiry_id === en.id);
+    const row = document.createElement('article'); row.className = 'list-row ws-enquiry-row'; row.dataset.enquiryId = en.id; row.tabIndex = -1;
     row.innerHTML = `
-      <span>${escapeHtml(en.name)} — ${escapeHtml(en.service || 'Sin servicio')} <small>${escapeHtml(en.email)}</small></span>
-      <select data-field="status">
-        <option value="new">Nuevo</option>
-        <option value="contacted">Contactado</option>
-        <option value="archived">Archivado</option>
-      </select>
-    `;
-    row.querySelector('[data-field="status"]').value = en.status;
-    row.querySelector('[data-field="status"]').addEventListener('change', async (e) => {
-      await supabaseClient.from('enquiries').update({ status: e.target.value }).eq('id', en.id);
-      updateMessageBadge();
+      <div><b>${escapeHtml(en.name)}</b><p>${escapeHtml(en.service || 'Sin servicio')} · ${escapeHtml(en.email)}</p>
+        <details><summary>Ver solicitud original</summary><p class="ws-source-message">${escapeHtml(en.message || 'Sin mensaje')}</p><p>${escapeHtml(en.phone || 'Sin teléfono')} · ${escapeHtml(en.preferred_date || 'Sin fecha')} · ${escapeHtml(en.budget_range || 'Sin rango de presupuesto')}</p><small>Consentimiento: ${en.consent_accepted ? 'aceptado' : 'no registrado'}</small></details>
+      </div>
+      <div class="ws-context-actions">
+        ${link ? `${link.client_id ? '<button type="button" class="og-btn og-btn-outline" data-open-client>Ver cliente ↗</button>' : '<span>Cliente eliminado</span>'}${link.project_id ? '<button type="button" class="og-btn og-btn-outline" data-open-booking>Ver reserva ↗</button>' : '<span>Reserva eliminada · revisar manualmente</span>'}` : `<button type="button" class="og-btn og-btn-outline" data-start-workflow${!linksKnown || !en.consent_accepted ? ' disabled' : ''}>Revisar y conectar ↗</button>`}
+        <label><span class="ws-sr-only">Estado de la solicitud de ${escapeHtml(en.name)}</span><select data-field="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="archived">Archivado</option></select></label>
+      </div>`;
+    row.querySelector('[data-open-client]')?.addEventListener('click', () => openWorkspaceEntity('clients', link.client_id));
+    row.querySelector('[data-open-booking]')?.addEventListener('click', () => openWorkspaceEntity('bookings', link.project_id));
+    row.querySelector('[data-start-workflow]')?.addEventListener('click', () => prepareEnquiryWorkflow(en.id));
+    const status = row.querySelector('[data-field="status"]'); status.value = en.status;
+    status.addEventListener('change', async () => {
+      const value = status.value; if (!['new','contacted','archived'].includes(value)) return;
+      status.disabled = true;
+      try {
+        const {data: saved, error} = await supabaseClient.from('enquiries').update({status:value}).eq('id',en.id).select('id').single();
+        if (error || !saved) throw new Error('No se pudo guardar el estado.');
+        en.status = value; updateMessageBadge();
+      } catch (error) { status.value = en.status; alert('No se pudo guardar el estado de la solicitud.'); }
+      finally { status.disabled = false; }
     });
     list.appendChild(row);
   });
 }
+
+const enquiryWorkflowDialog = document.getElementById('enquiry-workflow-dialog');
+let enquiryWorkflowIntent = null, enquiryWorkflowVersion = 0, enquiryTargetVersion = 0, enquiryWorkflowSaving = false;
+function enquirySnapshot(source) {
+  return Object.fromEntries(['name','email','phone','service','preferred_date','budget_range','message','consent_accepted','consent_at'].map(key => [key,source[key] ?? null]));
+}
+function closeEnquiryWorkflow() {
+  if (enquiryWorkflowSaving) return;
+  ++enquiryWorkflowVersion; ++enquiryTargetVersion; enquiryWorkflowIntent = null; enquiryWorkflowDialog.close();
+}
+document.getElementById('enquiry-workflow-cancel').addEventListener('click', closeEnquiryWorkflow);
+enquiryWorkflowDialog.addEventListener('cancel', e => {e.preventDefault(); closeEnquiryWorkflow();});
+async function prepareEnquiryWorkflow(enquiryId) {
+  if (enquiryWorkflowSaving) return;
+  const version = ++enquiryWorkflowVersion; ++enquiryTargetVersion; enquiryWorkflowIntent = null;
+  document.getElementById('enquiry-workflow-form').reset();
+  document.getElementById('enquiry-workflow-save').disabled = true;
+  document.getElementById('enquiry-workflow-client').disabled = true;
+  document.getElementById('enquiry-workflow-project').disabled = true;
+  document.getElementById('enquiry-workflow-project').innerHTML = '<option value="">Nueva reserva en consulta</option>';
+  document.getElementById('enquiry-workflow-title-label').hidden = false;
+  document.getElementById('enquiry-workflow-title').required = true;
+  const errorEl = document.getElementById('enquiry-workflow-error'); errorEl.hidden = true;
+  const context = document.getElementById('enquiry-workflow-source'); context.textContent = 'Cargando solicitud…';
+  if (!enquiryWorkflowDialog.open) enquiryWorkflowDialog.showModal();
+  try {
+    const [sourceResult, clientsResult] = await Promise.all([
+      supabaseClient.from('enquiries').select('*').eq('id',enquiryId).single(),
+      supabaseClient.from('clients').select('id,name,email').order('name')
+    ]);
+    if (version !== enquiryWorkflowVersion) return;
+    const source = sourceResult.data;
+    if (sourceResult.error || !source || clientsResult.error || !Array.isArray(clientsResult.data)) throw new Error('No se pudieron cargar la solicitud y los clientes. No se ha creado nada.');
+    context.textContent = [source.name,source.email,source.phone,source.service,source.preferred_date,source.budget_range,source.message,'Consentimiento: '+(source.consent_accepted ? 'aceptado' : 'no registrado'),source.consent_at].filter(Boolean).join('\n');
+    if (!source.consent_accepted) throw new Error('Esta solicitud no tiene consentimiento registrado. Revísala antes de crear su ficha.');
+    const select = document.getElementById('enquiry-workflow-client');
+    select.innerHTML = '<option value="">Selecciona una opción</option><option value="__new__">Crear cliente con los datos de esta solicitud</option>' + clientsResult.data.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}${c.email ? ' · '+escapeHtml(c.email) : ''}</option>`).join('');
+    select.disabled = false;
+    enquiryWorkflowIntent = {enquiryId,source:enquirySnapshot(source),clientIds:clientsResult.data.map(c=>c.id),projectIds:[],targetsReady:false};
+    document.getElementById('enquiry-workflow-title').value = source.service ? source.service+' · '+source.name : 'Solicitud de '+source.name;
+    select.focus();
+  } catch (error) { if (version !== enquiryWorkflowVersion) return; errorEl.textContent = error.message || 'No se pudo preparar la conexión.'; errorEl.hidden = false; }
+}
+document.getElementById('enquiry-workflow-client').addEventListener('change', async () => {
+  if (!enquiryWorkflowIntent || enquiryWorkflowSaving) return;
+  const intent = enquiryWorkflowIntent, version = ++enquiryTargetVersion;
+  const clientId = document.getElementById('enquiry-workflow-client').value;
+  const select = document.getElementById('enquiry-workflow-project');
+  const save = document.getElementById('enquiry-workflow-save');
+  const errorEl = document.getElementById('enquiry-workflow-error'); errorEl.hidden = true;
+  intent.targetsReady = false; intent.projectIds = []; select.disabled = true; save.disabled = true;
+  select.innerHTML = '<option value="">Nueva reserva en consulta</option>'; select.value = '';
+  document.getElementById('enquiry-workflow-title-label').hidden = false; document.getElementById('enquiry-workflow-title').required = true;
+  if (!clientId) return;
+  if (clientId === '__new__') { intent.targetsReady = true; save.disabled = false; return; }
+  if (!intent.clientIds.includes(clientId)) return;
+  try {
+    const {data,error} = await supabaseClient.from('projects').select('id,title,event_date').eq('client_id',clientId).neq('status','cancelled').order('event_date',{ascending:false,nullsFirst:false});
+    if (version !== enquiryTargetVersion || intent !== enquiryWorkflowIntent) return;
+    if (error || !Array.isArray(data)) throw new Error('No se pudieron comprobar las reservas de este cliente.');
+    select.innerHTML = '<option value="">Nueva reserva en consulta</option>' + data.map(b=>`<option value="${escapeHtml(b.id)}">${escapeHtml(b.title)}${b.event_date ? ' · '+escapeHtml(b.event_date) : ''}</option>`).join('');
+    intent.projectIds = data.map(b=>b.id); intent.targetsReady = true; select.disabled = false; save.disabled = false;
+  } catch(error) { if (version !== enquiryTargetVersion || intent !== enquiryWorkflowIntent) return; errorEl.textContent = error.message || 'No se pudieron cargar las reservas.'; errorEl.hidden = false; }
+});
+document.getElementById('enquiry-workflow-project').addEventListener('change', () => {
+  const existing = !!document.getElementById('enquiry-workflow-project').value;
+  document.getElementById('enquiry-workflow-title-label').hidden = existing;
+  document.getElementById('enquiry-workflow-title').required = !existing;
+});
+document.getElementById('enquiry-workflow-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const intent = enquiryWorkflowIntent;
+  if (!intent || !intent.targetsReady || enquiryWorkflowSaving) return;
+  const client = document.getElementById('enquiry-workflow-client').value;
+  const project = document.getElementById('enquiry-workflow-project').value || null;
+  const title = document.getElementById('enquiry-workflow-title').value.trim();
+  if (!(client === '__new__' || intent.clientIds.includes(client)) || (project && !intent.projectIds.includes(project)) || (!project && !title)) return;
+  const errorEl = document.getElementById('enquiry-workflow-error'); errorEl.hidden = true;
+  const controls = ['save','cancel','client','project'].map(key=>document.getElementById('enquiry-workflow-'+key));
+  enquiryWorkflowSaving = true; controls.forEach(el=>el.disabled=true);
+  try {
+    const {data,error} = await supabaseClient.rpc('studio_start_enquiry_workflow',{
+      p_enquiry_id:intent.enquiryId,p_expected_source:intent.source,
+      p_existing_client_id:client === '__new__' ? null : client,p_create_client:client === '__new__',
+      p_existing_project_id:project,p_title:project ? null : title
+    });
+    if (error || !data?.client_id || !data?.project_id) throw new Error(error && ['PGRST202','42883'].includes(error.code)
+      ? 'Falta instalar la migración de conexión de solicitudes. No se ha creado nada.'
+      : 'No se pudo conectar la solicitud. Puede haber cambiado o tener otra conexión. Cierra y revisa sus datos antes de reintentar.');
+    enquiryWorkflowSaving = false; closeEnquiryWorkflow();
+    await openWorkspaceEntity('bookings',data.project_id);
+  } catch(error) { errorEl.textContent = error.message || 'No se pudo guardar la conexión.'; errorEl.hidden = false; }
+  finally { enquiryWorkflowSaving=false; controls.forEach(el=>el.disabled=false); }
+});
 
 // ============================================================
 // Clientes (tarjetas estilo CRM: estadísticas + ficha de detalle)
@@ -1202,12 +1465,15 @@ const clientIconNew = '<svg width="18" height="18" viewBox="0 0 24 24" fill="non
 function clientActiveBookings(c) { return (c.projects || []).filter(p => ['confirmed', 'in_progress'].includes(p.status)); }
 function clientIsNew(c) { return (Date.now() - new Date(c.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000; }
 
+let clientLoadVersion = 0;
 async function loadClients() {
+  const version = ++clientLoadVersion;
   const { data, error } = await supabaseClient
     .from('clients')
     .select('*, projects(id, title, status, event_date), quotes(id, amount, status, created_at)')
     .order('created_at', { ascending: false });
-  if (error) return console.error(error);
+  if (version !== clientLoadVersion) return;
+  if (error) { allClientsCache = []; closeClientDetail(); document.getElementById('client-list').textContent = 'No se pudieron cargar los clientes. Vuelve a abrir esta sección.'; return; }
   allClientsCache = data || [];
   renderClientStats();
   renderClients();
@@ -1302,8 +1568,8 @@ function openClientDetail(id) {
       <b>Reservas (${bookings.length})</b>
       ${bookings.length ? bookings.map(b => `
         <div class="client-detail-row">
-          <span>${escapeHtml(b.title)}${b.event_date ? ' · ' + new Date(b.event_date + 'T00:00:00').toLocaleDateString() : ''}</span>
-          <span class="status-pill ${b.status}">${statusLabels[b.status] || b.status}</span>
+          <button type="button" class="ws-entity-link" data-client-booking="${escapeHtml(b.id)}">${escapeHtml(b.title)}${b.event_date ? ' · ' + new Date(b.event_date + 'T00:00:00').toLocaleDateString() : ''} ↗</button>
+          <span class="status-pill ${escapeHtml(b.status)}">${escapeHtml(statusLabels[b.status] || b.status)}</span>
         </div>`).join('') : '<p class="panel-sub" style="margin:0;">Sin reservas todavía.</p>'}
     </div>
 
@@ -1311,14 +1577,19 @@ function openClientDetail(id) {
       <b>Presupuestos (${quotes.length})</b>
       ${quotes.length ? quotes.map(q => `
         <div class="client-detail-row">
-          <span>${q.amount != null ? Number(q.amount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'Sin importe'}</span>
-          <span class="status-pill ${q.status}">${statusLabels[q.status] || q.status}</span>
+          <button type="button" class="ws-entity-link" data-client-quote="${escapeHtml(q.id)}">${q.amount != null ? Number(q.amount).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : 'Sin importe'} ↗</button>
+          <span class="status-pill ${escapeHtml(q.status)}">${escapeHtml(statusLabels[q.status] || q.status)}</span>
         </div>`).join('') : '<p class="panel-sub" style="margin:0;">Sin presupuestos todavía.</p>'}
     </div>
 
+    <div class="ws-context-actions"><button type="button" class="og-btn og-btn-dark" id="client-new-quote">+ Presupuesto para este cliente</button><button type="button" class="og-btn og-btn-outline" id="client-new-booking">+ Reserva para este cliente</button></div>
     <button type="button" class="og-btn og-btn-outline" id="client-detail-delete" style="color:var(--og-bad); border-color:var(--og-bad);">Eliminar cliente</button>
   `;
 
+  detail.querySelectorAll('[data-client-booking]').forEach(b => b.addEventListener('click', () => openWorkspaceEntity('bookings', b.dataset.clientBooking)));
+  detail.querySelectorAll('[data-client-quote]').forEach(b => b.addEventListener('click', () => openWorkspaceEntity('quotes', b.dataset.clientQuote)));
+  document.getElementById('client-new-quote').addEventListener('click', () => draftForClient('quotes', c.id));
+  document.getElementById('client-new-booking').addEventListener('click', () => draftForClient('bookings', c.id));
   document.getElementById('client-detail-close').addEventListener('click', closeClientDetail);
   document.getElementById('client-detail-notes').addEventListener('blur', async (e) => {
     const hint = document.getElementById('client-notes-hint');
@@ -1377,12 +1648,19 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
 // ============================================================
 // Reservas y calendario (projects table)
 // ============================================================
+let bookingLoadVersion = 0;
 async function loadCalendar() {
+  const version = ++bookingLoadVersion;
   await populateClientSelect(document.getElementById('job-client'));
   const list = document.getElementById('job-list');
-  const { data, error } = await supabaseClient.from('projects').select('*, clients(name)').order('event_date', { ascending: true, nullsFirst: false });
+  const { data, error } = await supabaseClient.from('projects').select('*, clients(name), quotes(id), enquiry_workflows(enquiry_id), portfolio_workflows(portfolio_project_id, portfolio_projects(title))').order('event_date', { ascending: true, nullsFirst: false });
+  if (version !== bookingLoadVersion) return;
   if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar las reservas. Vuelve a abrir esta sección para reintentarlo.'); return; }
   StudioWorkspace.mountBookings(list, data || [], {
+    openClient: id => openWorkspaceEntity('clients', id),
+    openQuote: id => openWorkspaceEntity('quotes', id),
+    openEnquiry: id => openWorkspaceEntity('messages', id),
+    openPortfolio: id => openWorkspaceEntity('projects', id),
     async status(job, value) {
       const { error } = await supabaseClient.from('projects').update({ status: value }).eq('id', job.id);
       if (error) throw new Error('No se pudo guardar el estado de la reserva.');
@@ -1399,6 +1677,13 @@ async function loadCalendar() {
 
 document.getElementById('job-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const form = e.currentTarget;
+  if (form.dataset.saving === 'true') return;
+  if (document.getElementById('job-client').disabled) return alert('Espera a que se carguen los clientes antes de guardar.');
+  form.dataset.saving = 'true';
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
   const title = document.getElementById('job-title').value.trim();
   const client_id = document.getElementById('job-client').value || null;
   const event_date = document.getElementById('job-date').value || null;
@@ -1406,8 +1691,10 @@ document.getElementById('job-form').addEventListener('submit', async (e) => {
   if (!title) return;
   const { error } = await supabaseClient.from('projects').insert({ title, client_id, event_date, status });
   if (error) return alert(error.message);
-  e.target.reset();
-  loadCalendar();
+  form.reset();
+  await loadCalendar();
+  } catch (error) { alert('No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
+  finally { delete form.dataset.saving; submit.disabled = false; }
 });
 
 // ============================================================
@@ -1676,12 +1963,18 @@ document.getElementById('inventory-form').addEventListener('submit', async (e) =
 // ============================================================
 // Presupuestos y contratos
 // ============================================================
+let quoteLoadVersion = 0;
 async function loadQuotes() {
+  const version = ++quoteLoadVersion;
   await populateClientSelect(document.getElementById('quote-client'));
   const list = document.getElementById('quote-list');
   const { data, error } = await supabaseClient.from('quotes').select('*, clients(name)').order('created_at', { ascending: false });
+  if (version !== quoteLoadVersion) return;
   if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar los presupuestos. Vuelve a abrir esta sección para reintentarlo.'); return; }
   StudioWorkspace.mountQuotes(list, data || [], {
+    prepareBooking: prepareQuoteBooking,
+    openClient: id => openWorkspaceEntity('clients', id),
+    openBooking: id => openWorkspaceEntity('bookings', id),
     async status(quote, value) {
       const { error } = await supabaseClient.from('quotes').update({ status: value }).eq('id', quote.id);
       if (error) throw new Error('No se pudo guardar el estado del presupuesto.');
@@ -1696,8 +1989,92 @@ async function loadQuotes() {
   });
 }
 
+// The conversion is one reviewed transaction, not an insert followed by a fragile update.
+const quoteBookingDialog = document.getElementById('quote-booking-dialog');
+let quoteBookingIntent = null;
+let quoteBookingVersion = 0;
+let quoteBookingSaving = false;
+function closeQuoteBooking() {
+  if (quoteBookingSaving) return;
+  ++quoteBookingVersion; quoteBookingIntent = null; quoteBookingDialog.close();
+}
+document.getElementById('quote-booking-cancel').addEventListener('click', closeQuoteBooking);
+quoteBookingDialog.addEventListener('cancel', e => { e.preventDefault(); closeQuoteBooking(); });
+function updateQuoteBookingMode() {
+  const existing = !!document.getElementById('quote-booking-target').value;
+  document.getElementById('quote-booking-fields').hidden = existing;
+  document.getElementById('quote-booking-title').required = !existing;
+  document.getElementById('quote-booking-save').textContent = existing ? 'Vincular reserva existente' : 'Crear y vincular consulta';
+}
+document.getElementById('quote-booking-target').addEventListener('change', updateQuoteBookingMode);
+async function prepareQuoteBooking(quoteId) {
+  if (quoteBookingSaving) return;
+  const version = ++quoteBookingVersion;
+  quoteBookingIntent = null;
+  const form = document.getElementById('quote-booking-form'); form.reset();
+  const submit = document.getElementById('quote-booking-save'); submit.disabled = true;
+  const errorEl = document.getElementById('quote-booking-error'); errorEl.hidden = true;
+  document.getElementById('quote-booking-context').textContent = 'Cargando presupuesto y reservas…';
+  document.getElementById('quote-booking-target').innerHTML = '<option value="">Nueva reserva</option>';
+  updateQuoteBookingMode();
+  if (!quoteBookingDialog.open) quoteBookingDialog.showModal();
+  try {
+    const { data: quote, error } = await supabaseClient.from('quotes').select('id,client_id,project_id,status,clients(name)').eq('id', quoteId).single();
+    if (version !== quoteBookingVersion) return;
+    if (error || !quote) throw new Error('No se pudo cargar el presupuesto. Cierra y vuelve a intentarlo.');
+    if (quote.project_id) { closeQuoteBooking(); return openWorkspaceEntity('bookings', quote.project_id); }
+    if (quote.status !== 'accepted' || !quote.client_id) throw new Error('Solo puedes vincular un presupuesto aceptado con cliente asignado.');
+    const { data: bookings, error: bookingError } = await supabaseClient.from('projects').select('id,title,event_date,status').eq('client_id', quote.client_id).neq('status', 'cancelled').order('event_date', {ascending:false, nullsFirst:false});
+    if (version !== quoteBookingVersion) return;
+    if (bookingError || !Array.isArray(bookings)) throw new Error('No se pudieron comprobar las reservas existentes. No se ha creado nada.');
+    document.getElementById('quote-booking-context').textContent = 'Cliente: ' + (quote.clients?.name || 'Cliente asignado') + ' · Presupuesto ' + String(quote.id).slice(0,8).toUpperCase();
+    document.getElementById('quote-booking-target').innerHTML = '<option value="">Nueva reserva</option>' + bookings.map(b => `<option value="${escapeHtml(b.id)}">${escapeHtml(b.title)}${b.event_date ? ' · ' + escapeHtml(b.event_date) : ' · Sin fecha'}</option>`).join('');
+    quoteBookingIntent = { quoteId: quote.id, clientId: quote.client_id, bookingIds: bookings.map(b => b.id) };
+    submit.disabled = false;
+    document.getElementById('quote-booking-title').focus();
+  } catch (error) {
+    if (version !== quoteBookingVersion) return;
+    errorEl.textContent = error.message || 'No se pudo preparar la reserva.'; errorEl.hidden = false;
+  }
+}
+document.getElementById('quote-booking-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (quoteBookingSaving || !quoteBookingIntent) return;
+  const intent = quoteBookingIntent;
+  const target = document.getElementById('quote-booking-target').value || null;
+  if (target && !intent.bookingIds.includes(target)) return;
+  const title = document.getElementById('quote-booking-title').value.trim();
+  const eventDate = document.getElementById('quote-booking-date').value || null;
+  if (!target && (!title || (eventDate && !StudioWorkspace.localDate(eventDate)))) return;
+  const submit = document.getElementById('quote-booking-save');
+  const cancel = document.getElementById('quote-booking-cancel');
+  const errorEl = document.getElementById('quote-booking-error');
+  quoteBookingSaving = true; submit.disabled = true; cancel.disabled = true; errorEl.hidden = true;
+  try {
+    const {data, error} = await supabaseClient.rpc('studio_link_quote_booking', {
+      p_quote_id: intent.quoteId, p_expected_client_id: intent.clientId, p_existing_project_id: target,
+      p_title: target ? null : title, p_event_date: target ? null : eventDate,
+      p_service: target ? null : document.getElementById('quote-booking-service').value.trim() || null,
+      p_notes: target ? null : document.getElementById('quote-booking-notes').value.trim() || null
+    });
+    if (error || !data) throw new Error(error && ['PGRST202','42883'].includes(error.code)
+      ? 'La conexión de reservas aún no está disponible. Falta instalar su migración; no se ha creado nada.'
+      : 'No se pudo completar la conexión. Revisa el presupuesto antes de reintentar; un reintento no creará otra reserva para el mismo presupuesto.');
+    quoteBookingSaving = false; closeQuoteBooking();
+    await openWorkspaceEntity('bookings', data);
+  } catch (error) { errorEl.textContent = error.message || 'No se pudo conectar la reserva.'; errorEl.hidden = false; }
+  finally { quoteBookingSaving = false; submit.disabled = false; cancel.disabled = false; }
+});
+
 document.getElementById('quote-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  const form = e.currentTarget;
+  if (form.dataset.saving === 'true') return;
+  if (document.getElementById('quote-client').disabled) return alert('Espera a que se carguen los clientes antes de guardar.');
+  form.dataset.saving = 'true';
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
   const client_id = document.getElementById('quote-client').value || null;
   const amountRaw = document.getElementById('quote-amount').value.trim();
   const amount = StudioWorkspace.parseAmount(amountRaw);
@@ -1705,8 +2082,10 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   const status = document.getElementById('quote-status').value;
   const { error } = await supabaseClient.from('quotes').insert({ client_id, amount, status });
   if (error) return alert(error.message);
-  e.target.reset();
-  loadQuotes();
+  form.reset();
+  await loadQuotes();
+  } catch (error) { alert('No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
+  finally { delete form.dataset.saving; submit.disabled = false; }
 });
 
 // ============================================================

@@ -22,6 +22,21 @@ if ($('year')) $('year').textContent = new Date().getFullYear();
 // Studio replace this list entirely (see applyRealProjects below).
 // w/h are the real pixel dimensions of each file: the home grid uses them to
 // reserve each photo's space before it loads and to balance the columns.
+let portfolioState = 'loading';
+let socialState = 'loading';
+
+// A successful empty response is authoritative; an error is not an empty catalogue.
+function publicRows(result) {
+  if (!result || result.error || !Array.isArray(result.data)) throw new Error('Public data unavailable');
+  return result.data;
+}
+function portfolioNotice() {
+  const messages = lang === 'es'
+    ? { loading: 'Cargando portfolio…', error: 'No se pudo cargar el portfolio. Vuelve a intentarlo recargando la página.', ready: 'Estamos preparando nuevas historias. Pronto podrás verlas aquí.' }
+    : { loading: 'Loading portfolio…', error: 'The portfolio could not be loaded. Please reload to try again.', ready: 'New stories are on their way. See them here soon.' };
+  return `<p role="status" style="grid-column:1/-1;min-height:40vh;padding:4rem 1.5rem">${messages[portfolioState]}</p>`;
+}
+
 const projects = [
   { id: '01', title: 'Formula E',   type: 'Motorsport',   image: 'assets/portfolio/motorsport.jpg',         ratio: 'wide',   w: 1800, h: 1350 },
   { id: '02', title: 'Tōdai-ji',    type: 'Architecture', image: 'assets/portfolio/todaiji.jpg',            ratio: 'tall',   w: 1200, h: 1800 },
@@ -48,6 +63,8 @@ const projects = [
   { id: '23', title: 'Crossing',    type: 'Motorsport',   image: 'assets/portfolio/nissan-crossing.jpg',    ratio: 'wide',   w: 1800, h: 1350 },
   { id: '24', title: 'Itaewon',     type: 'Street',       image: 'assets/portfolio/itaewon.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
 ];
+// Intrinsic dimensions of existing assets, not a second CMS list.
+const portfolioAssetMetadata = Object.fromEntries(projects.map(p => [p.image.replace(/^\//,''), {w:p.w,h:p.h}]));
 // Texto alternativo de cada fotografía: describe lo que se ve, no sólo el
 // título y la categoría. Va por idioma, igual que el resto de la web. Las fotos
 // que se publiquen desde Studio no están en esta lista y usan título y tipo.
@@ -79,7 +96,7 @@ const PHOTO_ALT = {
 };
 
 function photoAlt(p) {
-  const pair = PHOTO_ALT[p.image];
+  const pair = PHOTO_ALT[String(p.image || '').replace(/^\//,'')];
   if (pair) return pair[lang === 'es' ? 1 : 0];
   return [p.title, p.type].filter(Boolean).join(' — ');
 }
@@ -94,13 +111,17 @@ function tileLabel(p) {
 
 // One image per service, in the same order as copy[].serviceList
 // (Photography, Film & Reels, UGC, Events, Social Content).
-const serviceImages = [
-  'assets/portfolio/portrait-studio.jpg',
-  'assets/portfolio/halo-detail.jpg',
-  'assets/portfolio/nightlife-cheers.jpg',
-  'assets/portfolio/nightlife-crew.jpg',
-  'assets/portfolio/shibuya.jpg',
-];
+const serviceImages = window.OGServiceCatalog.images;
+let serviceCatalogReady = false;
+let serviceCatalogState = 'loading';
+let studioPreviewActive = false;
+let serviceCatalog = window.OGServiceCatalog.legacy(window.DEFAULT_COPY || {es:{},en:{}});
+function currentServices() { return window.OGServiceCatalog.active(serviceCatalog, lang); }
+function applyServiceCatalog(catalog) {
+  serviceCatalog = window.OGServiceCatalog.validate(catalog);
+  ['es','en'].forEach(locale => { const entries = window.OGServiceCatalog.active(serviceCatalog, locale); copy[locale].serviceList = entries.map(entry=>entry.label); copy[locale].serviceBlurbs = entries.map(entry=>entry.description); });
+}
+
 
 // Editable marketing copy (headline, about text, etc.) lives in
 // assets/default-copy.js as the fallback, and can be overridden per
@@ -122,13 +143,7 @@ const copy = {
     svcQuote: 'Custom quote', svcLinked: 'Your selection is linked to the form.',
     svcNone: 'No service selected', svcPickOne: 'Choose one to see its details.',
     svcSelectedSuffix: 'selected — tell us what you have in mind.',
-    serviceBlurbs: [
-      'Stills for brands, venues, products and people. Shot on location or in a studio, selected and retouched.',
-      'Moving image: short films, vertical reels and cutdowns for social. From shoot through to edit, colour and sound.',
-      'Creator-style content that looks native in the feed — made to stop the scroll, for brands that need a steady stream of everyday material.',
-      'Coverage of events, launches and parties — the room, the people and the moments, as they happen.',
-      'Ongoing content for social channels: a recurring shoot and edit rhythm instead of one-off assets.',
-    ],
+    serviceBlurbs: window.OGServiceCatalog.blurbs.en,
     processTitle: 'How we work',
     processSteps: [
       { t: 'Tell us your project', d: 'Write to us with your idea, a rough date and budget — nothing needs to be fully decided yet.' },
@@ -152,13 +167,7 @@ const copy = {
     svcQuote: 'Presupuesto personalizado', svcLinked: 'Tu selección queda enlazada al formulario.',
     svcNone: 'Ningún servicio seleccionado', svcPickOne: 'Elige uno para ver su detalle.',
     svcSelectedSuffix: 'seleccionado — cuéntanos qué tienes en mente.',
-    serviceBlurbs: [
-      'Fotografía para marcas, espacios, producto y personas. En localización o en estudio, con selección y retoque.',
-      'Imagen en movimiento: piezas cortas, reels verticales y versiones para redes. Del rodaje al montaje, color y sonido.',
-      'Contenido con estilo de creador que no desentona en el feed — pensado para que tu audiencia se detenga a mirarlo, para marcas que necesitan material cotidiano.',
-      'Cobertura de eventos, presentaciones y fiestas: el espacio, la gente y lo que pasa, mientras ocurre.',
-      'Contenido continuado para redes: un ritmo recurrente de rodaje y edición en lugar de piezas sueltas.',
-    ],
+    serviceBlurbs: window.OGServiceCatalog.blurbs.es,
     processTitle: 'Cómo trabajamos',
     processSteps: [
       { t: 'Cuéntanos tu proyecto', d: 'Nos escribes con tu idea, una fecha aproximada y presupuesto orientativo — no hace falta tenerlo todo decidido.' },
@@ -321,6 +330,7 @@ function appendHomeBatch() {
 function renderHomeGrid() {
   const grid = $('home-grid');
   if (!grid) return;
+  if (portfolioState !== 'ready' || !projects.length) { grid.innerHTML = portfolioNotice(); homeCols = []; homeTileCount = 0; return; }
 
   const count = homeColumnCount();
   grid.innerHTML = Array.from({ length: count }, () => '<div class="home-col"></div>').join('');
@@ -401,9 +411,9 @@ const LOCAL_PHOTO = /^assets\/portfolio\/([^/]+)\.jpe?g$/i;
 
 function photoMarkup(src, attrs, sizes) {
   const img = `<img src="${attrEscape(src)}" ${attrs}>`;
-  const match = LOCAL_PHOTO.exec(String(src || ''));
+  const match = LOCAL_PHOTO.exec(String(src || '').replace(/^\//,''));
   if (!match) return img;
-  const base = attrEscape(`assets/portfolio/${match[1]}`);
+  const base = attrEscape(`/assets/portfolio/${match[1]}`);
   return `<picture>` +
     `<source type="image/webp" srcset="${base}-480.webp 480w, ${base}-960.webp 960w" sizes="${attrEscape(sizes)}">` +
     img +
@@ -429,6 +439,7 @@ function renderWork() {
   // Cada pieza es un botón que abre la vista ampliada. Antes era un <article>
   // con tabindex, que el lector de pantalla anunciaba sin decir que se podía
   // abrir. Las reglas de estilo van por clase, así que se ve exactamente igual.
+  if (portfolioState !== 'ready' || !projects.length) { grid.innerHTML = portfolioNotice(); return; }
   grid.innerHTML = projects.map((p, i) => `
     <figure class="project-tile ${attrEscape(p.ratio)}" tabindex="0" role="button" aria-label="${attrEscape(tileLabel(p))}" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}">
       ${photoMarkup(p.image, `alt="${attrEscape(photoAlt(p))}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_WORK)}
@@ -457,17 +468,17 @@ function renderServices() {
     // the older card grid. Same data, rendered to fit its container.
     // Cada fila dice qué se produce (las mismas descripciones que la tarjeta
     // de Contacto), y el nombre lleva a Contacto con el servicio ya elegido.
-    cards.innerHTML = cards.tagName === 'OL'
+    cards.innerHTML = !serviceCatalogReady ? `<p role="status">${lang==='es'?(serviceCatalogState==='error'?'No se pudo cargar el catálogo. Recarga para reintentarlo.':'Cargando servicios…'):(serviceCatalogState==='error'?'The service catalogue could not be loaded. Please reload.':'Loading services…')}</p>` : cards.tagName === 'OL'
       ? t.serviceList.map((s, i) => {
           const blurb = t.serviceBlurbs?.[i];
-          return `<li><div class="svc-row"><a class="svc-link" href="/contact?service=${i}"><span>${attrEscape(s)}</span></a>` +
+          return `<li><div class="svc-row"><a class="svc-link" href="/contact?service=${encodeURIComponent(currentServices()[i].id)}"><span>${attrEscape(s)}</span></a>` +
             (blurb ? `<p class="svc-blurb">${attrEscape(blurb)}</p>` : '') + `</div></li>`;
         }).join('')
       : t.serviceList.map((s, i) => `
         <article>
           <span>0${i + 1}</span>
-          <img src="${serviceImages[i % serviceImages.length]}" alt="">
-          <div><h3>${s}</h3><p>${t.viewService} →</p></div>
+          <img src="${attrEscape(currentServices()[i]?.image || serviceImages[i % serviceImages.length])}" alt="">
+          <div><h3>${attrEscape(s)}</h3><p>${t.viewService} →</p></div>
         </article>`).join('');
   }
 
@@ -489,10 +500,11 @@ function renderServices() {
 function renderServiceMarquee() {
   const el = $('service-marquee');
   if (!el) return;
+  if (!serviceCatalogReady) { el.innerHTML=''; return; }
   const t = copy[lang];
   const card = (s, i, dup) => `
     <figure class="svc-card"${dup ? ' aria-hidden="true"' : ''}>
-      <img src="${serviceImages[i % serviceImages.length]}" alt="">
+      <img src="${attrEscape(currentServices()[i]?.image || serviceImages[i % serviceImages.length])}" alt="">
       <figcaption><span>0${i + 1}</span>${attrEscape(s)}</figcaption>
     </figure>`;
   const pass = (dup) => t.serviceList.map((s, i) => card(s, i, dup)).join('');
@@ -526,19 +538,10 @@ function renderStudio() {
   if ($('studio-tag')) $('studio-tag').textContent = t.studioTag;
 }
 
-// El identificador de un servicio es su posición en el catálogo, no su texto
-// traducido: así la selección sobrevive a cambiar de ES a EN. La etiqueta
-// legible se resuelve otra vez al enviar (ver serviceLabel), de modo que en
-// Studio se sigue guardando el nombre del servicio, igual que antes, y no un
-// código interno. Visualmente el desplegable es idéntico.
-const SERVICE_VALUE = (i) => `svc-${i}`;
+// Stable catalogue IDs survive translation, renaming and reordering.
+const SERVICE_VALUE = i => currentServices()[i]?.id || '';
 const BUDGET_UNDECIDED = 'undecided';
-
-function serviceLabel(value) {
-  const match = /^svc-(\d+)$/.exec(String(value || ''));
-  if (!match) return null;
-  return copy[lang].serviceList?.[Number(match[1])] ?? null;
-}
+function serviceLabel(value) { return window.OGServiceCatalog.resolve(serviceCatalog, lang, value)?.label || null; }
 
 // El texto de consentimiento lleva un enlace y puede editarse desde Studio. Se
 // inserta como HTML, pero sólo después de quitar scripts y manejadores en
@@ -566,8 +569,8 @@ function renderServiceCard() {
   if (!card) return;
   const t = copy[lang];
   const list = t.serviceList || [];
-  const match = /^svc-(\d+)$/.exec($('service')?.value || '');
-  const i = match ? Number(match[1]) : -1;
+  const entries = currentServices();
+  const i = entries.findIndex(entry => entry.id === $('service')?.value);
   const chosen = i >= 0 && i < list.length;
 
   $('service-card-chip').textContent = t.svcChip;
@@ -575,7 +578,7 @@ function renderServiceCard() {
 
   if (chosen) {
     const img = $('service-card-img');
-    const src = serviceImages[i % serviceImages.length];
+    const src = entries[i].image;
     if (img.getAttribute('src') !== src) img.src = src;
     img.alt = '';
     $('service-card-index').textContent = `${String(i + 1).padStart(2, '0')} / ${list[i]}`;
@@ -637,7 +640,7 @@ function renderContact() {
   const chosenService = service?.value || '';
   window.OGContact?.setOptions(
     service,
-    (t.serviceList || []).map((label, i) => ({ value: SERVICE_VALUE(i), label })),
+    (serviceCatalogReady ? t.serviceList || [] : []).map((label, i) => ({ value: SERVICE_VALUE(i), label })),
     t.fServicePh
   );
   // Si el catálogo ha cambiado y el servicio elegido ya no existe, hay que
@@ -651,15 +654,16 @@ function renderContact() {
           : 'The service you had chosen is no longer available. Pick another one; the rest of your request is kept.')
       : '';
     notice.hidden = !lostService;
+    if(!serviceCatalogReady){notice.textContent=lang==='es'?(serviceCatalogState==='error'?'No se pudo comprobar el catálogo. Recarga antes de enviar.':'Cargando catálogo…'):(serviceCatalogState==='error'?'The catalogue could not be checked. Reload before sending.':'Loading catalogue…');notice.hidden=false;}
   }
 
   // Preselección al llegar desde Servicios. Sólo la primera vez: después
   // manda lo que haya elegido la persona.
-  if (!contactPrefilled) {
+  if (!contactPrefilled && serviceCatalogReady) {
     contactPrefilled = true;
     const index = new URLSearchParams(location.search).get('service');
-    if (service && index !== null && /^\d{1,3}$/.test(index)) {
-      const value = SERVICE_VALUE(Number(index));
+    if (service && index !== null) {
+      const value = window.OGServiceCatalog.resolve(serviceCatalog,lang,index)?.id || '';
       if ([...service.options].some(o => o.value === value)) service.value = value;
     }
   }
@@ -741,6 +745,13 @@ function socialRatio(p) {
 function renderSocialGrid() {
   const grid = $('social-grid');
   if (!grid) return;
+
+  if (socialState === 'error') {
+    if ($('social')) $('social').hidden = false;
+    grid.textContent = lang === 'es' ? 'No se pudieron cargar las publicaciones. Recarga la página para reintentarlo.' : 'Posts could not be loaded. Please reload to try again.';
+    if ($('social-empty')) $('social-empty').hidden = true;
+    return;
+  }
 
   // La sección entera sólo se enseña cuando hay publicaciones reales
   // seleccionadas en alguna red. Sin ellas, ni hueco vacío ni textos del panel.
@@ -931,7 +942,7 @@ window.addEventListener('message', (event) => {
   if (!msg || msg.type !== 'og-preview') return;
   if (msg.lang && copy[msg.lang]) {
     if (msg.fields) Object.assign(copy[msg.lang], msg.fields);
-    if (Array.isArray(msg.serviceList) && msg.serviceList.length) copy[msg.lang].serviceList = msg.serviceList;
+    if (msg.serviceCatalog) { try { applyServiceCatalog(msg.serviceCatalog); serviceCatalogReady=true;serviceCatalogState='ready';studioPreviewActive=true; } catch { return; } }
     lang = msg.lang;
     renderAll();
   }
@@ -950,24 +961,25 @@ if (supabaseClient) {
   supabaseClient
     .from('site_content')
     .select('key, lang, value')
-    .then(({ data }) => {
-      if (!data || !data.length) return;
-      let changed = false;
+    .then(result => {
+      if(studioPreviewActive)return;
+      const data = publicRows(result);
       data.forEach(row => {
-        if (!copy[row.lang]) return;
-        if (row.key === 'serviceList') {
-          try {
-            const list = JSON.parse(row.value);
-            if (Array.isArray(list) && list.length) { copy[row.lang].serviceList = list; changed = true; }
-          } catch (e) { /* ignore malformed override */ }
-        } else {
-          copy[row.lang][row.key] = row.value;
-          changed = true;
-        }
+        if (!copy[row.lang] || ['serviceList','serviceCatalog','studio_ai_enabled'].includes(row.key)) return;
+        copy[row.lang][row.key] = row.value;
       });
-      if (changed) renderAll();
+      applyServiceCatalog(window.OGServiceCatalog.fromRows(window.DEFAULT_COPY, data));
+      serviceCatalogReady = true;serviceCatalogState='ready';
+      if ($('service')) $('service').disabled = false;
+      renderAll();
     })
-    .catch(() => {});
+    .catch(() => {
+      if(studioPreviewActive)return;
+      serviceCatalogReady=false;serviceCatalogState='error';renderServices();renderContact();
+      const notice = $('service-notice');
+      if (notice) { notice.textContent = lang === 'es' ? 'No se pudo comprobar el catálogo actual. Recarga antes de enviar tu solicitud.' : 'The current service catalogue could not be checked. Reload before sending your enquiry.'; notice.hidden = false; }
+      if ($('service')) $('service').disabled = true;
+    });
 }
 
 // ---------- Contact form → Supabase `enquiries` ----------
@@ -987,6 +999,7 @@ if (form && window.OGContact) {
     send: async (payload, { consent }) => {
       if (!consent) throw new Error('Consent required');
       if (!supabaseClient) throw new Error('Contact backend unavailable');
+      if (!serviceCatalogReady || !serviceLabel(payload.service)) throw new Error('Service catalogue unavailable');
       const row = {
         ...payload,
         // Se guarda el nombre legible del servicio, no el identificador
@@ -1018,7 +1031,9 @@ function applyRealProjects(rows) {
     type: p.subtitle || '',
     image: p.cover_image_url || 'assets/portfolio/portrait-studio.jpg',
     ratio: p.layout_class || fallbackRatios[i % fallbackRatios.length],
+    ...(portfolioAssetMetadata[String(p.cover_image_url || '').replace(/^\//,'')] || {}),
   }));
+  portfolioState = 'ready';
   projects.length = 0;
   projects.push(...mapped);
   renderHomeGrid();
@@ -1035,10 +1050,8 @@ if (supabaseClient) {
     .select('title, subtitle, cover_image_url, layout_class, sort_order')
     .eq('is_published', true)
     .order('sort_order')
-    .then(({ data }) => {
-      if (data && data.length) applyRealProjects(data);
-    })
-    .catch(() => {});
+    .then(result => applyRealProjects(publicRows(result)))
+    .catch(() => { portfolioState = 'error'; projects.length = 0; renderHomeGrid(); renderWork(); });
 
   // Real selected social posts, same graceful fallback as portfolio.
   // Grouped by network, capped at SOCIAL_MAX each, in Studio's sort order.
@@ -1047,13 +1060,11 @@ if (supabaseClient) {
     .select('platform, external_url, image_url, caption, sort_order')
     .eq('is_selected', true)
     .order('sort_order')
-    .then(({ data }) => {
-      if (data && data.length) applyRealSocial(data);
-      else renderSocialGrid();
-    })
-    .catch(() => renderSocialGrid());
+    .then(result => { const rows = publicRows(result); socialState = 'ready'; applyRealSocial(rows); })
+    .catch(() => { socialState = 'error'; renderSocialGrid(); });
 } else {
-  renderSocialGrid();
+  portfolioState = 'error'; socialState = 'error';
+  renderHomeGrid(); renderWork(); renderSocialGrid();
 }
 
 function applyRealSocial(rows) {
