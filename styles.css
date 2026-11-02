@@ -913,8 +913,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .pulse-page:not(.dark-mode) .site-footer>span{ color:#5f5d57; }
 
 /* Session galleries retain the original tile geometry, colours and lightbox shell. */
-.project-tile.portfolio-changing > picture,.project-tile.portfolio-changing > img{opacity:.15}
-.project-tile > picture{display:block;width:100%;transition:opacity 280ms ease}
+.project-tile > picture{display:block;width:100%}
 .home-grid .project-tile > picture{position:absolute;inset:0;height:100%}
 .home-grid .project-tile img{height:100%;object-fit:cover}
 .portfolio-gallery-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin-top:12px;color:#f3efe8;font:12px ui-monospace,monospace}
@@ -926,7 +925,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .portfolio-context[hidden]{display:none}
 .portfolio-context button{min-height:44px;border:1px solid currentColor;border-radius:999px;background:transparent;color:inherit;padding:8px 14px}
 @media(max-width:560px){.portfolio-gallery-controls{gap:6px;font-size:11px}.portfolio-gallery-contact{flex-basis:100%;text-align:center}.lightbox-figure img{max-height:55vh}.lightbox-figure{max-height:84dvh}.lightbox{padding:5vh 4vw}}
-@media(prefers-reduced-motion:reduce){.project-tile > picture{transition:none}.project-tile.portfolio-changing > picture,.project-tile.portfolio-changing > img{opacity:1}}
+@media(prefers-reduced-motion:reduce){.project-tile > picture{transition:none}}
 @media(max-height:650px){.lightbox{align-items:flex-start;overflow-y:auto;padding-top:58px;padding-bottom:24px}.lightbox-figure{max-height:none}.lightbox-figure img{max-height:max(100px,calc(100dvh - 240px))}.lightbox-close{top:-46px}.portfolio-gallery-controls{margin-top:8px}.lightbox-figure figcaption{margin-top:8px}}
 
 /* Same layout in loading/error/empty states; works in both flex home and masonry work. */
@@ -936,3 +935,8 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .public-retry:disabled{opacity:.6;cursor:wait}
 .svc-index .service-load-notice{counter-increment:none;display:block;font-size:16px;line-height:1.5;overflow-wrap:anywhere}
 .svc-index .service-load-notice::before{content:none}
+
+/* Keep the background still while inspecting photos, including mobile browser chrome changes. */
+.portfolio-viewer-open .pulse-bg,.portfolio-viewer-open .pulse-bg::after{animation-play-state:paused}
+@supports(height:1svh){.lightbox-figure img{max-height:65svh}@media(max-width:560px){.lightbox-figure img{max-height:55svh}}@media(max-height:650px){.lightbox-figure img{max-height:max(100px,calc(100svh - 240px))}}}
+@media(hover:none){.project-tile:hover img,.home-grid .project-tile:hover img{transform:none;filter:none;box-shadow:none}}
