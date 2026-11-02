@@ -25,6 +25,33 @@ if ($('year')) $('year').textContent = new Date().getFullYear();
 let portfolioState = 'loading';
 let socialState = 'loading';
 
+// Reads are bounded and single-flight. A timed-out response cannot overwrite a
+// retry; no cached/default portfolio is ever substituted for current public data.
+const PUBLIC_READ_TIMEOUT_MS = 12000;
+const publicReads = new Map();
+function loadPublicResource(key, request, apply, fail) {
+  if (publicReads.has(key)) return publicReads.get(key);
+  const controller = new AbortController();
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error('Public read timed out'));
+      controller.abort();
+    }, PUBLIC_READ_TIMEOUT_MS);
+  });
+  const operation = Promise.race([
+    Promise.resolve().then(() => request(controller.signal)), timeout,
+  ]).then(apply).catch(fail).finally(() => {
+    clearTimeout(timer);
+    publicReads.delete(key);
+  });
+  publicReads.set(key, operation);
+  return operation;
+}
+function retryMarkup(resource) {
+  return `<button type="button" class="public-retry" data-public-retry="${resource}">${lang === 'es' ? 'Reintentar' : 'Try again'}</button>`;
+}
+
 // A successful empty response is authoritative; an error is not an empty catalogue.
 function publicRows(result) {
   if (!result || result.error || !Array.isArray(result.data)) throw new Error('Public data unavailable');
@@ -32,9 +59,9 @@ function publicRows(result) {
 }
 function portfolioNotice() {
   const messages = lang === 'es'
-    ? { loading: 'Cargando portfolio…', error: 'No se pudo cargar el portfolio. Vuelve a intentarlo recargando la página.', ready: 'Estamos preparando nuevas historias. Pronto podrás verlas aquí.' }
-    : { loading: 'Loading portfolio…', error: 'The portfolio could not be loaded. Please reload to try again.', ready: 'New stories are on their way. See them here soon.' };
-  return `<p role="status" style="grid-column:1/-1;min-height:40vh;padding:4rem 1.5rem">${messages[portfolioState]}</p>`;
+    ? { loading: 'Cargando portfolio…', error: 'No se pudo cargar el portfolio. Puedes volver a intentarlo.', ready: 'Estamos preparando nuevas historias. Pronto podrás verlas aquí.' }
+    : { loading: 'Loading portfolio…', error: 'The portfolio could not be loaded. You can try again.', ready: 'New stories are on their way. See them here soon.' };
+  return `<div class="portfolio-notice" role="status" aria-live="polite"><p>${messages[portfolioState]}</p>${portfolioState === 'error' ? retryMarkup('portfolio') : ''}</div>`;
 }
 
 const projects = [
@@ -468,7 +495,8 @@ function renderServices() {
     // the older card grid. Same data, rendered to fit its container.
     // Cada fila dice qué se produce (las mismas descripciones que la tarjeta
     // de Contacto), y el nombre lleva a Contacto con el servicio ya elegido.
-    cards.innerHTML = !serviceCatalogReady ? `<p role="status">${lang==='es'?(serviceCatalogState==='error'?'No se pudo cargar el catálogo. Recarga para reintentarlo.':'Cargando servicios…'):(serviceCatalogState==='error'?'The service catalogue could not be loaded. Please reload.':'Loading services…')}</p>` : cards.tagName === 'OL'
+    const status = `<p role="status">${lang==='es'?(serviceCatalogState==='error'?'No se pudo cargar el catálogo.':'Cargando servicios…'):(serviceCatalogState==='error'?'The service catalogue could not be loaded.':'Loading services…')}</p>${serviceCatalogState === 'error' ? retryMarkup('catalog') : ''}`;
+    cards.innerHTML = !serviceCatalogReady ? (cards.tagName === 'OL' ? `<li class="service-load-notice">${status}</li>` : status) : cards.tagName === 'OL'
       ? t.serviceList.map((s, i) => {
           const blurb = t.serviceBlurbs?.[i];
           return `<li><div class="svc-row"><a class="svc-link" href="/contact?service=${encodeURIComponent(currentServices()[i].id)}"><span>${attrEscape(s)}</span></a>` +
@@ -637,6 +665,7 @@ function renderContact() {
   // setOptions conserva la selección mientras su valor siga existiendo, y
   // nunca reordena por selectedIndex.
   const service = $('service');
+  if (service) service.disabled = !serviceCatalogReady;
   const chosenService = service?.value || '';
   window.OGContact?.setOptions(
     service,
@@ -654,7 +683,7 @@ function renderContact() {
           : 'The service you had chosen is no longer available. Pick another one; the rest of your request is kept.')
       : '';
     notice.hidden = !lostService;
-    if(!serviceCatalogReady){notice.textContent=lang==='es'?(serviceCatalogState==='error'?'No se pudo comprobar el catálogo. Recarga antes de enviar.':'Cargando catálogo…'):(serviceCatalogState==='error'?'The catalogue could not be checked. Reload before sending.':'Loading catalogue…');notice.hidden=false;}
+    if(!serviceCatalogReady){notice.textContent=lang==='es'?(serviceCatalogState==='error'?'No se pudo comprobar el catálogo. Reinténtalo antes de enviar.':'Cargando catálogo…'):(serviceCatalogState==='error'?'The catalogue could not be checked. Try again before sending.':'Loading catalogue…');notice.hidden=false;if(serviceCatalogState==='error')notice.insertAdjacentHTML('beforeend',retryMarkup('catalog'));}
   }
 
   // Preselección al llegar desde Servicios. Sólo la primera vez: después
@@ -746,9 +775,12 @@ function renderSocialGrid() {
   const grid = $('social-grid');
   if (!grid) return;
 
+  // Resize, language and tab changes must not hide an in-flight manual retry.
+  if (socialState === 'loading' && grid.querySelector('[data-public-retry="social"]')) return;
+
   if (socialState === 'error') {
     if ($('social')) $('social').hidden = false;
-    grid.textContent = lang === 'es' ? 'No se pudieron cargar las publicaciones. Recarga la página para reintentarlo.' : 'Posts could not be loaded. Please reload to try again.';
+    grid.innerHTML = `<div role="status"><p>${lang === 'es' ? 'No se pudieron cargar las publicaciones.' : 'Posts could not be loaded.'}</p>${retryMarkup('social')}</div>`;
     if ($('social-empty')) $('social-empty').hidden = true;
     return;
   }
@@ -902,9 +934,13 @@ function renderAll() {
   // dependen los lectores de pantalla, la separación silábica y el corrector.
   document.documentElement.lang = lang;
   applyTheme();
-  renderNav();
   renderHomeGrid();
   renderWork();
+  renderSiteCopy();
+}
+
+function renderSiteCopy() {
+  renderNav();
   renderStatement();
   renderServices();
   renderStudio();
@@ -957,30 +993,33 @@ const supabaseClient = (window.supabase && window.SUPABASE_URL && !window.SUPABA
 // site_content stores one row per (key, lang). Whatever is saved there wins
 // over the defaults in assets/default-copy.js — same graceful-fallback
 // pattern as the portfolio/social fetches below.
-if (supabaseClient) {
-  supabaseClient
-    .from('site_content')
-    .select('key, lang, value')
-    .then(result => {
-      if(studioPreviewActive)return;
-      const data = publicRows(result);
-      data.forEach(row => {
-        if (!copy[row.lang] || ['serviceList','serviceCatalog','studio_ai_enabled'].includes(row.key)) return;
-        copy[row.lang][row.key] = row.value;
-      });
-      applyServiceCatalog(window.OGServiceCatalog.fromRows(window.DEFAULT_COPY, data));
-      serviceCatalogReady = true;serviceCatalogState='ready';
-      if ($('service')) $('service').disabled = false;
-      renderAll();
-    })
-    .catch(() => {
-      if(studioPreviewActive)return;
-      serviceCatalogReady=false;serviceCatalogState='error';renderServices();renderContact();
-      const notice = $('service-notice');
-      if (notice) { notice.textContent = lang === 'es' ? 'No se pudo comprobar el catálogo actual. Recarga antes de enviar tu solicitud.' : 'The current service catalogue could not be checked. Reload before sending your enquiry.'; notice.hidden = false; }
-      if ($('service')) $('service').disabled = true;
+function loadSiteContent() {
+  if (studioPreviewActive || publicReads.has('catalog')) return;
+  serviceCatalogReady = false; serviceCatalogState = 'loading';
+  if ($('service')) $('service').disabled = true;
+  renderServices(); renderContact();
+  return loadPublicResource('catalog', signal => {
+    if (!supabaseClient) throw new Error('Public backend unavailable');
+    return supabaseClient.from('site_content').select('key, lang, value').abortSignal(signal);
+  }, result => {
+    if (studioPreviewActive) return;
+    const data = publicRows(result);
+    const catalog = window.OGServiceCatalog.fromRows(window.DEFAULT_COPY, data);
+    data.forEach(row => {
+      if (!copy[row.lang] || ['serviceList','serviceCatalog','studio_ai_enabled'].includes(row.key)) return;
+      copy[row.lang][row.key] = row.value;
     });
+    applyServiceCatalog(catalog);
+    serviceCatalogReady = true; serviceCatalogState = 'ready';
+    if ($('service')) $('service').disabled = false;
+    renderSiteCopy();
+  }, () => {
+    if (studioPreviewActive) return;
+    serviceCatalogReady=false;serviceCatalogState='error';renderServices();renderContact();
+    if ($('service')) $('service').disabled = true;
+  });
 }
+loadSiteContent();
 
 // ---------- Contact form → Supabase `enquiries` ----------
 // El controlador vive en assets/ux/og-contact.js: valida antes de enviar,
@@ -1040,32 +1079,64 @@ function applyRealProjects(rows) {
   renderWork();
 }
 
-// ---------- Real portfolio (Supabase) with graceful fallback ----------
-// The public work grid shows the provisional projects above by default —
-// exactly like the real site — but switches to Adama's real published
-// projects the moment he adds any from Studio → Portfolio.
-if (supabaseClient) {
-  supabaseClient
-    .from('portfolio_projects')
-    .select('title, subtitle, cover_image_url, layout_class, sort_order')
-    .eq('is_published', true)
-    .order('sort_order')
-    .then(result => applyRealProjects(publicRows(result)))
-    .catch(() => { portfolioState = 'error'; projects.length = 0; renderHomeGrid(); renderWork(); });
-
-  // Real selected social posts, same graceful fallback as portfolio.
-  // Grouped by network, capped at SOCIAL_MAX each, in Studio's sort order.
-  supabaseClient
-    .from('social_posts')
-    .select('platform, external_url, image_url, caption, sort_order')
-    .eq('is_selected', true)
-    .order('sort_order')
-    .then(result => { const rows = publicRows(result); socialState = 'ready'; applyRealSocial(rows); })
-    .catch(() => { socialState = 'error'; renderSocialGrid(); });
-} else {
-  portfolioState = 'error'; socialState = 'error';
-  renderHomeGrid(); renderWork(); renderSocialGrid();
+// ---------- Current public records only; loading/empty/error are distinct ----------
+function loadPortfolio() {
+  if (publicReads.has('portfolio')) return;
+  portfolioState = 'loading';
+  renderHomeGrid(); renderWork();
+  return loadPublicResource('portfolio', signal => {
+    if (!supabaseClient) throw new Error('Public backend unavailable');
+    return supabaseClient.from('portfolio_projects')
+      .select('title, subtitle, cover_image_url, layout_class, sort_order')
+      .eq('is_published', true).order('sort_order').abortSignal(signal);
+  }, result => applyRealProjects(publicRows(result)), () => {
+    portfolioState = 'error'; projects.length = 0; renderHomeGrid(); renderWork();
+  });
 }
+function loadSocial() {
+  if (publicReads.has('social')) return;
+  socialState = 'loading';
+  // Keep a visible retry status while retrying, rather than hiding focused UI.
+  const retry = document.querySelector('[data-public-retry="social"]');
+  if (retry) { retry.disabled = true; retry.textContent = lang === 'es' ? 'Cargando…' : 'Loading…'; }
+  return loadPublicResource('social', signal => {
+    if (!supabaseClient) throw new Error('Public backend unavailable');
+    return supabaseClient.from('social_posts')
+      .select('platform, external_url, image_url, caption, sort_order')
+      .eq('is_selected', true).order('sort_order').abortSignal(signal);
+  }, result => { const rows = publicRows(result); socialState = 'ready'; applyRealSocial(rows); }, () => {
+    socialState = 'error'; renderSocialGrid();
+  });
+}
+// Keep keyboard retry focus in the same region while its contents are replaced.
+// Completion restores it only if the visitor has not moved elsewhere meanwhile.
+function retryPublicResource(button, loader) {
+  const region = button.closest('#home-grid, #masonry-grid, #service-cards, #contact-form, #social-grid');
+  const keepFocus = region && document.activeElement === button;
+  const oldTabIndex = region?.getAttribute('tabindex');
+  const operation = loader();
+  if (!keepFocus || !operation) return;
+  region.setAttribute('tabindex', '-1');
+  region.focus({preventScroll:true});
+  const restore = () => {
+    if (document.activeElement === region) {
+      const target = region.querySelector('[data-public-retry], #service:not(:disabled), [tabindex="0"], a[href], button:not(:disabled)');
+      target?.focus({preventScroll:true});
+    }
+    if (oldTabIndex === null) region.removeAttribute('tabindex');
+    else region.setAttribute('tabindex', oldTabIndex);
+  };
+  operation.then(restore, restore);
+}
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-public-retry]');
+  if (!button || button.disabled || publicReads.has(button.dataset.publicRetry)) return;
+  const loaders = { portfolio: loadPortfolio, catalog: loadSiteContent, social: loadSocial };
+  const loader = loaders[button.dataset.publicRetry];
+  if (loader) retryPublicResource(button, loader);
+});
+loadPortfolio();
+loadSocial();
 
 function applyRealSocial(rows) {
   const next = { tiktok: [], instagram: [], youtube: [] };
