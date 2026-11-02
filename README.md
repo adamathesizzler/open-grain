@@ -1,5 +1,41 @@
 # OPEN GRAIN — proyecto propio (web + panel Studio)
 
+## IA de Studio: OpenAI Responses
+
+Los asistentes `/api/ai-assist` y `/api/market-ideas` usan OpenAI Responses
+con JSON Schema estricto. Se conserva la autenticación Supabase del propietario.
+El editor propone cambios que requieren pulsar **Aplicar cambios**; las ideas
+para redes son borradores. No hay generación ni publicación automática.
+
+### Configuración del servidor
+
+- `OPENAI_API_KEY`: Secret en Vercel para Preview y Production. Nunca en HTML,
+  variables públicas, repositorio ni mensajes.
+- `OPENAI_MODEL`: opcional, por defecto `gpt-4.1-mini`.
+- `ANTHROPIC_API_KEY`: no utilizada por esta versión; conservar si una versión
+  anterior la necesita para rollback.
+- Node 18+ con fetch nativo; sin dependencias npm nuevas.
+
+La API tiene facturación separada de ChatGPT. Revisar crédito y límites antes
+ de activar. `store: false` evita almacenar una respuesta recuperable en la API,
+pero no promete ausencia total de registros. No se envía el token Supabase al
+proveedor. Hay timeout de petición y cuerpo, sin reintentos automáticos ni
+exposición de errores crudos.
+
+### Verificación
+
+`node --test pruebas/test_ai_openai.cjs` ejecuta pruebas offline con fetch
+simulado: autenticación, contratos JSON, errores, timeout y bloqueo de gasto
+con IA apagada. No usa claves reales ni genera llamadas de pago.
+Comprobar JavaScript con `node --check` y la sintaxis JSON de `vercel.json`.
+Las pruebas simuladas no sustituyen la validación de una integración real.
+
+Documentación: [Responses](https://developers.openai.com/api/docs/guides/migrate-to-responses),
+[JSON Schema](https://developers.openai.com/api/docs/guides/structured-outputs),
+[facturación](https://help.openai.com/en/articles/9039756-managing-billing-for-chatgpt-and-the-api-platform).
+
+---
+
 Reconstrucción de la web de OPEN GRAIN como código 100% tuyo: sin depender de
 la herramienta de ChatGPT, lista para vivir en tu propio repositorio de
 GitHub, con hosting en Vercel y backend en Supabase.
@@ -134,3 +170,13 @@ En cuanto publiques proyectos reales desde Studio → Portfolio (marcados como
 "Published"), la sección "Selected work" de la web pública los usará
 automáticamente en vez de estos provisionales — lo mismo pasa con Social
 posts en cuanto marques publicaciones reales como "seleccionadas".
+
+## Interruptor de IA
+
+En Studio → Editar web → IA puedes activar o apagar los dos asistentes.
+El estado se guarda en `site_content` (`studio_ai_enabled`, `es`), bajo las
+políticas admin existentes. Sin fila, sin valor `true` o sin poder comprobarlo,
+el servidor no llama a OpenAI. No hay generación automática. Apagar no cancela
+peticiones ya iniciadas. Las propuestas de cambios siguen requiriendo Aplicar.
+La variable `OPENAI_API_KEY` permanece solo en el servidor; la API se factura
+por separado. No uses esta clave en el chat ni en variables públicas.

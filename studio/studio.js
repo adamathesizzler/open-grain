@@ -86,9 +86,12 @@ async function checkSession() {
     const settingsEmail = document.getElementById('settings-email');
     if (settingsEmail) settingsEmail.textContent = email || '—';
     switchTab('overview');
+    loadAIControl();
   } else {
     loginScreen.hidden = false;
     dashboard.hidden = true;
+    aiEnabled = false;
+    paintAIControl();
   }
 }
 
@@ -807,7 +810,7 @@ async function loadSiteContent() {
   const { data, error } = await supabaseClient.from('site_content').select('key, lang, value');
   if (error) console.error(error);
   contentOverrides = {};
-  (data || []).forEach(row => { contentOverrides[contentKey(row.key, row.lang)] = row.value; });
+  (data || []).filter(row => row.key !== 'studio_ai_enabled').forEach(row => { contentOverrides[contentKey(row.key, row.lang)] = row.value; });
 
   document.getElementById('content-fields-hero').innerHTML = fieldsMarkup(HERO_KEYS);
   document.getElementById('content-fields-textos').innerHTML = fieldsMarkup(TEXT_KEYS);
@@ -854,6 +857,48 @@ document.getElementById('content-save').addEventListener('click', async () => {
   if (document.getElementById('services-fields').innerHTML) await loadServicesInto('services-fields');
 });
 
+// ---------- Persistent AI spending switch (server also checks every request) ----------
+let aiEnabled = false;
+let aiControlBusy = false;
+const aiControl = document.getElementById('studio-ai-enabled');
+function paintAIControl(message) {
+  aiControl.checked = aiEnabled;
+  aiControl.disabled = aiControlBusy;
+  document.getElementById('studio-ai-control-status').textContent = message || (aiEnabled ? 'IA activada. Solo se usa bajo petición.' : 'IA apagada. No se enviarán nuevas peticiones.');
+}
+async function loadAIControl() {
+  if (aiControlBusy) return;
+  aiControlBusy = true;
+  aiEnabled = false;
+  paintAIControl('Comprobando estado…');
+  try {
+    const { data, error } = await supabaseClient.from('site_content').select('value').eq('key', 'studio_ai_enabled').eq('lang', 'es').maybeSingle();
+    if (error) throw error;
+    aiEnabled = data?.value === 'true';
+    paintAIControl();
+  } catch {
+    aiEnabled = false;
+    paintAIControl('No se pudo comprobar el estado. IA bloqueada por seguridad; vuelve a intentarlo.');
+  } finally { aiControlBusy = false; aiControl.disabled = false; }
+}
+aiControl.addEventListener('change', async () => {
+  if (aiControlBusy) return;
+  const desired = aiControl.checked;
+  aiControlBusy = true;
+  paintAIControl('Guardando estado…');
+  try {
+    const { data, error } = await supabaseClient.from('site_content').upsert({ key: 'studio_ai_enabled', lang: 'es', value: String(desired) }, { onConflict: 'key,lang' }).select('value').single();
+    if (error || data?.value !== String(desired)) throw error || new Error('Not saved');
+    aiEnabled = desired;
+    paintAIControl();
+  } catch {
+    // Do not claim OFF was saved if a network failure made the result uncertain.
+    aiEnabled = false;
+    paintAIControl('No se pudo confirmar el cambio. No uses la IA hasta volver a comprobar el estado.');
+  } finally { aiControlBusy = false; aiControl.disabled = false; }
+});
+window.addEventListener('focus', () => { if (!dashboard.hidden) loadAIControl(); });
+
 // ---------- AI assistant (proposes changes, admin approves) ----------
 let pendingAiChanges = [];
 
@@ -866,6 +911,7 @@ function setAiStatus(text) {
 
 document.getElementById('ai-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!aiEnabled || aiControlBusy) { setAiStatus('La IA está apagada o su estado no está confirmado.'); return; }
   const prompt = document.getElementById('ai-prompt').value.trim();
   if (!prompt) return;
   const submitBtn = document.getElementById('ai-submit');
@@ -888,7 +934,7 @@ document.getElementById('ai-form').addEventListener('submit', async (e) => {
       body: JSON.stringify({
         prompt,
         defaultCopy: window.DEFAULT_COPY,
-        contentOverrides: contentRows || [],
+        contentOverrides: (contentRows || []).filter(row => row.key !== 'studio_ai_enabled'),
         projects: projects || [],
       }),
     });
@@ -1035,6 +1081,7 @@ function setIdeaStatus(text) {
 
 document.getElementById('idea-form').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!aiEnabled || aiControlBusy) { setIdeaStatus('La IA está apagada. Actívala en Editar web → IA.'); return; }
   const prompt = document.getElementById('idea-prompt').value.trim();
   if (!prompt) return;
   const platform = document.getElementById('idea-platform').value;

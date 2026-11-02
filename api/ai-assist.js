@@ -1,10 +1,10 @@
 // OPEN GRAIN — Studio AI assistant (Vercel serverless function)
 //
-// Runs server-side only. Holds the Anthropic API key (set it in Vercel →
-// Project Settings → Environment Variables → ANTHROPIC_API_KEY) and never
+// Runs server-side only. Holds the OpenAI API key (set it in Vercel →
+// Project Settings → Environment Variables → OPENAI_API_KEY) and never
 // exposes it to the browser. The panel calls this endpoint with the
 // admin's Supabase session token; this function verifies that token
-// belongs to the site owner before spending any API budget, asks Claude
+// belongs to the site owner before spending any API budget, asks OpenAI
 // to propose a structured change based on the admin's request, and
 // returns it — the panel itself performs the actual database write only
 // after the admin clicks "Aplicar cambios", so this endpoint never
@@ -17,9 +17,7 @@ const SUPABASE_URL = 'https://dmegetqsiowxwiibcxmv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_1FXmgEWqmmRPZZp3lCpOiA_VfJ8JyIx';
 const ADMIN_EMAIL = 'adamabalde1998@gmail.com';
 
-// If Anthropic retires this model name, update it here — see
-// https://docs.claude.com/en/docs/about-claude/models for current names.
-const ANTHROPIC_MODEL = 'claude-sonnet-4-5';
+const { AIError, readBody, fetchWithTimeout, generateJSON, sendError } = require('./_lib/openai');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -28,11 +26,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const token = (req.headers?.authorization || '').replace(/^Bearer\s+/i, '');
     if (!token) { res.status(401).json({ error: 'No autenticado.' }); return; }
 
     // Verify the token against Supabase Auth and confirm it's the site owner.
-    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    const userRes = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
     });
     if (!userRes.ok) { res.status(401).json({ error: 'Sesión no válida.' }); return; }
@@ -42,13 +40,13 @@ module.exports = async (req, res) => {
       return;
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      res.status(500).json({ error: 'Falta configurar ANTHROPIC_API_KEY en Vercel (Settings → Environment Variables).' });
-      return;
+    const body = readBody(req.body);
+    const { prompt, defaultCopy, contentOverrides = [], projects = [] } = body;
+    if (!Array.isArray(contentOverrides) || !Array.isArray(projects) ||
+        contentOverrides.some(row => !row || typeof row !== 'object') ||
+        projects.some(row => !row || typeof row !== 'object')) {
+      throw new AIError(400, 'El contexto de contenido no es válido.');
     }
-
-    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const { prompt, defaultCopy, contentOverrides, projects } = body;
     if (!prompt || typeof prompt !== 'string') {
       res.status(400).json({ error: 'Falta el mensaje.' });
       return;
@@ -58,7 +56,7 @@ module.exports = async (req, res) => {
     // admin actually sees on the live site right now, per key/lang.
     const overrideMap = {};
     (contentOverrides || []).forEach(row => { overrideMap[`${row.key}|${row.lang}`] = row.value; });
-    const editableKeys = Object.keys((defaultCopy && defaultCopy.en) || {});
+    const editableKeys = Object.keys((defaultCopy && defaultCopy.en) || {}).filter(key => key !== 'studio_ai_enabled');
     const currentValues = {};
     editableKeys.forEach(key => {
       ['es', 'en'].forEach(lang => {
@@ -103,44 +101,23 @@ Si el usuario pide algo que no puedes hacer con estas dos herramientas (por ejem
 Si el usuario pide algo ambiguo, haz la interpretación más razonable y dilo en "summary".
 Nunca inventes claves ni ids que no estén en las listas de arriba.`;
 
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 1500,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const parsed = await generateJSON({ instructions: systemPrompt, prompt, kind: 'changes', maxOutputTokens: 2500, sessionToken: token });
+
+    const valid = parsed.changes.length <= 100 && parsed.changes.every(c => {
+      if (!c || typeof c !== 'object') return false;
+      if (c.table === 'site_content') return editableKeys.includes(c.key) && ['es', 'en'].includes(c.lang) && typeof c.new_value === 'string';
+      if (c.table !== 'portfolio_projects' || !projects.some(p => p.id === c.id)) return false;
+      if (c.field === 'layout_class') return ['tall', 'wide', 'square'].includes(c.new_value);
+      if (c.field === 'is_published') return typeof c.new_value === 'boolean';
+      return c.field === 'title' && typeof c.new_value === 'string';
     });
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      res.status(502).json({ error: `Error del servicio de IA (${aiRes.status}): ${errText.slice(0, 300)}` });
-      return;
-    }
-
-    const aiJson = await aiRes.json();
-    const text = (aiJson.content || []).map(b => b.text || '').join('').trim();
-
-    let parsed;
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
-    } catch (e) {
-      res.status(502).json({ error: 'No pude interpretar la respuesta de la IA. Intenta reformular tu petición.' });
-      return;
-    }
+    if (!valid) throw new AIError(502, 'La IA propuso un cambio no permitido. Reformula tu petición.');
 
     res.status(200).json({
       summary: parsed.summary || '',
       changes: Array.isArray(parsed.changes) ? parsed.changes : [],
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error interno: ' + (err && err.message ? err.message : String(err)) });
+    sendError(res, err);
   }
 };

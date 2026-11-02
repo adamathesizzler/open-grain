@@ -304,6 +304,9 @@
                   <span class="og-orb" id="ai-orb"><span class="og-orb-ring r1"></span><span class="og-orb-ring r2"></span><span class="og-orb-ring r3"></span><span class="og-orb-core"></span></span>
                 </div>
                 <p class="panel-sub" style="margin-bottom:10px;">Pídele cambios de texto o fotos en tu propio idioma. Te enseña el cambio antes de tocar nada.</p>
+                <p class="panel-sub"><label><input type="checkbox" id="studio-ai-enabled" disabled> Activar IA (textos e ideas para redes)</label></p>
+                <p id="studio-ai-control-status" class="panel-sub" role="status">IA apagada hasta comprobar el estado.</p>
+                <p class="panel-sub">Solo se usa cuando pulsas Preguntar o Generar ideas. Cada petición puede tener coste. Apagarla impide nuevas peticiones, pero no cancela las ya iniciadas.</p>
                 <form id="ai-form" class="ai-form">
                   <textarea id="ai-prompt" rows="3" placeholder="Ej: cambia el titular de la portada a algo más cercano"></textarea>
                   <button type="submit" class="og-btn og-btn-dark" id="ai-submit">Preguntar</button>
