@@ -2125,6 +2125,22 @@ async function renderSetupBanner() {
 
 checkSession();
 
+const portfolioPhotoEditor=window.OGPortfolioPhotoEditor.mount({client:supabaseClient,safeUrl:url=>window.OGServiceCatalog.imageUrl(url),onSaved:async()=>{await loadProjectsData();renderProjects();await loadPortfolioGroupsEditor(true);}});
+function openPortfolioPhotoGroup(group){
+ if(portfolioGroupEditorBusy||portfolioGroupEditorState?.dirty){alert('Guarda o recarga los cambios de grupos antes de editar sus fotos.');return;}
+ portfolioPhotoEditor.open(group);
+}
+function renderPortfolioPhotoGroups(){
+ const target=document.getElementById('portfolio-photo-groups');target.replaceChildren();
+ for(const group of portfolioGroupEditorState?.groups||[]){
+  const button=document.createElement('button');button.type='button';button.className='album-card photo-group-launcher';button.dataset.photoGroup=group.id;
+  const photos=group.photo_ids.map(id=>portfolioGroupEditorState.photos.find(p=>p.id===id)).filter(Boolean);
+  const cover=photos.find(p=>p.is_published)||photos[0];const url=window.OGServiceCatalog.imageUrl(cover?.cover_image_url||'');
+  if(url){const img=document.createElement('img');img.src=url.startsWith('assets/')?'/'+url:url;img.alt='';img.loading='lazy';button.append(img);}
+  const title=document.createElement('strong');title.textContent=group.name;const detail=document.createElement('span');detail.textContent=photos.length+' fotos · abrir y editar';button.append(title,detail);button.addEventListener('click',()=>openPortfolioPhotoGroup(group));target.append(button);
+ }
+}
+
 // Deterministic public gallery group editor. Draft only until explicit Save.
 let portfolioGroupEditorState=null,portfolioGroupEditorVersion=0,portfolioGroupEditorBusy=false;
 const pgFields=document.getElementById('portfolio-group-fields'),pgStatus=document.getElementById('portfolio-group-status');
@@ -2155,7 +2171,7 @@ async function loadPortfolioGroupsEditor(force=false){
  const version=++portfolioGroupEditorVersion;pgControls(true);pgStatus.textContent='Cargando grupos…';
  try{const {data,error}=await supabaseClient.rpc('studio_portfolio_groups_snapshot');
   if(version!==portfolioGroupEditorVersion)return;if(error||!Array.isArray(data?.groups)||!Array.isArray(data?.photos))throw Error('No se pudieron cargar los grupos. No se han sustituido por datos vacíos.');
-  portfolioGroupEditorState={groups:window.OGPortfolioGroups.editable(data.groups,data.photos),photos:data.photos,expected:data,dirty:false};renderPortfolioGroupsEditor();pgStatus.textContent='La primera foto publicada de cada grupo se usa como portada pública.';
+  portfolioGroupEditorState={groups:window.OGPortfolioGroups.editable(data.groups,data.photos),photos:data.photos,expected:data,dirty:false};renderPortfolioGroupsEditor();if(typeof renderPortfolioPhotoGroups==='function')renderPortfolioPhotoGroups();pgStatus.textContent='La primera foto publicada de cada grupo se usa como portada pública.';
  }catch(error){if(version!==portfolioGroupEditorVersion)return;pgStatus.textContent=error.message;document.getElementById('portfolio-group-reload').disabled=false;return;}finally{if(version===portfolioGroupEditorVersion&&portfolioGroupEditorState)pgControls(false);}
 }
 document.getElementById('portfolio-group-add').addEventListener('click',()=>{const state=portfolioGroupEditorState;if(!state||portfolioGroupEditorBusy)return;state.groups.push({id:crypto.randomUUID(),name:'',name_en:'',photo_ids:[]});pgChanged();renderPortfolioGroupsEditor();pgFields.lastElementChild?.previousElementSibling?.querySelector('input')?.focus();});
@@ -2164,6 +2180,6 @@ document.getElementById('portfolio-group-save').addEventListener('click',async()
  const state=portfolioGroupEditorState;if(!state||portfolioGroupEditorBusy)return;
  let groups;try{groups=window.OGPortfolioGroups.validate(state.groups,state.photos);}catch(error){pgStatus.textContent=error.message;return;}
  portfolioGroupEditorBusy=true;pgControls(true);pgStatus.textContent='Guardando grupos…';
- try{const {data,error}=await supabaseClient.rpc('studio_save_portfolio_groups',{p_expected:state.expected,p_groups:groups});if(error||!data?.groups||!data?.photos)throw Error('No se pudo confirmar el guardado. Pueden haber cambiado fotos o grupos en otra sesión; tus cambios siguen aquí. Recarga y revisa antes de volver a guardar.');state.expected=data;state.groups=groups;state.dirty=false;pgStatus.textContent='Grupos guardados. La web usa este mismo orden y estas fotos; no se ha cambiado su publicación.';}
+ try{const {data,error}=await supabaseClient.rpc('studio_save_portfolio_groups',{p_expected:state.expected,p_groups:groups});if(error||!data?.groups||!data?.photos)throw Error('No se pudo confirmar el guardado. Pueden haber cambiado fotos o grupos en otra sesión; tus cambios siguen aquí. Recarga y revisa antes de volver a guardar.');state.expected=data;state.groups=groups;state.dirty=false;if(typeof renderPortfolioPhotoGroups==='function')renderPortfolioPhotoGroups();pgStatus.textContent='Grupos guardados. La web usa este mismo orden y estas fotos; no se ha cambiado su publicación.';}
  catch(error){pgStatus.textContent=error.message;}finally{portfolioGroupEditorBusy=false;pgControls(false);}
 });

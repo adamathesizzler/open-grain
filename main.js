@@ -1220,7 +1220,7 @@ let portfolioRotationPaused = false;
     },()=>{if(request===photoRequest){index=displayedIndex;contact.setAttribute('aria-disabled','false');imgEl.setAttribute('aria-busy','false');count.textContent=lang==='es'?'No se pudo cargar esta foto. Prueba otra.':'This photo could not load. Try another.';}});
   }
   function updatePhotoDetails(photo,photos){
-    titleEl.textContent=currentGroup.title;eyebrowEl.textContent=photo.title;
+    titleEl.textContent=currentGroup.title;eyebrowEl.textContent=[photo.title,photo.type].filter(Boolean).join(' — ');eyebrowEl.tabIndex=0;
     count.textContent=`${index+1} / ${photos.length}`;prev.hidden=next.hidden=photos.length<2;
     prev.setAttribute('aria-label',lang==='es'?'Foto anterior':'Previous photo');next.setAttribute('aria-label',lang==='es'?'Foto siguiente':'Next photo');
     contact.textContent=lang==='es'?'Consultar sobre estas fotos':'Enquire about these photos';

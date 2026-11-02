@@ -940,3 +940,7 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .portfolio-viewer-open .pulse-bg,.portfolio-viewer-open .pulse-bg::after{animation-play-state:paused}
 @supports(height:1svh){.lightbox-figure img{max-height:65svh}@media(max-width:560px){.lightbox-figure img{max-height:55svh}}@media(max-height:650px){.lightbox-figure img{max-height:max(100px,calc(100svh - 240px))}}}
 @media(hover:none){.project-tile:hover img,.home-grid .project-tile:hover img{transform:none;filter:none;box-shadow:none}}
+
+/* Public per-photo captions remain readable without pushing gallery controls offscreen. */
+#lightbox-eyebrow{max-height:6em;overflow:auto;overflow-wrap:anywhere;max-width:min(70ch,85vw)}
+#lightbox-eyebrow:focus-visible{outline:2px solid currentColor;outline-offset:3px}
