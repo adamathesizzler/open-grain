@@ -179,6 +179,8 @@ document.getElementById('global-search').addEventListener('input', (e) => {
   const q = e.target.value.trim().toLowerCase();
   const activePanel = document.querySelector('.studio-panel:not([hidden])');
   if (!activePanel) return;
+  const workspace = activePanel.querySelector('.ws-bookings, .ws-quotes');
+  if (workspace && window.StudioWorkspace.search(workspace, e.target.value)) return;
   activePanel.querySelectorAll('.list-row, .album-card, .category-row, .client-card').forEach(row => {
     row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
   });
@@ -1377,37 +1379,21 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
 // ============================================================
 async function loadCalendar() {
   await populateClientSelect(document.getElementById('job-client'));
-  const { data, error } = await supabaseClient
-    .from('projects').select('*, clients(name)').order('event_date', { ascending: true, nullsFirst: false });
-  if (error) return console.error(error);
   const list = document.getElementById('job-list');
-  list.innerHTML = '';
-  if (!data.length) { list.innerHTML = '<p class="panel-sub">Todavía no hay reservas.</p>'; return; }
-  data.forEach(job => {
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    const dateLabel = job.event_date ? new Date(job.event_date + 'T00:00:00').toLocaleDateString() : 'Sin fecha';
-    row.innerHTML = `
-      <span>${escapeHtml(job.title)} <small>${dateLabel}${job.clients?.name ? ' · ' + escapeHtml(job.clients.name) : ''}</small></span>
-      <select data-field="status">
-        <option value="enquiry">Consulta</option>
-        <option value="confirmed">Confirmada</option>
-        <option value="in_progress">En curso</option>
-        <option value="delivered">Entregada</option>
-        <option value="cancelled">Cancelada</option>
-      </select>
-      <button class="link-btn" data-action="delete">Eliminar</button>
-    `;
-    row.querySelector('[data-field="status"]').value = job.status;
-    row.querySelector('[data-field="status"]').addEventListener('change', async (e) => {
-      await supabaseClient.from('projects').update({ status: e.target.value }).eq('id', job.id);
-    });
-    row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+  const { data, error } = await supabaseClient.from('projects').select('*, clients(name)').order('event_date', { ascending: true, nullsFirst: false });
+  if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar las reservas. Vuelve a abrir esta sección para reintentarlo.'); return; }
+  StudioWorkspace.mountBookings(list, data || [], {
+    async status(job, value) {
+      const { error } = await supabaseClient.from('projects').update({ status: value }).eq('id', job.id);
+      if (error) throw new Error('No se pudo guardar el estado de la reserva.');
+      job.status = value;
+    },
+    async remove(job) {
       if (!confirm(`¿Eliminar "${job.title}"?`)) return;
-      await supabaseClient.from('projects').delete().eq('id', job.id);
-      loadCalendar();
-    });
-    list.appendChild(row);
+      const { error } = await supabaseClient.from('projects').delete().eq('id', job.id);
+      if (error) throw new Error('No se pudo eliminar la reserva.');
+      await loadCalendar();
+    }
   });
 }
 
@@ -1692,35 +1678,21 @@ document.getElementById('inventory-form').addEventListener('submit', async (e) =
 // ============================================================
 async function loadQuotes() {
   await populateClientSelect(document.getElementById('quote-client'));
-  const { data, error } = await supabaseClient
-    .from('quotes').select('*, clients(name)').order('created_at', { ascending: false });
-  if (error) return console.error(error);
   const list = document.getElementById('quote-list');
-  list.innerHTML = '';
-  if (!data.length) { list.innerHTML = '<p class="panel-sub">Todavía no hay presupuestos.</p>'; return; }
-  data.forEach(q => {
-    const row = document.createElement('div');
-    row.className = 'list-row';
-    row.innerHTML = `
-      <span>${escapeHtml(q.clients?.name || 'Sin cliente')} <small>${q.amount ? '€' + q.amount : 'Sin importe'}</small></span>
-      <select data-field="status">
-        <option value="draft">Borrador</option>
-        <option value="sent">Enviado</option>
-        <option value="accepted">Aceptado</option>
-        <option value="declined">Rechazado</option>
-      </select>
-      <button class="link-btn" data-action="delete">Eliminar</button>
-    `;
-    row.querySelector('[data-field="status"]').value = q.status;
-    row.querySelector('[data-field="status"]').addEventListener('change', async (e) => {
-      await supabaseClient.from('quotes').update({ status: e.target.value }).eq('id', q.id);
-    });
-    row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+  const { data, error } = await supabaseClient.from('quotes').select('*, clients(name)').order('created_at', { ascending: false });
+  if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar los presupuestos. Vuelve a abrir esta sección para reintentarlo.'); return; }
+  StudioWorkspace.mountQuotes(list, data || [], {
+    async status(quote, value) {
+      const { error } = await supabaseClient.from('quotes').update({ status: value }).eq('id', quote.id);
+      if (error) throw new Error('No se pudo guardar el estado del presupuesto.');
+      quote.status = value;
+    },
+    async remove(quote) {
       if (!confirm('¿Eliminar este presupuesto?')) return;
-      await supabaseClient.from('quotes').delete().eq('id', q.id);
-      loadQuotes();
-    });
-    list.appendChild(row);
+      const { error } = await supabaseClient.from('quotes').delete().eq('id', quote.id);
+      if (error) throw new Error('No se pudo eliminar el presupuesto.');
+      await loadQuotes();
+    }
   });
 }
 
@@ -1728,7 +1700,8 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const client_id = document.getElementById('quote-client').value || null;
   const amountRaw = document.getElementById('quote-amount').value.trim();
-  const amount = amountRaw ? parseFloat(amountRaw) : null;
+  const amount = StudioWorkspace.parseAmount(amountRaw);
+  if (Number.isNaN(amount)) return alert('Escribe un importe válido, por ejemplo 150,50, sin separador de miles.');
   const status = document.getElementById('quote-status').value;
   const { error } = await supabaseClient.from('quotes').insert({ client_id, amount, status });
   if (error) return alert(error.message);
@@ -1749,6 +1722,13 @@ async function renderSetupBanner() {
   const slot = document.getElementById('setup-banner-slot');
   slot.innerHTML = '';
   const { error } = await supabaseClient.from('portfolio_projects').select('status').limit(1);
+  if (error && !['42703', 'PGRST204'].includes(error.code)) {
+    const notice = document.createElement('p');
+    notice.className = 'panel-sub';
+    notice.textContent = 'No se pudo comprobar la base de datos. Revisa tu conexión o vuelve a iniciar sesión.';
+    slot.appendChild(notice);
+    return;
+  }
   if (error) {
     slot.innerHTML = `
       <div class="og-card og-card-pad og-setup-banner">

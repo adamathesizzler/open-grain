@@ -1,0 +1,97 @@
+/* Open Grain workspace: presentation over existing records. No network or database access. */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else root.StudioWorkspace = api;
+})(typeof window !== 'undefined' ? window : globalThis, function () {
+  'use strict';
+  const JOBS = { enquiry: 'Consulta', confirmed: 'Confirmada', in_progress: 'En curso', delivered: 'Entregada', cancelled: 'Cancelada' };
+  const QUOTES = { draft: 'Borrador', sent: 'Enviado', accepted: 'Aceptado', declined: 'Rechazado' };
+  const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const amount = value => value !== null && value !== '' && value !== undefined && Number.isFinite(Number(value)) ? Number(value) : null;
+  const money = value => amount(value) === null ? 'Sin importe' : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(amount(value));
+  const parseAmount = value => { const text = String(value).trim(); if (!text) return null; if (!/^\d+(?:[.,]\d{1,2})?$/.test(text)) return NaN; return Number(text.replace(',', '.')); };
+  function dateKey(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+  function localDate(value) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null; const d = new Date(value + 'T12:00:00'); return !Number.isNaN(+d) && dateKey(d) === value ? d : null; }
+  const dateText = value => localDate(value)?.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) || 'Sin fecha';
+  function monthDays(date) { const first = new Date(date.getFullYear(), date.getMonth(), 1, 12); const n = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); return { blanks: (first.getDay() + 6) % 7, days: Array.from({ length: n }, (_, i) => dateKey(new Date(date.getFullYear(), date.getMonth(), i + 1, 12))) }; }
+  function quoteStats(rows) { return { total: rows.length, accepted: rows.filter(q => q.status === 'accepted').length, pending: rows.filter(q => q.status === 'sent').length, value: rows.filter(q => q.status !== 'declined').reduce((sum, q) => sum + (amount(q.amount) ?? 0), 0), unknown: rows.filter(q => q.status !== 'declined' && amount(q.amount) === null).length }; }
+  const status = (value, labels) => Object.hasOwn(labels, value) ? value : 'unknown';
+  const badge = (value, labels) => `<span class="ws-badge ws-${status(value, labels)}">${escape(labels[value] || 'Sin estado')}</span>`;
+  const options = (labels, selected) => Object.entries(labels).map(([v, label]) => `<option value="${v}"${v === selected ? ' selected' : ''}>${label}</option>`).join('');
+  function filterJobs(rows, { month, day = '', state = 'all', query = '', undated = false }) {
+    const needle = query.trim().toLocaleLowerCase('es');
+    return rows.filter(j => (undated ? !localDate(j.event_date) : localDate(j.event_date) && (day ? j.event_date === day : j.event_date.slice(0, 7) === month)))
+      .filter(j => state === 'all' || j.status === state)
+      .filter(j => !needle || `${j.title || ''} ${j.clients?.name || ''}`.toLocaleLowerCase('es').includes(needle))
+      .sort((a, b) => String(a.event_date || '').localeCompare(String(b.event_date || '')) || String(a.title || '').localeCompare(String(b.title || '')));
+  }
+  function errorMessage(root, text) { const el = root.querySelector('[data-ws-message]'); if (el) { el.textContent = text; el.hidden = !text; } }
+  const listeners = new WeakMap();
+  function manage(root, event, handler) { root.addEventListener(event, handler); const entries = listeners.get(root) || []; entries.push([event, handler]); listeners.set(root, entries); }
+  const bookingControllers = new WeakMap();
+  function mountBookings(root, rows, handlers) {
+    if (bookingControllers.has(root)) { bookingControllers.get(root).update(rows, handlers); return; }
+    let records = rows, actions = handlers, month = new Date(), day = '', filter = 'all', query = '', undated = false, busy = false, disposed = false;
+    month = new Date(month.getFullYear(), month.getMonth(), 1, 12);
+    root.innerHTML = `<div class="ws-metrics" data-booking-stats></div><div class="ws-planner-layout"><section class="ws-calendar-panel"><div class="ws-calendar-head"><div><p class="ws-kicker">CALENDARIO</p><h3 data-month-label></h3></div><div class="ws-calendar-nav"><button type="button" class="ws-icon-button" data-month="-1" aria-label="Mes anterior">←</button><button type="button" class="ws-small-button" data-today>Hoy</button><button type="button" class="ws-icon-button" data-month="1" aria-label="Mes siguiente">→</button></div></div><div class="ws-weekdays" aria-hidden="true"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="ws-calendar-grid" data-calendar role="group" aria-label="Selecciona un día"></div><div class="ws-calendar-legend">${Object.entries(JOBS).map(([key, label]) => `<span><i class="ws-dot ws-${key}"></i>${label}</span>`).join('')}</div></section><section class="ws-agenda-panel"><div class="ws-agenda-heading"><div><p class="ws-kicker">EN TU AGENDA</p><h3 data-agenda-title>Sesiones del mes</h3></div><button type="button" class="ws-text-button" data-all-days>Ver mes</button></div><div class="ws-toolbar"><label class="ws-search-label"><span class="ws-sr-only">Buscar reserva o cliente</span><input type="search" data-search placeholder="Buscar sesión o cliente"></label><label><span class="ws-sr-only">Estado de reserva</span><select data-state><option value="all">Todos los estados</option>${options(JOBS, '')}</select></label></div><button type="button" class="ws-undated" data-undated></button><p data-ws-message role="alert" hidden></p><div data-agenda></div></section></div>`;
+    function render() {
+      if (disposed) return;
+      const key = dateKey(month).slice(0, 7), monthRows = records.filter(r => r.event_date?.slice(0, 7) === key);
+      root.querySelector('[data-booking-stats]').innerHTML = `<div class="ws-metric ws-metric-feature"><span>Sesiones este mes</span><strong>${monthRows.length}</strong><small>Registros de tu agenda</small></div><div class="ws-metric"><span>Confirmadas</span><strong>${monthRows.filter(j => j.status === 'confirmed').length}</strong><small>Durante el mes visible</small></div><div class="ws-metric"><span>En curso</span><strong>${monthRows.filter(j => j.status === 'in_progress').length}</strong><small>Durante el mes visible</small></div>`;
+      root.querySelector('[data-month-label]').textContent = month.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      const days = monthDays(month), today = dateKey(new Date());
+      root.querySelector('[data-calendar]').innerHTML = '<span class="ws-calendar-blank"></span>'.repeat(days.blanks) + days.days.map(key => {
+        const bookings = monthRows.filter(r => r.event_date === key), label = `${dateText(key)}, ${bookings.length} ${bookings.length === 1 ? 'reserva' : 'reservas'}`;
+        return `<button type="button" class="ws-day${key === today ? ' is-today' : ''}${key === day && !undated ? ' is-selected' : ''}" data-day="${key}" aria-label="${escape(label)}" aria-pressed="${key === day && !undated}"><span>${Number(key.slice(-2))}</span><span class="ws-day-dots" aria-hidden="true">${bookings.slice(0, 3).map(j => `<i class="ws-dot ws-${status(j.status, JOBS)}"></i>`).join('')}${bookings.length > 3 ? '<b>+</b>' : ''}</span></button>`;
+      }).join('');
+      const list = filterJobs(records, { month: key, day, state: filter, query, undated });
+      root.querySelector('[data-agenda-title]').textContent = undated ? 'Sin fecha asignada' : day ? dateText(day) : 'Sesiones del mes';
+      const n = records.filter(r => !localDate(r.event_date)).length, toggle = root.querySelector('[data-undated]');
+      toggle.textContent = `${n} ${n === 1 ? 'reserva sin fecha' : 'reservas sin fecha'}${undated ? ' · mostrando' : ' →'}`; toggle.setAttribute('aria-pressed', String(undated));
+      root.querySelector('[data-agenda]').innerHTML = list.length ? list.map(j => { const date = localDate(j.event_date); return `<article class="ws-booking-card"><div class="ws-date-tile"><b>${date ? date.getDate() : '—'}</b><span>${date ? escape(date.toLocaleDateString('es-ES', { month: 'short' })) : 'fecha'}</span></div><div class="ws-booking-info"><h4>${escape(j.title || 'Sesión sin título')}</h4><p>${escape(j.clients?.name || 'Sin cliente asignado')}</p>${badge(j.status, JOBS)}</div><div class="ws-row-actions"><label><span class="ws-sr-only">Estado de ${escape(j.title)}</span><select data-job-status="${escape(j.id)}"${busy ? ' disabled' : ''}>${options(JOBS, j.status)}</select></label><button type="button" class="ws-delete" data-job-delete="${escape(j.id)}"${busy ? ' disabled' : ''}>Eliminar</button></div></article>`; }).join('') : `<div class="ws-empty"><span aria-hidden="true">◌</span><h4>${records.length ? 'Sin sesiones en esta vista' : 'Tu agenda empieza aquí'}</h4><p>${records.length ? 'Prueba otro día, mes o filtro.' : 'Añade tu primera reserva para organizar el próximo proyecto.'}</p></div>`;
+    }
+    async function mutate(element, callback) { if (busy) return; busy = true; element.disabled = true; errorMessage(root, ''); try { await callback(); } catch (error) { if (!disposed) errorMessage(root, error?.message || 'No se pudo guardar. Inténtalo otra vez.'); } finally { busy = false; render(); } }
+    manage(root, 'click', e => { const el = e.target.closest('button'); if (!el || !root.contains(el)) return;
+      if (el.hasAttribute('data-month')) { month = new Date(month.getFullYear(), month.getMonth() + Number(el.dataset.month), 1, 12); day = ''; undated = false; render(); }
+      else if (el.hasAttribute('data-today')) { const now = new Date(); month = new Date(now.getFullYear(), now.getMonth(), 1, 12); day = dateKey(now); undated = false; render(); }
+      else if (el.dataset.day) { day = day === el.dataset.day ? '' : el.dataset.day; undated = false; render(); root.querySelector(`[data-day="${el.dataset.day}"]`)?.focus(); }
+      else if (el.hasAttribute('data-all-days')) { day = ''; undated = false; render(); }
+      else if (el.hasAttribute('data-undated')) { undated = !undated; render(); }
+      else if (el.dataset.jobDelete) { const row = records.find(r => String(r.id) === el.dataset.jobDelete); if (row) mutate(el, () => actions.remove(row)); }
+    });
+    manage(root, 'change', e => { if (e.target.matches('[data-state]')) { filter = e.target.value; render(); } else if (e.target.dataset.jobStatus) { const row = records.find(r => String(r.id) === e.target.dataset.jobStatus), value = e.target.value; if (row && Object.hasOwn(JOBS, value)) mutate(e.target, () => actions.status(row, value)); } });
+    manage(root, 'input', e => { if (e.target.matches('[data-search]')) { query = e.target.value; render(); } });
+    bookingControllers.set(root, { dispose() { disposed = true; }, search(value) { query = value; root.querySelector('[data-search]').value = value; render(); }, update(next, nextActions) { records = next; actions = nextActions; render(); } }); render();
+  }
+  const quoteControllers = new WeakMap();
+  function quoteDocument(q) {
+    const created = q.created_at && !Number.isNaN(Date.parse(q.created_at)) ? new Date(q.created_at).toLocaleDateString('es-ES') : 'No registrada';
+    return `<div class="ws-paper-top"><div class="ws-paper-brand">open<br><span>grain.</span></div><div><p class="ws-kicker">PRESUPUESTO</p><b>${escape(String(q.id || '').slice(0, 8).toUpperCase())}</b><p>${escape(created)}</p></div></div><div class="ws-paper-client"><p class="ws-kicker">PREPARADO PARA</p><h3>${escape(q.clients?.name || 'Cliente por asignar')}</h3>${badge(q.status, QUOTES)}</div><div class="ws-paper-description"><span class="ws-kicker">PRODUCCIÓN CREATIVA</span><p>Fotografía · vídeo · contenido</p><small>Consulta los detalles acordados con el cliente. Este registro no contiene un desglose de servicios ni impuestos.</small></div><div class="ws-paper-total"><span>Importe registrado</span><strong>${money(q.amount)}</strong></div><div class="ws-paper-foot"><b>OPEN GRAIN</b><span>Documento de trabajo · No es una factura</span></div>`;
+  }
+  function mountQuotes(root, rows, handlers) {
+    if (quoteControllers.has(root)) { quoteControllers.get(root).update(rows, handlers); return; }
+    let records = rows, actions = handlers, filter = 'all', query = '', selected = '', busy = false, disposed = false;
+    root.innerHTML = `<div class="ws-metrics" data-quote-stats></div><div class="ws-quotes-layout"><section class="ws-quote-index"><div class="ws-toolbar"><label class="ws-search-label"><span class="ws-sr-only">Buscar cliente de presupuesto</span><input type="search" data-quote-search placeholder="Buscar cliente…"></label><label><span class="ws-sr-only">Filtrar presupuestos</span><select data-quote-filter><option value="all">Todos los estados</option>${options(QUOTES, '')}</select></label></div><p data-ws-message role="alert" hidden></p><div class="ws-quote-cards" data-quote-cards></div></section><section class="ws-paper-region" aria-label="Detalle de presupuesto"><div class="ws-paper-heading"><span class="ws-kicker">VISTA DEL DOCUMENTO</span><span>EUR / €</span></div><article class="ws-paper" data-quote-document></article><div class="ws-document-actions" data-quote-actions></div></section></div>`;
+    function render() {
+      if (disposed) return;
+      const stats = quoteStats(records);
+      root.querySelector('[data-quote-stats]').innerHTML = `<div class="ws-metric ws-metric-feature"><span>Propuestas registradas</span><strong>${stats.total}</strong><small>${stats.pending} enviadas, pendientes de respuesta</small></div><div class="ws-metric"><span>Aceptadas</span><strong>${stats.accepted}</strong><small>No equivale a pagos recibidos</small></div><div class="ws-metric"><span>Importe no rechazado</span><strong class="ws-metric-money">${money(stats.value)}</strong><small>${stats.unknown ? stats.unknown + ' sin importe, no incluidas' : 'Suma de importes registrados'}</small></div>`;
+      const filtered = records.filter(q => filter === 'all' || q.status === filter).filter(q => !query.trim() || String(q.clients?.name || 'Sin cliente').toLocaleLowerCase('es').includes(query.trim().toLocaleLowerCase('es')));
+      if (!filtered.some(q => String(q.id) === selected)) selected = filtered.length ? String(filtered[0].id) : '';
+      root.querySelector('[data-quote-cards]').innerHTML = filtered.length ? filtered.map(q => `<button type="button" class="ws-quote-card${String(q.id) === selected ? ' is-selected' : ''}" data-quote-select="${escape(q.id)}" aria-pressed="${String(q.id) === selected}"><span class="ws-quote-card-top"><span class="ws-kicker">PROPUESTA / ${escape(String(q.id).slice(0, 6).toUpperCase())}</span>${badge(q.status, QUOTES)}</span><span class="ws-quote-client">${escape(q.clients?.name || 'Sin cliente asignado')}</span><span class="ws-quote-card-bottom"><strong>${money(q.amount)}</strong><span aria-hidden="true">↗</span></span></button>`).join('') : '<div class="ws-empty"><span aria-hidden="true">↗</span><h4>Espacio para tu próxima propuesta</h4><p>Añade un presupuesto o cambia el filtro.</p></div>';
+      const q = filtered.find(q => String(q.id) === selected);
+      root.querySelector('[data-quote-document]').innerHTML = q ? quoteDocument(q) : '<div class="ws-empty"><span class="ws-paper-brand">open<br>grain.</span><p>Selecciona un presupuesto para ver su documento.</p></div>';
+      root.querySelector('[data-quote-actions]').innerHTML = q ? `<label>Estado<select data-selected-status${busy ? ' disabled' : ''}>${options(QUOTES, q.status)}</select></label><button type="button" class="ws-delete" data-selected-delete${busy ? ' disabled' : ''}>Eliminar presupuesto</button>` : '';
+    }
+    async function mutate(el, callback) { if (busy) return; busy = true; el.disabled = true; errorMessage(root, ''); try { await callback(); } catch (error) { if (!disposed) errorMessage(root, error?.message || 'No se pudo guardar. Inténtalo otra vez.'); } finally { busy = false; render(); } }
+    manage(root, 'click', e => { const el = e.target.closest('button'); if (!el || !root.contains(el)) return; if (el.dataset.quoteSelect) { selected = el.dataset.quoteSelect; render(); Array.from(root.querySelectorAll('[data-quote-select]')).find(button => button.dataset.quoteSelect === selected)?.focus(); } else if (el.hasAttribute('data-selected-delete')) { const row = records.find(q => String(q.id) === selected); if (row) mutate(el, () => actions.remove(row)); } });
+    manage(root, 'change', e => { if (e.target.matches('[data-quote-filter]')) { filter = e.target.value; render(); } else if (e.target.matches('[data-selected-status]')) { const row = records.find(q => String(q.id) === selected), value = e.target.value; if (row && Object.hasOwn(QUOTES, value)) mutate(e.target, () => actions.status(row, value)); } });
+    manage(root, 'input', e => { if (e.target.matches('[data-quote-search]')) { query = e.target.value; render(); } });
+    quoteControllers.set(root, { dispose() { disposed = true; }, search(value) { query = value; root.querySelector('[data-quote-search]').value = value; render(); }, update(next, nextActions) { records = next; actions = nextActions; render(); } }); render();
+  }
+  if (typeof document !== 'undefined') document.addEventListener('click', e => { const opener = e.target.closest('[data-open-create]'); if (!opener) return; const details = document.getElementById(opener.dataset.openCreate); if (!details) return; e.preventDefault(); details.open = true; details.querySelector('input, select')?.focus(); });
+  function showError(root, message) { bookingControllers.get(root)?.dispose(); quoteControllers.get(root)?.dispose(); (listeners.get(root) || []).forEach(([event, handler]) => root.removeEventListener(event, handler)); listeners.delete(root); bookingControllers.delete(root); quoteControllers.delete(root); root.textContent = message; }
+  function search(root, value) { const controller = bookingControllers.get(root) || quoteControllers.get(root); if (!controller) return false; controller.search(value); return true; }
+  return { mountBookings, mountQuotes, showError, search, money, parseAmount, dateKey, localDate, monthDays, filterJobs, quoteStats, quoteDocument, escape };
+});

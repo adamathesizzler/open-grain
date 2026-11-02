@@ -13,6 +13,7 @@
 <!-- Capa de piel: alinea Studio con el lenguaje visual de la web pública.
      Quitando esta línea, el panel vuelve exactamente a su aspecto anterior. -->
 <link rel="stylesheet" href="/studio/studio-skin.css">
+<link rel="stylesheet" href="/studio/workspace.css">
 <script>
   // Apply the saved theme before paint, so there's no flash of the wrong theme.
   try { document.documentElement.dataset.theme = localStorage.getItem('og_studio_theme') || 'day'; } catch (e) {}
@@ -168,6 +169,10 @@
       </div>
     </header>
 
+    <div class="ws-ai-bar" aria-label="Control de inteligencia artificial">
+      <div class="ws-ai-heading"><span class="ws-ai-symbol" aria-hidden="true">✦</span><div><b>Asistente de IA</b><p id="studio-ai-control-status" role="status">IA apagada hasta comprobar el estado.</p></div></div>
+      <label class="ws-switch"><span>Activar IA</span><input type="checkbox" id="studio-ai-enabled" aria-describedby="studio-ai-control-status" disabled><span class="ws-switch-track" aria-hidden="true"></span></label>
+    </div>
     <main class="og-content">
 
       <!-- ============ INICIO ============ -->
@@ -307,8 +312,7 @@
                   <span class="og-orb" id="ai-orb"><span class="og-orb-ring r1"></span><span class="og-orb-ring r2"></span><span class="og-orb-ring r3"></span><span class="og-orb-core"></span></span>
                 </div>
                 <p class="panel-sub" style="margin-bottom:10px;">Pídele cambios de texto o fotos en tu propio idioma. Te enseña el cambio antes de tocar nada.</p>
-                <p class="panel-sub"><label><input type="checkbox" id="studio-ai-enabled" disabled> Activar IA (textos e ideas para redes)</label></p>
-                <p id="studio-ai-control-status" class="panel-sub" role="status">IA apagada hasta comprobar el estado.</p>
+                <p class="panel-sub">El interruptor de IA está siempre visible arriba del Studio. Activarlo permite generar textos e ideas solo cuando lo solicites.</p>
                 <p class="panel-sub">Solo se usa cuando pulsas Preguntar o Generar ideas. Cada petición puede tener coste. Apagarla impide nuevas peticiones, pero no cancela las ya iniciadas.</p>
                 <form id="ai-form" class="ai-form">
                   <textarea id="ai-prompt" rows="3" placeholder="Ej: cambia el titular de la portada a algo más cercano"></textarea>
@@ -495,28 +499,18 @@
       </section>
 
       <!-- ============ RESERVAS ============ -->
-      <section data-panel="bookings" class="studio-panel" hidden>
-        <div class="og-panel-head">
-          <div>
-            <p class="og-eyebrow">Reservas y calendario</p>
-            <h2>Próximas sesiones</h2>
-            <p class="panel-sub" style="margin-bottom:0;">Ordenadas por fecha, la más próxima primero.</p>
-          </div>
-        </div>
-        <form id="job-form" class="inline-form">
-          <input type="text" id="job-title" placeholder="Título" required>
-          <select id="job-client"><option value="">Sin cliente</option></select>
-          <input type="date" id="job-date">
-          <select id="job-status">
-            <option value="enquiry">Consulta</option>
-            <option value="confirmed">Confirmada</option>
-            <option value="in_progress">En curso</option>
-            <option value="delivered">Entregada</option>
-            <option value="cancelled">Cancelada</option>
-          </select>
-          <button type="submit" class="og-btn og-btn-dark">Añadir</button>
-        </form>
-        <div id="job-list" class="project-list"></div>
+      <section data-panel="bookings" class="studio-panel ws-section" hidden>
+        <div class="og-panel-head ws-panel-head"><div><p class="og-eyebrow">PLANIFICA / CREA / ENTREGA</p><h2>Tu próxima historia.</h2><p class="panel-sub">Reservas, sesiones y fechas. Todo en una misma agenda.</p></div><a href="#booking-create" class="og-btn og-btn-dark ws-create-link" data-open-create="booking-create">+ Nueva reserva</a></div>
+        <details id="booking-create" class="ws-composer"><summary>Nueva reserva <span aria-hidden="true">＋</span></summary>
+          <form id="job-form" class="inline-form ws-form">
+            <label>Nombre de la sesión<input type="text" id="job-title" placeholder="Ej. Sesión de marca" required></label>
+            <label>Cliente<select id="job-client"><option value="">Sin cliente</option></select></label>
+            <label>Fecha<input type="date" id="job-date"></label>
+            <label>Estado<select id="job-status"><option value="enquiry">Consulta</option><option value="confirmed">Confirmada</option><option value="in_progress">En curso</option><option value="delivered">Entregada</option><option value="cancelled">Cancelada</option></select></label>
+            <button type="submit" class="og-btn og-btn-dark">Guardar reserva</button>
+          </form>
+        </details>
+        <div id="job-list" class="ws-bookings" aria-live="polite"><p class="panel-sub">Cargando reservas…</p></div>
       </section>
 
       <!-- ============ ANALÍTICAS ============ -->
@@ -584,26 +578,17 @@
       </section>
 
       <!-- ============ PRESUPUESTOS ============ -->
-      <section data-panel="quotes" class="studio-panel" hidden>
-        <div class="og-panel-head">
-          <div>
-            <p class="og-eyebrow">Más</p>
-            <h2>Presupuestos y contratos</h2>
-            <p class="panel-sub" style="margin-bottom:0;">Lo que has presupuestado y si se ha aceptado.</p>
-          </div>
-        </div>
-        <form id="quote-form" class="inline-form">
-          <select id="quote-client"><option value="">Sin cliente</option></select>
-          <input type="text" id="quote-amount" placeholder="Importe (€)" inputmode="decimal">
-          <select id="quote-status">
-            <option value="draft">Borrador</option>
-            <option value="sent">Enviado</option>
-            <option value="accepted">Aceptado</option>
-            <option value="declined">Rechazado</option>
-          </select>
-          <button type="submit" class="og-btn og-btn-dark">Añadir</button>
-        </form>
-        <div id="quote-list" class="project-list"></div>
+      <section data-panel="quotes" class="studio-panel ws-section" hidden>
+        <div class="og-panel-head ws-panel-head"><div><p class="og-eyebrow">PROPUESTAS CON INTENCIÓN</p><h2>Ideas que toman forma.</h2><p class="panel-sub">Tus presupuestos, claros desde el primer detalle.</p></div><a href="#quote-create" class="og-btn og-btn-dark ws-create-link" data-open-create="quote-create">+ Nuevo presupuesto</a></div>
+        <details id="quote-create" class="ws-composer"><summary>Nuevo presupuesto <span aria-hidden="true">＋</span></summary>
+          <form id="quote-form" class="inline-form ws-form">
+            <label>Cliente<select id="quote-client"><option value="">Sin cliente</option></select></label>
+            <label>Importe (€)<input type="text" id="quote-amount" placeholder="0,00" inputmode="decimal"></label>
+            <label>Estado<select id="quote-status"><option value="draft">Borrador</option><option value="sent">Enviado</option><option value="accepted">Aceptado</option><option value="declined">Rechazado</option></select></label>
+            <button type="submit" class="og-btn og-btn-dark">Guardar presupuesto</button>
+          </form>
+        </details>
+        <div id="quote-list" class="ws-quotes" aria-live="polite"><p class="panel-sub">Cargando presupuestos…</p></div>
       </section>
 
       <!-- ============ AJUSTES ============ -->
@@ -649,6 +634,7 @@
 <script src="/studio/config.js"></script>
 <script src="/assets/default-copy.js"></script>
 <script src="/studio/mobile.js"></script>
+<script src="/studio/workspace.js"></script>
 <script src="/studio/studio.js"></script>
 <script src="/studio/motion.js"></script>
 </body>
