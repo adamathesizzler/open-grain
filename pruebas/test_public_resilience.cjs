@@ -79,17 +79,17 @@ test('retry buttons are non-submit, bilingual, and loading placeholder fills fle
  c.portfolioState='ready';assert(!c.portfolioNotice().includes('data-public-retry'));
  const css=fs.readFileSync(require.resolve('../styles.css'),'utf8');assert.match(css,/\.portfolio-notice\{[^}]*flex:1 0 100%/);assert.match(css,/\.portfolio-notice\{[^}]*column-span:all/);assert.match(css,/\.public-retry\{[^}]*min-height:44px/);
 });
-function portfolioHarness(response) {
+function portfolioHarness(response,groupsResponse={data:[],error:null}) {
  let home=0,work=0,requests=0;
- const h=harness({portfolioState:'error',projects:[],renderHomeGrid(){home++},renderWork(){work++},
+ const h=harness({portfolioState:'error',projects:[],renderHomeGrid(){home++},renderWork(){work++},renderPortfolioContext(){},portfolioRawRows:[],portfolioGroupRows:[],
    applyRealProjects(rows){h.c.projects.splice(0,h.c.projects.length,...rows);h.c.portfolioState='ready';home++;work++},
-   supabaseClient:{from(table){assert.equal(table,'portfolio_projects');requests++;return{select(){return{eq(key,value){assert.equal(key,'is_published');assert.equal(value,true);return{order(){return{abortSignal:()=>response}}}}}}}}}});
+   supabaseClient:{from(table){assert(['portfolio_projects','portfolio_groups'].includes(table));requests++;const query={select(){return query},eq(key,value){assert.equal(key,'is_published');assert.equal(value,true);return query},order(){return query},abortSignal:()=>table==='portfolio_projects'?response:groupsResponse};return query}}});
  vm.runInContext(source.slice(source.indexOf('function publicRows('),source.indexOf('function portfolioNotice(')),h.c);
  vm.runInContext(source.slice(source.indexOf('function loadPortfolio()'),source.indexOf('function loadSocial()')),h.c);
  return {...h,counts:()=>({home,work,requests})};
 }
 test('portfolio successful empty is authoritative and does not revive original photographs',async()=>{
- const h=portfolioHarness({data:[],error:null});await h.c.loadPortfolio();assert.equal(h.c.portfolioState,'ready');assert.equal(h.c.projects.length,0);assert.deepEqual(h.counts(),{home:2,work:2,requests:1});
+ const h=portfolioHarness({data:[],error:null});await h.c.loadPortfolio();assert.equal(h.c.portfolioState,'ready');assert.equal(h.c.projects.length,0);assert.deepEqual(h.counts(),{home:2,work:2,requests:2});
 });
 test('portfolio timeout clears stale data, enters retry state, and ignores later records',async()=>{
  let finish;const h=portfolioHarness(new Promise(r=>finish=r));h.c.projects.push({title:'stale'});
@@ -97,7 +97,7 @@ test('portfolio timeout clears stale data, enters retry state, and ignores later
  finish({data:[{title:'late'}],error:null});await flush();assert.equal(h.c.portfolioState,'error');assert.equal(h.c.projects.length,0);
 });
 test('duplicate portfolio retry clicks neither clear again nor start extra requests',async()=>{
- let finish;const h=portfolioHarness(new Promise(r=>finish=r));const p=h.c.loadPortfolio();h.c.loadPortfolio();await flush();assert.deepEqual(h.counts(),{home:1,work:1,requests:1});finish({data:[],error:null});await p;
+ let finish;const h=portfolioHarness(new Promise(r=>finish=r));const p=h.c.loadPortfolio();h.c.loadPortfolio();await flush();assert.deepEqual(h.counts(),{home:1,work:1,requests:2});finish({data:[],error:null});await p;
 });
 test('canonical service descriptions win over legacy raw serviceBlurbs rows',async()=>{
  const h=catalogHarness({data:[{key:'serviceBlurbs',lang:'es',value:'["legacy"]'}],error:null});
@@ -142,4 +142,13 @@ test('contact rerender re-enables verified preview catalog even while live read 
  const field={disabled:true};const c=vm.createContext({$:()=>field,serviceCatalogReady:true});
  const start=source.indexOf("  const service = $('service');",source.indexOf('function renderContact()'));
  vm.runInContext(source.slice(start,source.indexOf('  const chosenService',start)),c);assert.equal(field.disabled,false);
+});
+test('group read failure never displays an ungrouped fallback or stale portfolio',async()=>{
+ const h=portfolioHarness({data:[{id:'published-photo'}],error:null},{data:null,error:{message:'groups unavailable'}});await h.c.loadPortfolio();assert.equal(h.c.portfolioState,'error');assert.equal(h.c.projects.length,0);
+});
+test('groups and photos share one deadline; late groups cannot resurrect timed-out portfolio',async()=>{
+ let finishGroups;const h=portfolioHarness({data:[{id:'published-photo'}],error:null},new Promise(resolve=>finishGroups=resolve));const pending=h.c.loadPortfolio();await flush();h.expire();await pending;assert.equal(h.c.portfolioState,'error');finishGroups({data:[],error:null});await flush();assert.equal(h.c.portfolioState,'error');assert.equal(h.c.projects.length,0);
+});
+test('grouped portfolio sends the same AbortSignal to both synchronized reads',async()=>{
+ const signals=[];const h=portfolioHarness({data:[],error:null});h.c.supabaseClient={from(){const q={select(){return q},eq(){return q},order(){return q},abortSignal(signal){signals.push(signal);return {data:[],error:null}}};return q}};await h.c.loadPortfolio();assert.equal(signals.length,2);assert.equal(signals[0],signals[1]);
 });

@@ -348,7 +348,14 @@
           </div>
         </div>
 
-        <h3 style="margin:0 0 10px;font-size:1rem;">Categorías</h3>
+        <details id="portfolio-group-editor" class="panel-mt portfolio-group-editor">
+          <summary>Grupos de fotos · portadas y galerías</summary>
+          <p class="panel-sub">Una portada por tema. La primera foto es la portada; puedes cambiar el orden, los nombres y las fotos de cada grupo. No cambia la publicación de ninguna foto ni sus categorías.</p>
+          <div id="portfolio-group-status" role="status"></div>
+          <div id="portfolio-group-fields"></div>
+          <div class="og-panel-actions"><button type="button" class="og-btn og-btn-outline" id="portfolio-group-add">Nuevo grupo</button><button type="button" class="og-btn og-btn-outline" id="portfolio-group-reload">Recargar</button><button type="button" class="og-btn og-btn-solid" id="portfolio-group-save">Guardar grupos</button></div>
+        </details>
+        <h3 style="margin:20px 0 10px;font-size:1rem;">Categorías de servicio</h3>
         <p class="panel-sub">Actívalas o desactívalas, y arrastra ⠿ para reordenarlas en la web.</p>
         <div id="category-list" class="category-list panel-mt" style="margin-top:0;"></div>
 
@@ -676,6 +683,7 @@
 <script src="/studio/config.js"></script>
 <script src="/assets/default-copy.js"></script>
 <script src="/assets/service-catalog.js"></script>
+<script src="/assets/portfolio-groups.js"></script>
 <script src="/studio/mobile.js"></script>
 <script src="/studio/workspace.js"></script>
 <script src="/studio/studio.js"></script>

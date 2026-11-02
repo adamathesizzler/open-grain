@@ -90,6 +90,7 @@ const projects = [
   { id: '23', title: 'Crossing',    type: 'Motorsport',   image: 'assets/portfolio/nissan-crossing.jpg',    ratio: 'wide',   w: 1800, h: 1350 },
   { id: '24', title: 'Itaewon',     type: 'Street',       image: 'assets/portfolio/itaewon.jpg',            ratio: 'tall',   w: 1350, h: 1800 },
 ];
+let portfolioRawRows = [], portfolioGroupRows = [];
 // Intrinsic dimensions of existing assets, not a second CMS list.
 const portfolioAssetMetadata = Object.fromEntries(projects.map(p => [p.image.replace(/^\//,''), {w:p.w,h:p.h}]));
 // Texto alternativo de cada fotografía: describe lo que se ve, no sólo el
@@ -307,7 +308,7 @@ function homeTileMarkup(p, i, isRepeat) {
     ? ' aria-hidden="true" tabindex="-1"'
     : ` tabindex="0" role="button" aria-label="${attrEscape(tileLabel(p))}"`;
   return `
-    <figure class="project-tile"${repeatAttrs} data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
+    <figure class="project-tile"${repeatAttrs} data-portfolio-key="${attrEscape(p.groupId || p.photoId || p.id)}" data-photo-index="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}" style="--i:${i};aspect-ratio:${(1 / ar).toFixed(4)}">
       ${photoMarkup(p.image, `alt="${isRepeat ? '' : attrEscape(photoAlt(p))}" loading="${!isRepeat && i < 6 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_HOME)}
       <figcaption><span>${attrEscape(p.title)}</span><span>${attrEscape(p.type)}</span></figcaption>
     </figure>`;
@@ -468,7 +469,7 @@ function renderWork() {
   // abrir. Las reglas de estilo van por clase, así que se ve exactamente igual.
   if (portfolioState !== 'ready' || !projects.length) { grid.innerHTML = portfolioNotice(); return; }
   grid.innerHTML = projects.map((p, i) => `
-    <figure class="project-tile ${attrEscape(p.ratio)}" tabindex="0" role="button" aria-label="${attrEscape(tileLabel(p))}" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}">
+    <figure class="project-tile ${attrEscape(p.ratio)}" tabindex="0" role="button" aria-label="${attrEscape(tileLabel(p))}" data-portfolio-key="${attrEscape(p.groupId || p.photoId || p.id)}" data-photo-index="0" data-lightbox-image="${attrEscape(p.image)}" data-lightbox-title="${attrEscape(p.title)}" data-lightbox-eyebrow="${attrEscape(p.type)}" data-lightbox-alt="${attrEscape(photoAlt(p))}">
       ${photoMarkup(p.image, `alt="${attrEscape(photoAlt(p))}" loading="${i < 4 ? 'eager' : 'lazy'}" decoding="async"`, SIZES_WORK)}
       <div><span>/ ${attrEscape(p.id)}</span><h3>${attrEscape(p.title)}</h3><p>${attrEscape(p.type)}</p></div>
     </figure>`).join('');
@@ -933,6 +934,7 @@ function renderAll() {
   // El idioma del documento tiene que acompañar al de la interfaz: de él
   // dependen los lectores de pantalla, la separación silábica y el corrector.
   document.documentElement.lang = lang;
+  if (portfolioState === 'ready' && portfolioRawRows.length) applyRealProjects(portfolioRawRows, portfolioGroupRows);
   applyTheme();
   renderHomeGrid();
   renderWork();
@@ -945,6 +947,7 @@ function renderSiteCopy() {
   renderServices();
   renderStudio();
   renderContact();
+  renderPortfolioContext();
   renderSocialLabels();
   renderFooter();
   renderHiddenLabels();
@@ -1039,8 +1042,13 @@ if (form && window.OGContact) {
       if (!consent) throw new Error('Consent required');
       if (!supabaseClient) throw new Error('Contact backend unavailable');
       if (!serviceCatalogReady || !serviceLabel(payload.service)) throw new Error('Service catalogue unavailable');
+      const contextParams=new URLSearchParams(location.search);
+      const wantsPortfolio=contextParams.has('portfolio_photo')||contextParams.has('portfolio_group');
+      if(wantsPortfolio && !form.portfolioContext)throw new Error('Portfolio reference unavailable');
       const row = {
         ...payload,
+        portfolio_group_id:form.portfolioContext?.group_id || null,
+        portfolio_project_id:form.portfolioContext?.photo_id || null,
         // Se guarda el nombre legible del servicio, no el identificador
         // interno que usa el <select> para sobrevivir a las traducciones.
         service: serviceLabel(payload.service),
@@ -1062,35 +1070,43 @@ if (form && window.OGContact) {
 
 // Real published projects replace the provisional ones everywhere they
 // appear — the home grid and the Work page use the same source.
-function applyRealProjects(rows) {
-  const fallbackRatios = ['tall', 'wide', 'square', 'tall crop-two', 'wide crop-two', 'square crop-two'];
-  const mapped = rows.map((p, i) => ({
-    id: String(i + 1).padStart(2, '0'),
-    title: p.title,
-    type: p.subtitle || '',
-    image: p.cover_image_url || 'assets/portfolio/portrait-studio.jpg',
-    ratio: p.layout_class || fallbackRatios[i % fallbackRatios.length],
-    ...(portfolioAssetMetadata[String(p.cover_image_url || '').replace(/^\//,'')] || {}),
-  }));
-  portfolioState = 'ready';
-  projects.length = 0;
-  projects.push(...mapped);
-  renderHomeGrid();
-  renderWork();
+function applyRealProjects(rows, groups = []) {
+  portfolioRawRows = rows; portfolioGroupRows = groups;
+  const mapPhoto = (p, i) => ({
+    id: p.id || String(i + 1).padStart(2, '0'), photoId:p.id || null, groupId:p.group_id || null,
+    title:p.title, type:p.subtitle || '', image:p.cover_image_url || 'assets/portfolio/portrait-studio.jpg',
+    ratio:p.layout_class || 'tall', ...(portfolioAssetMetadata[String(p.cover_image_url || '').replace(/^\//,'')] || {}),
+  });
+  const grouped = groups.length ? window.OGPortfolioGroups.publicGroups(groups, rows, lang) : rows.map(p=>({id:null,title:p.title,photos:[p]}));
+  const mapped=grouped.map((g,i)=>{const photos=g.photos.map(mapPhoto);return {...photos[0],id:String(i+1).padStart(2,'0'),groupId:g.id,title:g.title,photos};});
+  portfolioState='ready'; projects.length=0;projects.push(...mapped);
+  renderHomeGrid();renderWork();renderPortfolioContext();
+}
+function renderPortfolioContext() {
+  const form=$('contact-form');if(!form)return;
+  let box=$('portfolio-context');
+  if(!box){box=document.createElement('div');box.id='portfolio-context';box.className='portfolio-context';form.prepend(box);}
+  const params=new URLSearchParams(location.search),photoId=params.get('portfolio_photo'),groupId=params.get('portfolio_group');
+  if(!params.has('portfolio_photo')&&!params.has('portfolio_group')){box.hidden=true;form.portfolioContext=null;return;}
+  const context=portfolioState==='ready'?window.OGPortfolioGroups.context(portfolioGroupRows,portfolioRawRows,groupId,photoId):null;
+  box.hidden=false;box.replaceChildren();
+  const text=document.createElement('span');text.textContent=portfolioState==='loading'?(lang==='es'?'Comprobando la selección del portfolio…':'Checking the portfolio selection…'):context?(lang==='es'?'Referencia seleccionada: ':'Selected reference: ')+context.title:(lang==='es'?'Esta referencia ya no está disponible. Puedes quitarla y enviar tu consulta.':'This reference is no longer available. Remove it to send your enquiry.');box.append(text);
+  const remove=document.createElement('button');remove.type='button';remove.textContent=lang==='es'?'Quitar':'Remove';remove.addEventListener('click',()=>{const url=new URL(location.href);url.searchParams.delete('portfolio_photo');url.searchParams.delete('portfolio_group');history.replaceState(null,'',url);form.portfolioContext=null;box.hidden=true;});box.append(remove);form.portfolioContext=context;
 }
 
 // ---------- Current public records only; loading/empty/error are distinct ----------
 function loadPortfolio() {
   if (publicReads.has('portfolio')) return;
   portfolioState = 'loading';
-  renderHomeGrid(); renderWork();
+  renderHomeGrid(); renderWork(); renderPortfolioContext();
   return loadPublicResource('portfolio', signal => {
     if (!supabaseClient) throw new Error('Public backend unavailable');
-    return supabaseClient.from('portfolio_projects')
-      .select('title, subtitle, cover_image_url, layout_class, sort_order')
-      .eq('is_published', true).order('sort_order').abortSignal(signal);
-  }, result => applyRealProjects(publicRows(result)), () => {
-    portfolioState = 'error'; projects.length = 0; renderHomeGrid(); renderWork();
+    return Promise.all([
+      supabaseClient.from('portfolio_projects').select('id, title, subtitle, cover_image_url, layout_class, sort_order, group_id, group_position, is_published').eq('is_published', true).order('sort_order').abortSignal(signal),
+      supabaseClient.from('portfolio_groups').select('id,name,name_en,sort_order').order('sort_order').abortSignal(signal),
+    ]);
+  }, ([photos,groups]) => applyRealProjects(publicRows(photos),publicRows(groups)), () => {
+    portfolioState = 'error'; projects.length = 0; portfolioRawRows=[]; portfolioGroupRows=[]; renderHomeGrid(); renderWork(); renderPortfolioContext();
   });
 }
 function loadSocial() {
@@ -1170,84 +1186,62 @@ function applyRealSocial(rows) {
 // el foco no se escapa con el tabulador, Escape cierra y el foco vuelve a la
 // foto desde la que se abrió.
 // ============================================================
+let portfolioRotationPaused = false;
 (function initLightbox() {
-  const lightbox = document.getElementById('lightbox');
-  if (!lightbox) return;
-  const imgEl = document.getElementById('lightbox-img');
-  const titleEl = document.getElementById('lightbox-title');
-  const eyebrowEl = document.getElementById('lightbox-eyebrow');
-  const closeBtn = document.getElementById('lightbox-close');
-  const shell = document.getElementById('site-shell');
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let lastFocused = null;
-
-  function openFromTile(tile) {
-    const image = tile.dataset.lightboxImage;
-    if (!image) return;
-    lastFocused = document.activeElement;
-    imgEl.src = image;
-    // El texto alternativo describe la foto; el título por sí solo no basta.
-    imgEl.alt = tile.dataset.lightboxAlt ||
-      [tile.dataset.lightboxTitle, tile.dataset.lightboxEyebrow].filter(Boolean).join(' — ');
-    titleEl.textContent = tile.dataset.lightboxTitle || '';
-    eyebrowEl.textContent = tile.dataset.lightboxEyebrow || '';
-    lightbox.hidden = false;
-    document.body.style.overflow = 'hidden';
-    // El fondo deja de ser alcanzable: ni con el ratón ni con el tabulador.
-    if (shell) shell.inert = true;
-    requestAnimationFrame(() => lightbox.classList.add('is-open'));
-    closeBtn.focus();
+  const lightbox=$('lightbox');if(!lightbox)return;
+  const imgEl=$('lightbox-img'),titleEl=$('lightbox-title'),eyebrowEl=$('lightbox-eyebrow'),closeBtn=$('lightbox-close'),shell=$('site-shell');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  let lastFocused=null,currentGroup=null,index=0,epoch=0,touch=null,previousOverflow='';
+  const controls=document.createElement('div');controls.className='portfolio-gallery-controls';
+  const prev=document.createElement('button'),next=document.createElement('button'),count=document.createElement('span'),contact=document.createElement('a'),pause=document.createElement('button');
+  prev.type=next.type=pause.type='button';prev.textContent='←';next.textContent='→';count.setAttribute('aria-live','polite');contact.className='portfolio-gallery-contact';
+  controls.append(prev,count,next,contact,pause);lightbox.querySelector('figure').append(controls);
+  function showPhoto(){
+    const photos=currentGroup.photos?.length?currentGroup.photos:[currentGroup];index=(index+photos.length)%photos.length;const photo=photos[index];
+    imgEl.src=photo.image;imgEl.alt=photoAlt(photo);imgEl.draggable=false;
+    titleEl.textContent=currentGroup.title;eyebrowEl.textContent=photo.title;
+    count.textContent=`${index+1} / ${photos.length}`;prev.hidden=next.hidden=photos.length<2;
+    prev.setAttribute('aria-label',lang==='es'?'Foto anterior':'Previous photo');next.setAttribute('aria-label',lang==='es'?'Foto siguiente':'Next photo');
+    contact.textContent=lang==='es'?'Consultar sobre estas fotos':'Enquire about these photos';
+    const params=new URLSearchParams();if(photo.photoId)params.set('portfolio_photo',photo.photoId);if(currentGroup.groupId)params.set('portfolio_group',currentGroup.groupId);
+    contact.href='/contact'+(params.size?'?'+params.toString():'');contact.hidden=!photo.photoId;
+    pause.textContent=portfolioRotationPaused?(lang==='es'?'Reanudar portadas':'Resume covers'):(lang==='es'?'Pausar portadas':'Pause covers');pause.setAttribute('aria-pressed',String(portfolioRotationPaused));
   }
-
-  function close() {
-    lightbox.classList.remove('is-open');
-    document.body.style.overflow = '';
-    if (shell) shell.inert = false;
-    // Se oculta al acabar la transición, pero con un plazo de seguridad: si
-    // transitionend no llega (transición cancelada, pestaña en segundo plano),
-    // la capa se quedaría encima de la página y la dejaría inutilizable.
-    let closed = false;
-    const done = () => { if (!closed) { closed = true; lightbox.hidden = true; } };
-    if (reduced.matches) done();
-    else {
-      lightbox.addEventListener('transitionend', done, { once: true });
-      setTimeout(done, 400);
-    }
-    if (lastFocused && typeof lastFocused.focus === 'function') {
-      lastFocused.focus({ preventScroll: true });
-    }
+  function openFromTile(tile){
+    currentGroup=projects.find(p=>(p.groupId||p.photoId||p.id)===tile.dataset.portfolioKey);if(!currentGroup)return;
+    epoch++;lastFocused=tile.getAttribute('aria-hidden')==='true'?document.querySelector('.project-tile[data-portfolio-key="'+tile.dataset.portfolioKey+'"]:not([aria-hidden])'):tile;index=Number(tile.dataset.photoIndex)||0;showPhoto();
+    previousOverflow=document.body.style.overflow;lightbox.hidden=false;document.body.style.overflow='hidden';if(shell)shell.inert=true;
+    requestAnimationFrame(()=>lightbox.classList.add('is-open'));closeBtn.focus();
   }
+  function close(){if(lightbox.hidden)return;const closing=++epoch;lightbox.classList.remove('is-open');document.body.style.overflow=previousOverflow;if(shell)shell.inert=false;
+    const done=()=>{if(epoch===closing)lightbox.hidden=true;};if(reduced.matches)done();else setTimeout(done,400);
+    if(lastFocused?.isConnected)lastFocused.focus({preventScroll:true});
+  }
+  function move(delta){index+=delta;showPhoto();}
+  prev.addEventListener('click',()=>move(-1));next.addEventListener('click',()=>move(1));pause.addEventListener('click',()=>{portfolioRotationPaused=!portfolioRotationPaused;showPhoto();});
+  document.addEventListener('click',e=>{const tile=e.target.closest('.project-tile');if(tile)openFromTile(tile);});
+  document.addEventListener('keydown',e=>{const tile=e.target.closest?.('.project-tile');if(tile&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openFromTile(tile);}if(!lightbox.hidden&&e.key==='Escape'){e.preventDefault();close();}});
+  closeBtn.addEventListener('click',close);lightbox.addEventListener('click',e=>{if(e.target===lightbox)close();});
+  lightbox.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}if(e.key==='ArrowRight'){e.preventDefault();move(1);}if(e.key!=='Tab')return;const items=[...lightbox.querySelectorAll('button,a[href]')].filter(el=>!el.hidden&&el.offsetParent!==null);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}});
+  imgEl.addEventListener('touchstart',e=>{touch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null;},{passive:true});
+  imgEl.addEventListener('touchend',e=>{if(!touch||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;touch=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3)move(dx<0?1:-1);},{passive:true});
+  imgEl.addEventListener('touchcancel',()=>{touch=null;});
+})();
 
-  // Delegado: las piezas se vuelven a pintar cuando llegan los proyectos
-  // reales de Supabase, así que se escucha en el documento y no en cada una.
-  document.addEventListener('click', (e) => {
-    const tile = e.target.closest('.project-tile');
-    if (tile) openFromTile(tile);
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const tile = e.target.closest && e.target.closest('.project-tile');
-    if (tile) { e.preventDefault(); openFromTile(tile); }
-  });
-
-  closeBtn.addEventListener('click', close);
-  lightbox.addEventListener('click', (e) => { if (e.target === lightbox) close(); });
-
-  // Trampa de foco: el tabulador da la vuelta dentro del diálogo.
-  lightbox.addEventListener('keydown', (e) => {
-    if (e.key !== 'Tab') return;
-    const items = [...lightbox.querySelectorAll('button, a[href]')]
-      .filter(el => !el.hidden && el.offsetParent !== null);
-    if (!items.length) return;
-    const first = items[0];
-    const last = items[items.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !lightbox.hidden) close();
-  });
+(function rotatePortfolioCovers(){
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');let cursor=0;
+  function canRotate(tile){if(document.hidden||reduced.matches||portfolioRotationPaused||navigator.connection?.saveData||!$('lightbox')?.hidden||!tile.isConnected||tile.matches(':hover,:focus-within'))return false;const r=tile.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;}
+  setInterval(()=>{
+    const tiles=[...document.querySelectorAll('.project-tile[data-portfolio-key]')].filter(tile=>canRotate(tile));if(!tiles.length)return;
+    for(let n=0;n<tiles.length;n++){
+      const tile=tiles[(cursor+n)%tiles.length],group=projects.find(p=>(p.groupId||p.photoId||p.id)===tile.dataset.portfolioKey);
+      if(!group?.photos||group.photos.length<2||Date.now()-Number(tile.dataset.lastRotation||0)<6500)continue;
+      cursor=(cursor+n+1)%tiles.length;const index=((Number(tile.dataset.photoIndex)||0)+1)%group.photos.length,photo=group.photos[index];
+      tile.dataset.lastRotation=String(Date.now());tile.classList.add('portfolio-changing');
+      setTimeout(()=>{if(canRotate(tile)){const old=tile.querySelector('picture')||tile.querySelector('img');if(old){old.outerHTML=photoMarkup(photo.image,`alt="${tile.getAttribute('aria-hidden')==='true'?'':attrEscape(photoAlt(photo))}" loading="eager" decoding="async"`,tile.closest('#home-grid')?SIZES_HOME:SIZES_WORK);tile.dataset.photoIndex=String(index);tile.dataset.lightboxImage=photo.image;tile.dataset.lightboxAlt=photoAlt(photo);if(tile.getAttribute('aria-hidden')!=='true')tile.setAttribute('aria-label',tileLabel({...photo,title:group.title}));}}tile.classList.remove('portfolio-changing');},280);
+      break;
+    }
+  },2300);
 })();
 
 // ============================================================

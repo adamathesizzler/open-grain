@@ -606,6 +606,7 @@ async function loadProjects() {
   await loadCategories();
   await loadProjectsData();
   renderProjects();
+  await loadPortfolioGroupsEditor();
 }
 
 const portfolioWorkflowDialog=document.getElementById('portfolio-workflow-dialog');
@@ -1321,7 +1322,7 @@ async function loadEnquiries() {
   const version = ++enquiryLoadVersion;
   const list = document.getElementById('enquiry-list');
   const [{data, error}, linksResult] = await Promise.all([
-    supabaseClient.from('enquiries').select('*').order('created_at', {ascending:false}),
+    supabaseClient.from('enquiries').select('*, portfolio_projects(title), portfolio_groups(name)').order('created_at', {ascending:false}),
     supabaseClient.from('enquiry_workflows').select('enquiry_id,client_id,project_id')
   ]);
   if (version !== enquiryLoadVersion) return;
@@ -1338,9 +1339,11 @@ async function loadEnquiries() {
         <details><summary>Ver solicitud original</summary><p class="ws-source-message">${escapeHtml(en.message || 'Sin mensaje')}</p><p>${escapeHtml(en.phone || 'Sin teléfono')} · ${escapeHtml(en.preferred_date || 'Sin fecha')} · ${escapeHtml(en.budget_range || 'Sin rango de presupuesto')}</p><small>Consentimiento: ${en.consent_accepted ? 'aceptado' : 'no registrado'}</small></details>
       </div>
       <div class="ws-context-actions">
+        ${en.portfolio_project_id ? `<button type="button" class="og-btn og-btn-outline" data-open-portfolio-context>Referencia: ${escapeHtml(en.portfolio_projects?.title || 'Ver foto')} ${en.portfolio_groups?.name ? '· '+escapeHtml(en.portfolio_groups.name) : ''} ↗</button>` : ''}
         ${link ? `${link.client_id ? '<button type="button" class="og-btn og-btn-outline" data-open-client>Ver cliente ↗</button>' : '<span>Cliente eliminado</span>'}${link.project_id ? '<button type="button" class="og-btn og-btn-outline" data-open-booking>Ver reserva ↗</button>' : '<span>Reserva eliminada · revisar manualmente</span>'}` : `<button type="button" class="og-btn og-btn-outline" data-start-workflow${!linksKnown || !en.consent_accepted ? ' disabled' : ''}>Revisar y conectar ↗</button>`}
         <label><span class="ws-sr-only">Estado de la solicitud de ${escapeHtml(en.name)}</span><select data-field="status"><option value="new">Nuevo</option><option value="contacted">Contactado</option><option value="archived">Archivado</option></select></label>
       </div>`;
+    row.querySelector('[data-open-portfolio-context]')?.addEventListener('click', () => openWorkspaceEntity('projects', en.portfolio_project_id));
     row.querySelector('[data-open-client]')?.addEventListener('click', () => openWorkspaceEntity('clients', link.client_id));
     row.querySelector('[data-open-booking]')?.addEventListener('click', () => openWorkspaceEntity('bookings', link.project_id));
     row.querySelector('[data-start-workflow]')?.addEventListener('click', () => prepareEnquiryWorkflow(en.id));
@@ -2121,3 +2124,46 @@ async function renderSetupBanner() {
 }
 
 checkSession();
+
+// Deterministic public gallery group editor. Draft only until explicit Save.
+let portfolioGroupEditorState=null,portfolioGroupEditorVersion=0,portfolioGroupEditorBusy=false;
+const pgFields=document.getElementById('portfolio-group-fields'),pgStatus=document.getElementById('portfolio-group-status');
+function pgControls(disabled){['add','reload','save'].forEach(key=>document.getElementById('portfolio-group-'+key).disabled=disabled);pgFields.querySelectorAll('button,input,select').forEach(el=>el.disabled=disabled);}
+function pgChanged(){if(portfolioGroupEditorState){portfolioGroupEditorState.dirty=true;pgStatus.textContent='Cambios sin guardar.';}}
+function pgButton(text,action){const button=document.createElement('button');button.type='button';button.className='og-btn og-btn-outline';button.textContent=text;button.addEventListener('click',action);return button;}
+function renderPortfolioGroupsEditor(){
+ const state=portfolioGroupEditorState;if(!state)return;pgFields.replaceChildren();
+ const assigned=new Set(state.groups.flatMap(g=>g.photo_ids));
+ state.groups.forEach((group,index)=>{
+  const card=document.createElement('section');card.className='pg-editor-card';card.dataset.groupId=group.id;
+  const head=document.createElement('div');head.className='pg-editor-head';
+  for(const [field,label] of [['name','Nombre ES'],['name_en','Nombre EN']]){const wrapper=document.createElement('label');wrapper.textContent=label;const input=document.createElement('input');input.value=group[field];input.maxLength=120;input.addEventListener('input',()=>{group[field]=input.value;pgChanged();});wrapper.append(input);head.append(wrapper);}
+  function reorder(delta){const other=index+delta;if(other<0||other>=state.groups.length)return;[state.groups[index],state.groups[other]]=[state.groups[other],state.groups[index]];pgChanged();renderPortfolioGroupsEditor();pgFields.querySelector(`[data-group-id="${group.id}"] input`)?.focus();}
+  head.append(pgButton('Subir grupo',()=>reorder(-1)),pgButton('Bajar grupo',()=>reorder(1)),pgButton('Deshacer grupo',()=>{state.groups.splice(index,1);pgChanged();renderPortfolioGroupsEditor();document.getElementById('portfolio-group-add').focus();}));card.append(head);
+  const list=document.createElement('ol');list.className='pg-editor-photos';
+  group.photo_ids.forEach((id,position)=>{const photo=state.photos.find(p=>p.id===id);if(!photo)return;const row=document.createElement('li');row.dataset.photoId=id;const img=document.createElement('img');const safe=window.OGServiceCatalog.imageUrl(photo.cover_image_url||'');if(safe)img.src=safe.startsWith('assets/')?'/'+safe:safe;img.alt='';img.loading='lazy';const title=document.createElement('span');title.textContent=(position===0?'Portada · ':'')+photo.title+(photo.is_published?'':' · No publicada');row.append(img,title);
+   const move=delta=>{const other=position+delta;if(other<0||other>=group.photo_ids.length)return;[group.photo_ids[position],group.photo_ids[other]]=[group.photo_ids[other],group.photo_ids[position]];pgChanged();renderPortfolioGroupsEditor();pgFields.querySelector('[data-photo-id="'+id+'"] button')?.focus();};
+   const up=pgButton('↑',()=>move(-1)),down=pgButton('↓',()=>move(1));up.setAttribute('aria-label','Subir foto '+photo.title);down.setAttribute('aria-label','Bajar foto '+photo.title);
+   row.append(up,down,pgButton('Quitar del grupo',()=>{group.photo_ids.splice(position,1);pgChanged();renderPortfolioGroupsEditor();pgFields.querySelector('[data-group-id="'+group.id+'"] select')?.focus();}),pgButton('Ver ficha ↗',()=>openWorkspaceEntity('projects',photo.id)));list.append(row);
+  });card.append(list);
+  const label=document.createElement('label');label.textContent='Añadir foto sin grupo';const select=document.createElement('select');select.add(new Option('Elige una foto…',''));state.photos.filter(p=>!assigned.has(p.id)).forEach(p=>select.add(new Option(p.title+(p.is_published?'':' · No publicada'),p.id)));select.addEventListener('change',()=>{if(!select.value)return;group.photo_ids.push(select.value);pgChanged();renderPortfolioGroupsEditor();pgFields.querySelector('[data-group-id="'+group.id+'"] select')?.focus();});label.append(select);card.append(label);pgFields.append(card);
+ });
+ const unassigned=document.createElement('p');unassigned.className='panel-sub';const remaining=state.photos.filter(p=>!assigned.has(p.id));unassigned.textContent=remaining.length+' fotos sin grupo. Las publicadas aparecen individualmente hasta que las agrupes.';pgFields.append(unassigned);pgControls(portfolioGroupEditorBusy);
+}
+async function loadPortfolioGroupsEditor(force=false){
+ if(portfolioGroupEditorBusy||(!force&&portfolioGroupEditorState?.dirty))return;
+ const version=++portfolioGroupEditorVersion;pgControls(true);pgStatus.textContent='Cargando grupos…';
+ try{const {data,error}=await supabaseClient.rpc('studio_portfolio_groups_snapshot');
+  if(version!==portfolioGroupEditorVersion)return;if(error||!Array.isArray(data?.groups)||!Array.isArray(data?.photos))throw Error('No se pudieron cargar los grupos. No se han sustituido por datos vacíos.');
+  portfolioGroupEditorState={groups:window.OGPortfolioGroups.editable(data.groups,data.photos),photos:data.photos,expected:data,dirty:false};renderPortfolioGroupsEditor();pgStatus.textContent='La primera foto publicada de cada grupo se usa como portada pública.';
+ }catch(error){if(version!==portfolioGroupEditorVersion)return;pgStatus.textContent=error.message;document.getElementById('portfolio-group-reload').disabled=false;return;}finally{if(version===portfolioGroupEditorVersion&&portfolioGroupEditorState)pgControls(false);}
+}
+document.getElementById('portfolio-group-add').addEventListener('click',()=>{const state=portfolioGroupEditorState;if(!state||portfolioGroupEditorBusy)return;state.groups.push({id:crypto.randomUUID(),name:'',name_en:'',photo_ids:[]});pgChanged();renderPortfolioGroupsEditor();pgFields.lastElementChild?.previousElementSibling?.querySelector('input')?.focus();});
+document.getElementById('portfolio-group-reload').addEventListener('click',()=>{if(portfolioGroupEditorState?.dirty&&!confirm('¿Descartar los cambios de grupos sin guardar y recargar?'))return;loadPortfolioGroupsEditor(true);});
+document.getElementById('portfolio-group-save').addEventListener('click',async()=>{
+ const state=portfolioGroupEditorState;if(!state||portfolioGroupEditorBusy)return;
+ let groups;try{groups=window.OGPortfolioGroups.validate(state.groups,state.photos);}catch(error){pgStatus.textContent=error.message;return;}
+ portfolioGroupEditorBusy=true;pgControls(true);pgStatus.textContent='Guardando grupos…';
+ try{const {data,error}=await supabaseClient.rpc('studio_save_portfolio_groups',{p_expected:state.expected,p_groups:groups});if(error||!data?.groups||!data?.photos)throw Error('No se pudo confirmar el guardado. Pueden haber cambiado fotos o grupos en otra sesión; tus cambios siguen aquí. Recarga y revisa antes de volver a guardar.');state.expected=data;state.groups=groups;state.dirty=false;pgStatus.textContent='Grupos guardados. La web usa este mismo orden y estas fotos; no se ha cambiado su publicación.';}
+ catch(error){pgStatus.textContent=error.message;}finally{portfolioGroupEditorBusy=false;pgControls(false);}
+});
