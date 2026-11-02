@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>OPEN GRAIN — Studio</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -64,7 +64,9 @@
 <!-- ---------- Dashboard (hidden until signed in) ---------- -->
 <div id="dashboard" class="studio-shell" hidden>
 
-  <aside class="og-sidebar">
+  <button id="studio-menu-backdrop" class="studio-menu-backdrop" type="button" aria-label="Cerrar menú" tabindex="-1" hidden></button>
+  <aside class="og-sidebar" id="studio-sidebar" aria-label="Navegación de Studio">
+    <div class="studio-mobile-menu-head"><b>OPEN GRAIN · STUDIO</b><button id="studio-menu-close" class="og-icon-btn" type="button" aria-label="Cerrar menú">✕</button></div>
     <a href="/" class="og-brand">
       <span class="og-brand-mark">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12h4l3-9 4 18 3-9h6"/></svg>
@@ -145,6 +147,7 @@
 
   <div class="og-main">
     <header class="og-topbar">
+      <button id="studio-menu-toggle" class="og-btn og-btn-outline studio-menu-toggle" type="button" aria-expanded="false" aria-controls="studio-sidebar" aria-label="Abrir menú de Studio"><span aria-hidden="true">☰</span> <span id="studio-current-section">Inicio</span></button>
       <label class="og-search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="search" id="global-search" placeholder="Buscar proyectos, clientes…">
@@ -222,14 +225,14 @@
         <div id="featured-project"></div>
 
         <div class="og-columns panel-mt">
-          <div class="og-card" style="grid-column:1/2;">
+          <div class="og-card">
             <div class="og-list-card-head">
               <h4>Mensajes recientes</h4>
               <a href="#" data-jump="messages">Ver todos <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>
             </div>
             <div class="og-mini-list" id="home-messages"></div>
           </div>
-          <div class="og-card" style="grid-column:2/3;">
+          <div class="og-card">
             <div class="og-list-card-head">
               <h4>Próximas reservas</h4>
               <a href="#" data-jump="bookings">Ver todas <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>
@@ -645,6 +648,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/studio/config.js"></script>
 <script src="/assets/default-copy.js"></script>
+<script src="/studio/mobile.js"></script>
 <script src="/studio/studio.js"></script>
 <script src="/studio/motion.js"></script>
 </body>

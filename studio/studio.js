@@ -134,14 +134,22 @@ const tabLoaders = {
 };
 
 function switchTab(tab) {
-  document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.dispatchEvent(new CustomEvent('studio:tabchange', { detail: { tab } }));
+  document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => {
+    const active = b.dataset.tab === tab;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', String(active));
+  });
   document.querySelectorAll('.studio-panel').forEach(p => { p.hidden = p.dataset.panel !== tab; });
   const search = document.getElementById('global-search');
   if (search) search.value = '';
   const loader = tabLoaders[tab];
   if (loader) loader();
   const content = document.querySelector('.og-content');
-  if (content) content.scrollTo({ top: 0, behavior: 'instant' in document.documentElement.style ? 'instant' : 'auto' });
+  if (content) {
+    content.scrollTo({ top: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
 }
 
 document.querySelectorAll('.og-nav-item[data-tab]').forEach(btn => {

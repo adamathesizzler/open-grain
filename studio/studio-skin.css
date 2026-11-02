@@ -257,3 +257,9 @@ html[data-theme="night"] .og-nav-item.active,
 html[data-theme="night"] .og-nav-item[aria-current="page"]{
   background:color-mix(in srgb,var(--og-accent) 82%,#000);
 }
+
+/* A modal navigation sheet needs an opaque backing above the dimmed page. */
+@media(max-width:900px){
+  .og-sidebar{ background:var(--og-bg); }
+  body.studio-body::before{ animation:none; transform:none; }
+}
