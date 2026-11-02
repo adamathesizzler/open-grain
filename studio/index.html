@@ -208,12 +208,12 @@
           <div class="og-stat">
             <span class="og-stat-icon a"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
             <span class="og-stat-num" id="stat-projects">–</span>
-            <span class="og-stat-label">Proyectos publicados</span>
+            <span class="og-stat-label">Fotografías publicadas</span>
           </div>
           <div class="og-stat">
             <span class="og-stat-icon b"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 12V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6"/><rect x="10" y="9" width="12" height="12" rx="2.5"/></svg></span>
             <span class="og-stat-num" id="stat-galleries">–</span>
-            <span class="og-stat-label">Categorías / galerías</span>
+            <span class="og-stat-label">Categorías de servicio</span>
           </div>
           <div class="og-stat">
             <span class="og-stat-icon c"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
@@ -362,19 +362,16 @@
         <div id="category-list" class="category-list panel-mt" style="margin-top:0;"></div>
 
         <form id="project-form" class="inline-form panel-mt" hidden>
-          <input type="text" id="project-title" placeholder="Título del proyecto" required>
-          <select id="project-category"></select>
-          <select id="project-layout">
-            <option value="tall">Vertical</option>
-            <option value="wide">Horizontal</option>
-            <option value="square">Cuadrada</option>
-          </select>
-          <label class="checkbox-label"><input type="checkbox" id="project-published"> Publicado</label>
-          <label class="file-label">Foto<input type="file" id="project-photo" accept="image/*"></label>
-          <button type="submit" class="og-btn og-btn-dark">Añadir</button>
+          <label>Nombre del proyecto / álbum<input type="text" id="project-title" maxlength="120" placeholder="Nombre del proyecto" required></label>
+          <label class="file-label">Seleccionar varias fotos<input type="file" id="project-photo" accept="image/jpeg,image/png,image/webp,image/avif" multiple required></label>
+          <p class="panel-sub">Se crea un álbum con sus fotos en borrador. No se publica automáticamente. El almacenamiento de archivos es público: cualquiera con su enlace puede verlos.</p>
+          <label class="checkbox-label"><input type="checkbox" id="project-upload-consent" required> Autorizo subir estas fotos al almacenamiento público; no contienen material confidencial.</label>
+          <p id="project-create-status" role="status" aria-live="polite"></p>
+          <button type="submit" class="og-btn og-btn-dark">Crear proyecto con fotos</button>
+          <button type="button" id="project-create-cancel" class="og-btn og-btn-outline">Cerrar</button>
         </form>
 
-        <h3 class="panel-mt" style="margin-bottom:10px;font-size:1rem;">Proyectos <span style="color:var(--og-muted);font-weight:400;">— arrastra ⠿ para reordenar</span></h3>
+        <h3 class="panel-mt" style="margin-bottom:10px;font-size:1rem;">Fichas de fotografías <span style="color:var(--og-muted);font-weight:400;">— pulsa una foto para abrir su álbum; arrastra ⠿ para reordenar</span></h3>
         <div class="og-filter-row" id="project-filters"></div>
         <div id="project-list" class="album-grid"></div>
       </section>
@@ -385,7 +382,7 @@
           <div>
             <p class="og-eyebrow">Galerías y archivos multimedia</p>
             <h2>Galerías</h2>
-            <p class="panel-sub" style="margin-bottom:0;">Tus fotos agrupadas por categoría, y la biblioteca de archivos subidos.</p>
+            <p class="panel-sub" style="margin-bottom:0;">Los mismos álbumes de Portfolio, con todas sus fotos y la biblioteca de archivos subidos.</p>
           </div>
         </div>
         <div id="gallery-groups"></div>
@@ -532,6 +529,7 @@
           </div>
         </div>
 
+        <p id="analytics-load-status" role="status" aria-live="polite"></p>
         <div class="og-stat-grid" id="analytics-grid"></div>
 
         <div class="analytics-charts">

@@ -210,24 +210,22 @@ document.querySelector('[data-action="quick-new-project"]').addEventListener('cl
   form.hidden = false;
   document.getElementById('project-title').focus();
 });
-document.querySelector('[data-action="quick-upload"]').addEventListener('click', () => {
-  switchTab('galleries');
-  document.getElementById('gallery-upload-input')?.click();
-});
+document.querySelector('[data-action="quick-upload"]').addEventListener('click',async()=>{await switchTab('projects');const target=document.getElementById('portfolio-photo-groups');target.scrollIntoView({block:'start'});target.querySelector('button')?.focus();});
 document.querySelector('[data-action="quick-edit-content"]').addEventListener('click', () => switchTab('content'));
 document.querySelector('[data-action="quick-messages"]').addEventListener('click', () => switchTab('messages'));
 
 // ---------- Global search: filters the rows visible in the active panel ----------
-document.getElementById('global-search').addEventListener('input', (e) => {
-  const q = e.target.value.trim().toLowerCase();
+function applyGlobalSearch(){
+  const value=document.getElementById('global-search').value;const q=value.trim().toLowerCase();
   const activePanel = document.querySelector('.studio-panel:not([hidden])');
   if (!activePanel) return;
   const workspace = activePanel.querySelector('.ws-bookings, .ws-quotes');
-  if (workspace && window.StudioWorkspace.search(workspace, e.target.value)) return;
+  if (workspace && window.StudioWorkspace.search(workspace, value)) return;
   activePanel.querySelectorAll('.list-row, .album-card, .category-row, .client-card').forEach(row => {
     row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none';
   });
-});
+}
+document.getElementById('global-search').addEventListener('input',applyGlobalSearch);
 window.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault();
@@ -238,38 +236,20 @@ window.addEventListener('keydown', (e) => {
 // ============================================================
 // Shared helper: drag-to-reorder (native HTML5 DnD)
 // ============================================================
-function enableDragReorder(container, itemSelector, onDrop) {
-  let dragEl = null;
-  container.addEventListener('dragstart', (e) => {
-    const item = e.target.closest(itemSelector);
-    if (!item || !container.contains(item)) return;
-    dragEl = item;
-    e.dataTransfer.effectAllowed = 'move';
-    try { e.dataTransfer.setData('text/plain', item.dataset.id || ''); } catch (err) {}
-    setTimeout(() => item.classList.add('dragging'), 0);
-  });
-  container.addEventListener('dragover', (e) => {
-    if (!dragEl) return;
-    e.preventDefault();
-    const item = e.target.closest(itemSelector);
-    if (!item || item === dragEl) return;
-    const rect = item.getBoundingClientRect();
-    const after = (e.clientY - rect.top) / rect.height > 0.5;
-    container.insertBefore(dragEl, after ? item.nextSibling : item);
-  });
-  container.addEventListener('drop', (e) => e.preventDefault());
-  container.addEventListener('dragend', () => {
-    if (dragEl) dragEl.classList.remove('dragging');
-    dragEl = null;
-    if (onDrop) onDrop();
-  });
+const dragReorderBindings=new WeakMap();
+function enableDragReorder(container,itemSelector,onDrop){
+ const prior=dragReorderBindings.get(container);if(prior){prior.itemSelector=itemSelector;prior.onDrop=onDrop;return;}
+ const binding={itemSelector,onDrop,dragEl:null,changed:false};dragReorderBindings.set(container,binding);
+ container.addEventListener('dragstart',e=>{const item=e.target.closest(binding.itemSelector);if(!item||!container.contains(item))return;binding.dragEl=item;binding.changed=false;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',item.dataset.id||'');}catch(error){}setTimeout(()=>item.classList.add('dragging'),0);});
+ container.addEventListener('dragover',e=>{const dragEl=binding.dragEl;if(!dragEl)return;e.preventDefault();const item=e.target.closest(binding.itemSelector);if(!item||item===dragEl||!container.contains(item))return;const rect=item.getBoundingClientRect();const after=(e.clientY-rect.top)/rect.height>0.5;const before=after?item.nextSibling:item;if(before===dragEl||dragEl.nextSibling===before)return;container.insertBefore(dragEl,before);binding.changed=true;});
+ container.addEventListener('drop',e=>e.preventDefault());
+ container.addEventListener('dragend',()=>{const moved=!!binding.dragEl&&binding.changed;binding.dragEl?.classList.remove('dragging');binding.dragEl=null;binding.changed=false;if(moved)binding.onDrop?.();});
 }
-
-async function persistOrder(container, itemSelector, table) {
-  const items = [...container.querySelectorAll(itemSelector)];
-  await Promise.all(items.map((el, i) =>
-    el.dataset.id ? supabaseClient.from(table).update({ sort_order: i }).eq('id', el.dataset.id) : null
-  ));
+const orderSaveBusy=new WeakSet(),orderSaveQueued=new WeakSet();
+async function persistOrder(container,itemSelector,table){
+ if(orderSaveBusy.has(container)){orderSaveQueued.add(container);return;}orderSaveBusy.add(container);
+ try{do{orderSaveQueued.delete(container);const items=[...container.querySelectorAll(itemSelector)];const results=await Promise.all(items.filter(el=>el.dataset.id).map((el,i)=>supabaseClient.from(table).update({sort_order:i}).eq('id',el.dataset.id).select('id')));if(results.some(result=>result.error||!result.data?.length))throw Error('No se pudo confirmar todo el orden. Recarga esta sección para comprobar lo guardado.');}while(orderSaveQueued.has(container));}
+ catch(error){alert(error.message||'No se pudo confirmar el orden.');}finally{orderSaveBusy.delete(container);}
 }
 
 // ============================================================
@@ -301,24 +281,24 @@ async function populateClientSelect(selectEl) {
 // ============================================================
 // Media uploads (Supabase Storage bucket `media`)
 // ============================================================
-async function uploadMediaFile(file, folder = 'portfolio') {
-  const path = `${folder}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const { error } = await supabaseClient.storage.from('media').upload(path, file, { upsert: false });
-  if (error) { alert('No se pudo subir el archivo: ' + error.message); return null; }
-  const { data } = supabaseClient.storage.from('media').getPublicUrl(path);
-  return data?.publicUrl || null;
+const mediaUploadPaths=new WeakMap();
+async function uploadMediaFile(file, folder = 'portfolio', acknowledged=false) {
+  try{window.OGPortfolioPhotoEditor.validateFile(file);}catch(error){alert(error.message);return null;}
+  if(!acknowledged&&!confirm('Este archivo se subirá al almacenamiento público: cualquier persona con su enlace podrá verlo. No subas material confidencial. ¿Subir?'))return null;
+  let path=mediaUploadPaths.get(file);if(!path){path=`${folder}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;mediaUploadPaths.set(file,path);}
+  try{
+   const result=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.storage.from('media').upload(path,file,{upsert:false,contentType:file.type}));
+   if(result.error){const prior=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.storage.from('media').download(path));if(prior.error||!prior.data)throw Error('No se pudo confirmar la subida. El archivo podría haberse recibido; no se ha sobrescrito.');const [a,b]=await Promise.all([prior.data.arrayBuffer(),file.arrayBuffer()]);const aa=new Uint8Array(a),bb=new Uint8Array(b);if(aa.length!==bb.length||aa.some((v,i)=>v!==bb[i]))throw Error('El archivo remoto no coincide. No se sobrescribió.');}
+   return supabaseClient.storage.from('media').getPublicUrl(path).data?.publicUrl||null;
+  }catch(error){alert(error.message||'No se pudo confirmar la subida.');return null;}
 }
 
 document.getElementById('gallery-upload-input').addEventListener('change', async (e) => {
-  const files = [...e.target.files];
-  if (!files.length) return;
-  const statusEl = document.getElementById('gallery-upload-status');
-  statusEl.hidden = false;
-  statusEl.textContent = `Subiendo ${files.length} archivo${files.length === 1 ? '' : 's'}…`;
-  for (const file of files) await uploadMediaFile(file, 'portfolio');
-  statusEl.textContent = 'Listo. Ya están en la biblioteca de archivos.';
-  e.target.value = '';
-  await loadGalleries();
+  const input=e.target;if(input.dataset.saving==='true')return;const files=[...input.files];if(!files.length)return;
+  if(!confirm('Subir estos archivos al almacenamiento público no los añade a un álbum ni los publica en la galería. Cualquier persona con el enlace podrá verlos. ¿Continuar?'))return;
+  const statusEl=document.getElementById('gallery-upload-status');statusEl.hidden=false;input.dataset.saving='true';input.disabled=true;let saved=0;
+  try{for(const file of files){statusEl.textContent=`Subiendo ${saved} de ${files.length} archivos…`;if(await uploadMediaFile(file,'portfolio',true))saved++;}statusEl.textContent=`${saved} de ${files.length} subidas confirmadas. ${saved<files.length?'Quedan archivos sin confirmar; revisa los avisos.':'Están en la biblioteca, todavía sin álbum.'}`;if(saved===files.length)input.value='';await loadGalleries();}
+  finally{input.disabled=false;input.dataset.saving='false';}
 });
 
 // ============================================================
@@ -392,13 +372,13 @@ async function loadOverview() {
           <p>${escapeHtml(featured.portfolio_categories?.name || 'Sin categoría')}</p>
           <div class="og-featured-actions">
             <button type="button" class="og-btn og-btn-solid og-btn-sm" id="featured-edit-btn">Editar proyecto</button>
-            <a class="og-btn og-btn-outline og-btn-sm" href="/" target="_blank" rel="noopener">Ver en la web</a>
+            ${featured.is_published?'<a class="og-btn og-btn-outline og-btn-sm" href="/work" target="_blank" rel="noopener">Ver galería pública</a>':''}
           </div>
         </div>
         <div class="og-featured-photo" style="${featured.cover_image_url ? `background-image:url('${featured.cover_image_url}')` : 'background:var(--og-bg-soft);'}"></div>
       </div>
     `;
-    document.getElementById('featured-edit-btn').addEventListener('click', () => switchTab('projects'));
+    document.getElementById('featured-edit-btn').addEventListener('click',async()=>{await switchTab('projects');await openPortfolioPhotoById(featured.id);});
   }
 
   // Mini list: messages
@@ -430,20 +410,20 @@ async function loadOverview() {
   const publishedForBar = bar.filter(p => resolveStatus(p) === 'published').length;
   const pct = totalProjects ? Math.round((publishedForBar / totalProjects) * 100) : 0;
   document.getElementById('publish-status-sub').textContent = totalProjects
-    ? `${publishedForBar} de ${totalProjects} proyectos publicados`
+    ? `${publishedForBar} de ${totalProjects} fotografías publicadas`
     : 'Todavía no hay proyectos.';
   document.getElementById('publish-bar').style.width = pct + '%';
 
   // Recent work strip
   const stripEl = document.getElementById('recent-work');
   stripEl.innerHTML = (recentProjects && recentProjects.length) ? recentProjects.map(p => `
-    <div class="og-strip-item" data-project-id="${p.id}">
+    <button type="button" class="og-strip-item" data-project-id="${escapeAttr(p.id)}">
       <div class="og-strip-photo${p.cover_image_url ? '' : ' empty'}" style="${p.cover_image_url ? `background-image:url('${p.cover_image_url}')` : ''}">${p.cover_image_url ? '' : '–'}</div>
       <b>${escapeHtml(p.title)}</b>
       <span>${escapeHtml(p.portfolio_categories?.name || 'Sin categoría')}</span>
-    </div>
-  `).join('') : '<p class="panel-sub">Todavía no hay proyectos — añade el primero desde Proyectos.</p>';
-  stripEl.querySelectorAll('.og-strip-item').forEach(el => el.addEventListener('click', () => switchTab('projects')));
+    </button>
+  `).join('') : '<p class="panel-sub">Todavía no hay fotografías — añade el primer proyecto desde Portfolio.</p>';
+  stripEl.querySelectorAll('.og-strip-item').forEach(el=>el.addEventListener('click',async()=>{await switchTab('projects');await openPortfolioPhotoById(el.dataset.projectId);}));
 }
 
 // ============================================================
@@ -478,7 +458,7 @@ async function loadCategories() {
   enableDragReorder(catList, '.category-row', () => persistOrder(catList, '.category-row', 'portfolio_categories'));
 
   const select = document.getElementById('project-category');
-  select.innerHTML = categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  if(select)select.innerHTML = categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
 
   const filters = document.getElementById('project-filters');
   filters.innerHTML = ['<button type="button" class="og-filter-pill active" data-filter="all">Todos</button>']
@@ -532,7 +512,7 @@ function renderProjects() {
         <span class="album-ghost album-ghost-1"></span>
         <span class="album-ghost album-ghost-2"></span>
         ${p.cover_image_url
-          ? `<img class="album-photo" src="${escapeAttr(p.cover_image_url)}" alt="" draggable="false">`
+          ? `<button type="button" class="album-open-photo" data-open-photo aria-label="Abrir fotos de ${escapeAttr(p.title)}"><img class="album-photo" src="${escapeAttr(p.cover_image_url)}" alt="" draggable="false"></button>`
           : `<label class="album-photo album-photo-empty" title="Añadir foto">
                <span>+</span>
                <input type="file" accept="image/*" data-field="photo-empty" hidden>
@@ -562,18 +542,19 @@ function renderProjects() {
         <button class="link-btn" data-action="delete">Eliminar</button>
       </div>
     `;
+    row.querySelector('[data-open-photo]')?.addEventListener('click',()=>openPortfolioPhotoById(p.id));
     row.querySelector('[data-origin-open]')?.addEventListener('click',()=>openWorkspaceEntity('bookings',origin.project_id));
     row.querySelector('[data-origin-link]')?.addEventListener('click',()=>preparePortfolioWorkflow(p.id));
     row.querySelector('[data-field="layout"]').value = p.layout_class || 'tall';
     row.querySelector('[data-field="layout"]').addEventListener('change', async (e) => {
-      await supabaseClient.from('portfolio_projects').update({ layout_class: e.target.value }).eq('id', p.id);
+      const value=e.target.value;e.target.disabled=true;try{const result=await supabaseClient.from('portfolio_projects').update({layout_class:value}).eq('id',p.id).select('id');if(result.error||!result.data?.length)throw Error('No se pudo confirmar el formato.');p.layout_class=value;}catch(error){e.target.value=p.layout_class||'tall';alert(error.message);}finally{e.target.disabled=false;}
     });
     row.querySelector('[data-field="status"]').value = status;
     row.querySelector('[data-field="status"]').addEventListener('change', async (e) => {
       const next = e.target.value;
       const patch = { is_published: next === 'published' };
       const { error } = await supabaseClient.from('portfolio_projects').update({ ...patch, status: next }).eq('id', p.id);
-      if (error) await supabaseClient.from('portfolio_projects').update(patch).eq('id', p.id);
+      if(error){e.target.value=status;alert('No se pudo confirmar la publicación. Recarga para comprobar el estado.');return;}
       await loadProjectsData();
       renderProjects();
     });
@@ -582,7 +563,8 @@ function renderProjects() {
       if (!file) return;
       const url = await uploadMediaFile(file, 'portfolio');
       if (!url) return;
-      await supabaseClient.from('portfolio_projects').update({ cover_image_url: url }).eq('id', p.id);
+      let update=supabaseClient.from('portfolio_projects').update({cover_image_url:url}).eq('id',p.id);update=p.cover_image_url==null?update.is('cover_image_url',null):update.eq('cover_image_url',p.cover_image_url);const saved=await update.select('id');
+      if(saved.error||!saved.data?.length){alert('Archivo subido, pero no se confirmó el cambio de foto. Revisa la biblioteca antes de reintentar.');return;}
       await loadProjectsData();
       renderProjects();
     };
@@ -599,6 +581,7 @@ function renderProjects() {
   });
 
   enableDragReorder(projList, '.album-card', () => persistOrder(projList, '.album-card', 'portfolio_projects'));
+  applyGlobalSearch();
 }
 
 async function loadProjects() {
@@ -661,71 +644,54 @@ document.getElementById('portfolio-workflow-form').addEventListener('submit',asy
 
 document.getElementById('new-project-btn').addEventListener('click', () => {
   const form = document.getElementById('project-form');
-  form.hidden = !form.hidden;
-  if (!form.hidden) document.getElementById('project-title').focus();
+  if(!form.hidden){closeProjectCreate();return;}
+  form.hidden=false;document.getElementById('project-title').focus();
 });
 
-document.getElementById('project-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const title = document.getElementById('project-title').value.trim();
-  const category_id = document.getElementById('project-category').value || null;
-  const is_published = document.getElementById('project-published').checked;
-  const layout_class = document.getElementById('project-layout').value;
-  const photoInput = document.getElementById('project-photo');
-  if (!title) return;
-
-  let cover_image_url = null;
-  if (photoInput.files[0]) cover_image_url = await uploadMediaFile(photoInput.files[0], 'portfolio');
-
-  const status = is_published ? 'published' : 'draft';
-  const payload = { title, category_id, is_published, layout_class, cover_image_url };
-  let { error } = await supabaseClient.from('portfolio_projects').insert({ ...payload, status });
-  if (error) ({ error } = await supabaseClient.from('portfolio_projects').insert(payload));
-  if (error) return alert(error.message);
-
-  e.target.reset();
-  document.getElementById('project-form').hidden = true;
-  await loadProjects();
+let projectCreateIntent=null,projectCreateBusy=false;
+const projectCreateForm=document.getElementById('project-form');
+function closeProjectCreate(){
+ if(projectCreateBusy)return;
+ if(projectCreateIntent&&!confirm('¿Cerrar el proyecto pendiente? Los borradores o archivos ya subidos se conservarán en la biblioteca; no se eliminan.'))return;
+ for(const item of projectCreateIntent?.items||[])if(item.preview)URL.revokeObjectURL(item.preview);
+ projectCreateIntent=null;projectCreateForm.reset();projectCreateForm.hidden=true;
+ projectCreateForm.querySelectorAll('input,button').forEach(el=>el.disabled=false);
+ document.getElementById('project-create-status').textContent='';
+}
+document.getElementById('project-create-cancel').addEventListener('click',closeProjectCreate);
+projectCreateForm.addEventListener('submit',async e=>{
+ e.preventDefault();if(projectCreateBusy)return;
+ const status=document.getElementById('project-create-status');
+ if(portfolioGroupEditorBusy||portfolioGroupEditorState?.dirty){status.textContent='Guarda o recarga los cambios de grupos antes de crear un proyecto.';return;}
+ try{
+  if(!projectCreateIntent)projectCreateIntent=window.OGPortfolioPhotoEditor.newProject(document.getElementById('project-title').value,Array.from(document.getElementById('project-photo').files),()=>crypto.randomUUID(),file=>URL.createObjectURL(file));
+  projectCreateBusy=true;projectCreateForm.querySelectorAll('input,button').forEach(el=>el.disabled=true);
+  status.textContent='Guardando fotos en borrador y creando el álbum…';
+  const group=await window.OGPortfolioPhotoEditor.createProject(projectCreateIntent,supabaseClient,document.getElementById('project-upload-consent').checked,window.OGPortfolioGroups);
+  if(!group)return;
+  for(const item of projectCreateIntent.items)if(item.preview)URL.revokeObjectURL(item.preview);
+  projectCreateIntent=null;projectCreateForm.reset();projectCreateForm.hidden=true;status.textContent='';
+  await loadProjects();await openPortfolioPhotoGroup(group);
+ }catch(error){status.textContent=error.message||'No se pudo confirmar el proyecto. Reintenta para verificarlo.';}
+ finally{projectCreateBusy=false;projectCreateForm.querySelectorAll('input,button').forEach(el=>el.disabled=false);if(projectCreateIntent){document.getElementById('project-title').disabled=true;document.getElementById('project-photo').disabled=true;}}
 });
+window.addEventListener('beforeunload',event=>{if(projectCreateIntent||projectCreateBusy||portfolioGroupEditorState?.dirty){event.preventDefault();event.returnValue='';}});
 
 // ============================================================
 // Galerías y archivos multimedia
 // ============================================================
 async function loadGalleries() {
-  const [{ data: categories }, { data: projects }] = await Promise.all([
-    supabaseClient.from('portfolio_categories').select('*').order('sort_order'),
-    supabaseClient.from('portfolio_projects').select('*').order('sort_order'),
-  ]);
-
-  const groupsEl = document.getElementById('gallery-groups');
-  groupsEl.innerHTML = '';
-  (categories || []).forEach(cat => {
-    const items = (projects || []).filter(p => p.category_id === cat.id);
-    const group = document.createElement('div');
-    group.className = 'gallery-group';
-    group.innerHTML = `
-      <div class="gallery-group-head"><h3>${escapeHtml(cat.name)}</h3><span>${items.length} proyecto${items.length === 1 ? '' : 's'}</span></div>
-      <div class="album-grid album-grid-compact">
-        ${items.length ? items.map(p => `
-          <div class="album-card album-card-compact">
-            <div class="album-stack">
-              <span class="album-ghost album-ghost-1"></span>
-              <span class="album-ghost album-ghost-2"></span>
-              ${p.cover_image_url ? `<img class="album-photo" src="${p.cover_image_url}" alt="">` : `<span class="album-photo album-photo-empty"><span>–</span></span>`}
-            </div>
-            <div class="album-info"><span class="album-title">${escapeHtml(p.title)}</span></div>
-          </div>
-        `).join('') : '<p class="panel-sub">Sin proyectos en esta categoría.</p>'}
-      </div>
-    `;
-    groupsEl.appendChild(group);
-  });
+  await loadPortfolioGroupsEditor();
+  const groupsEl=document.getElementById('gallery-groups');
+  if(!portfolioGroupEditorState){groupsEl.textContent='No se pudieron cargar los álbumes. Vuelve a abrir esta sección para reintentar.';}
+  else renderPortfolioPhotoGroups(groupsEl);
 
   const mediaEl = document.getElementById('media-library');
   const { data: files, error } = await supabaseClient.storage.from('media').list('portfolio', {
     limit: 60, sortBy: { column: 'created_at', order: 'desc' },
   });
-  if (error || !files || !files.length) {
+  if(error){mediaEl.textContent='No se pudo cargar la biblioteca de archivos. No significa que esté vacía.';}
+  else if (!files || !files.length) {
     mediaEl.innerHTML = '<p class="panel-sub">Todavía no has subido archivos.</p>';
   } else {
     mediaEl.innerHTML = files.filter(f => f.name && !f.name.startsWith('.')).map(f => {
@@ -961,18 +927,22 @@ function onContentFieldChanged() {
   scheduleAutosave();
 }
 
-let contentLoadReady=false;
+let contentLoadReady=false,contentLoading=false;
 async function loadSiteContent() {
-  contentLoadReady=false;
+  if(contentLoading||contentLoadReady)return;
+  contentLoading=true;document.getElementById('content-save').disabled=true;
+  try{
   const { data, error } = await supabaseClient.from('site_content').select('key, lang, value');
   if (error || !Array.isArray(data)) { document.getElementById('content-save').disabled=true; setAiStatus('No se pudo cargar el contenido actual. Vuelve a abrir el editor antes de publicar.'); return; }
-  contentLoadReady=true; document.getElementById('content-save').disabled=false;
+
   contentOverrides = {};
   (data || []).filter(row => row.key !== 'studio_ai_enabled').forEach(row => { contentOverrides[contentKey(row.key, row.lang)] = row.value; });
 
   document.getElementById('content-fields-hero').innerHTML = fieldsMarkup(HERO_KEYS);
   document.getElementById('content-fields-textos').innerHTML = fieldsMarkup(TEXT_KEYS);
+  document.querySelectorAll('#content-fields-hero textarea, #content-fields-textos textarea').forEach(el=>el.disabled=true);
   await loadServicesInto('content-services', onContentFieldChanged);
+  if(!serviceEditors.has(document.getElementById('content-services')))throw Error('No se pudo cargar el catálogo. Vuelve a abrir Contenido para reintentar; publicar sigue desactivado.');
 
   document.querySelectorAll('#content-fields-hero textarea, #content-fields-textos textarea').forEach(el => {
     el.addEventListener('input', onContentFieldChanged);
@@ -996,7 +966,10 @@ async function loadSiteContent() {
   } else {
     setSaveBarState('saved');
   }
+  contentLoadReady=true;document.getElementById('content-save').disabled=false;
+  document.querySelectorAll('#content-fields-hero textarea, #content-fields-textos textarea').forEach(el=>el.disabled=false);
   sendPreview();
+  }catch(error){contentLoadReady=false;document.getElementById('content-save').disabled=true;setAiStatus(error.message||'No se pudo cargar el contenido. Vuelve a abrir esta sección.');}finally{contentLoading=false;}
 }
 
 document.getElementById('content-save').addEventListener('click', async () => {
@@ -1189,7 +1162,7 @@ async function loadUgc() {
         <div class="album-stack">
           <span class="album-ghost album-ghost-1"></span>
           <span class="album-ghost album-ghost-2"></span>
-          ${p.cover_image_url ? `<img class="album-photo" src="${p.cover_image_url}" alt="">` : `<span class="album-photo album-photo-empty"><span>–</span></span>`}
+          ${p.cover_image_url ? `<img class="album-photo" src="${escapeAttr(window.OGServiceCatalog.imageUrl(p.cover_image_url)||'')}" alt="">` : `<span class="album-photo album-photo-empty"><span>–</span></span>`}
         </div>
         <div class="album-info"><span class="album-title">${escapeHtml(p.title)}</span></div>
       </div>
@@ -1634,18 +1607,22 @@ document.getElementById('client-add-toggle').addEventListener('click', () => {
   if (!form.hidden) document.getElementById('client-name').focus();
 });
 
+let clientCreateIntent=null;
 document.getElementById('client-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('client-name').value.trim();
-  const email = document.getElementById('client-email').value.trim() || null;
-  const phone = document.getElementById('client-phone').value.trim() || null;
-  const notes = document.getElementById('client-notes').value.trim() || null;
-  if (!name) return;
-  const { error } = await supabaseClient.from('clients').insert({ name, email, phone, notes });
-  if (error) return alert(error.message);
-  e.target.reset();
-  e.target.hidden = true;
-  loadClients();
+  e.preventDefault();const form=e.currentTarget;if(form.dataset.saving==='true')return;
+  const name=document.getElementById('client-name').value.trim();if(!name)return;
+  const values={name,email:document.getElementById('client-email').value.trim()||null,phone:document.getElementById('client-phone').value.trim()||null,notes:document.getElementById('client-notes').value.trim()||null};
+  if(clientCreateIntent&&JSON.stringify(clientCreateIntent.values)!==JSON.stringify(values))return alert('Hay un intento pendiente. Reintenta con los mismos datos para comprobar si ya se guardó antes de crear otro cliente.');
+  if(!clientCreateIntent)clientCreateIntent={id:crypto.randomUUID(),values};
+  form.dataset.saving='true';form.querySelectorAll('input,textarea,button').forEach(el=>el.disabled=true);
+  try{
+   const intent=clientCreateIntent;const prior=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.from('clients').select('id,name,email,phone,notes').eq('id',intent.id).maybeSingle());
+   if(prior.error)throw Error('No se pudo comprobar el intento anterior. Reintenta.');
+   if(prior.data){if(Object.keys(values).some(key=>(prior.data[key]??null)!==(values[key]??null)))throw Error('El cliente cambió en otra sesión. Revisa la lista antes de continuar.');}
+   else{const result=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.from('clients').insert({id:intent.id,...values}).select('id'));if(result.error||!result.data?.length)throw Error('No se pudo confirmar el cliente. Reintenta para verificarlo sin duplicarlo.');}
+   clientCreateIntent=null;form.reset();form.hidden=true;await loadClients();
+  }catch(error){alert(error.message||'No se pudo guardar el cliente.');}
+  finally{form.dataset.saving='false';form.querySelectorAll('input,textarea,button').forEach(el=>el.disabled=false);}
 });
 
 // ============================================================
@@ -1665,8 +1642,8 @@ async function loadCalendar() {
     openEnquiry: id => openWorkspaceEntity('messages', id),
     openPortfolio: id => openWorkspaceEntity('projects', id),
     async status(job, value) {
-      const { error } = await supabaseClient.from('projects').update({ status: value }).eq('id', job.id);
-      if (error) throw new Error('No se pudo guardar el estado de la reserva.');
+      const { data, error } = await supabaseClient.from('projects').update({ status: value }).eq('id', job.id).eq('status',job.status).select('id');
+      if (error||!data?.length) throw new Error('No se pudo guardar el estado de la reserva.');
       job.status = value;
     },
     async remove(job) {
@@ -1678,6 +1655,17 @@ async function loadCalendar() {
   });
 }
 
+const recordCreateIntents=new WeakMap();
+async function saveNewRecord(form,table,values){
+ let intent=recordCreateIntents.get(form);
+ if(intent&&JSON.stringify(intent.values)!==JSON.stringify(values))throw Error('Hay un guardado pendiente. Reintenta con los mismos datos para comprobarlo sin duplicar.');
+ if(!intent){intent={id:crypto.randomUUID(),values};recordCreateIntents.set(form,intent);}
+ const prior=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.from(table).select('id,'+Object.keys(values).join(',')).eq('id',intent.id).maybeSingle());
+ if(prior.error)throw Error('No se pudo comprobar el guardado anterior. Reintenta.');
+ if(prior.data){if(Object.keys(values).some(key=>typeof values[key]==='number'?Number(prior.data[key])!==values[key]:String(prior.data[key]??'')!==String(values[key]??'')))throw Error('El registro cambió. Revisa la lista antes de continuar.');}
+ else{const result=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.from(table).insert({id:intent.id,...values}).select('id'));if(result.error||!result.data?.length)throw Error('No se pudo confirmar el guardado. Reintenta para verificarlo sin duplicar.');}
+ recordCreateIntents.delete(form);
+}
 document.getElementById('job-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const form = e.currentTarget;
@@ -1692,11 +1680,10 @@ document.getElementById('job-form').addEventListener('submit', async (e) => {
   const event_date = document.getElementById('job-date').value || null;
   const status = document.getElementById('job-status').value;
   if (!title) return;
-  const { error } = await supabaseClient.from('projects').insert({ title, client_id, event_date, status });
-  if (error) return alert(error.message);
+  await saveNewRecord(form,'projects',{title,client_id,event_date,status});
   form.reset();
   await loadCalendar();
-  } catch (error) { alert('No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
+  } catch (error) { alert(error.message||'No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
   finally { delete form.dataset.saving; submit.disabled = false; }
 });
 
@@ -1746,20 +1733,20 @@ let allAnalyticsQuotesCache = [];
 let currentAnalyticsQuoteFilter = 'all';
 let selectedAnalyticsQuoteId = null;
 
+let analyticsLoadVersion=0;
 async function loadAnalytics() {
-  const [
-    { count: publishedProjects },
-    { data: clientsData },
-    { data: bookingsData },
-    { data: quotesData },
-    { data: enquiriesData },
-  ] = await Promise.all([
+  const version=++analyticsLoadVersion;const notice=document.getElementById('analytics-load-status');notice.textContent='Actualizando datos…';
+  const results = await Promise.all([
     supabaseClient.from('portfolio_projects').select('*', { count: 'exact', head: true }).eq('is_published', true),
     supabaseClient.from('clients').select('id, created_at'),
     supabaseClient.from('projects').select('id, status, created_at'),
     supabaseClient.from('quotes').select('*, clients(name), projects(title, status)').order('created_at', { ascending: false }),
     supabaseClient.from('enquiries').select('id, status, created_at'),
   ]);
+  if(version!==analyticsLoadVersion)return;
+  if(results.some(result=>result.error)){notice.textContent='No se pudieron actualizar los datos. Si hay cifras anteriores visibles, no están verificadas ahora. Vuelve a abrir Analíticas para reintentar.';return;}
+  notice.textContent='';
+  const [{count:publishedProjects},{data:clientsData},{data:bookingsData},{data:quotesData},{data:enquiriesData}]=results;
 
   const clients = clientsData || [];
   const bookings = bookingsData || [];
@@ -1793,7 +1780,7 @@ function renderAnalyticsStats({ publishedProjects, clients, bookings, quotes, en
     </div>`;
 
   grid.innerHTML = [
-    cell('a', icon.projects, publishedProjects ?? 0, 'Proyectos publicados'),
+    cell('a', icon.projects, publishedProjects ?? 0, 'Fotografías publicadas'),
     cell('b', icon.clients, clients.length, 'Clientes totales', deltaBadge(rowsInMonth(clients, 0).length, rowsInMonth(clients, -1).length)),
     cell('c', icon.bookings, activeBookingsNow, 'Reservas activas', deltaBadge(rowsInMonth(bookings, 0).length, rowsInMonth(bookings, -1).length)),
     cell('d', icon.quotes, eur(acceptedTotal), 'Ingresos aceptados', deltaBadge(
@@ -1901,7 +1888,7 @@ function openAnalyticsQuoteDetail(id) {
       <b>Creado</b>
       <p class="panel-sub" style="margin:0;">${new Date(q.created_at).toLocaleDateString()}</p>
     </div>
-    ${q.document_url ? `<a class="og-btn og-btn-outline" href="${escapeAttr(q.document_url)}" target="_blank" rel="noopener">Ver documento</a>` : ''}
+    ${window.OGServiceCatalog.imageUrl(q.document_url||'') ? `<a class="og-btn og-btn-outline" href="${escapeAttr(window.OGServiceCatalog.imageUrl(q.document_url))}" target="_blank" rel="noopener">Ver documento</a>` : ''}
     <button type="button" class="og-btn og-btn-dark" id="analytics-go-to-quotes">Abrir en Presupuestos →</button>
   `;
   document.getElementById('analytics-detail-close').addEventListener('click', closeAnalyticsQuoteDetail);
@@ -1979,8 +1966,8 @@ async function loadQuotes() {
     openClient: id => openWorkspaceEntity('clients', id),
     openBooking: id => openWorkspaceEntity('bookings', id),
     async status(quote, value) {
-      const { error } = await supabaseClient.from('quotes').update({ status: value }).eq('id', quote.id);
-      if (error) throw new Error('No se pudo guardar el estado del presupuesto.');
+      const { data, error } = await supabaseClient.from('quotes').update({ status: value }).eq('id', quote.id).eq('status',quote.status).select('id');
+      if (error||!data?.length) throw new Error('No se pudo guardar el estado del presupuesto.');
       quote.status = value;
     },
     async remove(quote) {
@@ -2083,11 +2070,10 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   const amount = StudioWorkspace.parseAmount(amountRaw);
   if (Number.isNaN(amount)) return alert('Escribe un importe válido, por ejemplo 150,50, sin separador de miles.');
   const status = document.getElementById('quote-status').value;
-  const { error } = await supabaseClient.from('quotes').insert({ client_id, amount, status });
-  if (error) return alert(error.message);
+  await saveNewRecord(form,'quotes',{client_id,amount,status});
   form.reset();
   await loadQuotes();
-  } catch (error) { alert('No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
+  } catch (error) { alert(error.message||'No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
   finally { delete form.dataset.saving; submit.disabled = false; }
 });
 
@@ -2126,18 +2112,33 @@ async function renderSetupBanner() {
 checkSession();
 
 const portfolioPhotoEditor=window.OGPortfolioPhotoEditor.mount({client:supabaseClient,safeUrl:url=>window.OGServiceCatalog.imageUrl(url),onSaved:async()=>{await loadProjectsData();renderProjects();await loadPortfolioGroupsEditor(true);}});
+async function openPortfolioPhotoById(photoId){
+ if(!portfolioGroupEditorState)await loadPortfolioGroupsEditor();
+ const state=portfolioGroupEditorState;if(!state)return;
+ const group=state.groups.find(g=>g.photo_ids.includes(photoId));
+ const photo=state.photos.find(p=>p.id===photoId);
+ if(group)return openPortfolioPhotoGroup(group);
+ if(photo)return openPortfolioPhotoGroup({id:null,photoId:photo.id,name:photo.title+' · Foto sin álbum'});
+ alert('La foto ya no está disponible. Recarga la biblioteca.');
+}
 function openPortfolioPhotoGroup(group){
  if(portfolioGroupEditorBusy||portfolioGroupEditorState?.dirty){alert('Guarda o recarga los cambios de grupos antes de editar sus fotos.');return;}
- portfolioPhotoEditor.open(group);
+ return portfolioPhotoEditor.open(group);
 }
-function renderPortfolioPhotoGroups(){
- const target=document.getElementById('portfolio-photo-groups');target.replaceChildren();
+function renderPortfolioPhotoGroups(target=document.getElementById('portfolio-photo-groups')){
+ target.replaceChildren();
  for(const group of portfolioGroupEditorState?.groups||[]){
   const button=document.createElement('button');button.type='button';button.className='album-card photo-group-launcher';button.dataset.photoGroup=group.id;
   const photos=group.photo_ids.map(id=>portfolioGroupEditorState.photos.find(p=>p.id===id)).filter(Boolean);
   const cover=photos.find(p=>p.is_published)||photos[0];const url=window.OGServiceCatalog.imageUrl(cover?.cover_image_url||'');
   if(url){const img=document.createElement('img');img.src=url.startsWith('assets/')?'/'+url:url;img.alt='';img.loading='lazy';button.append(img);}
   const title=document.createElement('strong');title.textContent=group.name;const detail=document.createElement('span');detail.textContent=photos.length+' fotos · abrir y editar';button.append(title,detail);button.addEventListener('click',()=>openPortfolioPhotoGroup(group));target.append(button);
+ }
+ const assigned=new Set((portfolioGroupEditorState?.groups||[]).flatMap(g=>g.photo_ids));
+ for(const photo of portfolioGroupEditorState?.photos||[]){if(assigned.has(photo.id))continue;
+  const button=document.createElement('button');button.type='button';button.className='album-card photo-group-launcher';
+  const url=window.OGServiceCatalog.imageUrl(photo.cover_image_url||'');if(url){const img=document.createElement('img');img.src=url.startsWith('assets/')?'/'+url:url;img.alt='';img.loading='lazy';button.append(img);}
+  const title=document.createElement('strong');title.textContent=photo.title;const detail=document.createElement('span');detail.textContent='Foto sin álbum · abrir ficha';button.append(title,detail);button.addEventListener('click',()=>openPortfolioPhotoById(photo.id));target.append(button);
  }
 }
 
