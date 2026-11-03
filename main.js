@@ -170,7 +170,7 @@ const copy = {
     svcChip: 'Selected service', svcPricingLabel: 'Pricing',
     svcQuote: 'Custom quote', svcLinked: 'Your selection is linked to the form.',
     svcNone: 'No service selected', svcPickOne: 'Choose one to see its details.',
-    svcSelectedSuffix: 'selected — tell us what you have in mind.',
+    svcSelectedSuffix: 'Tell us what you have in mind.',
     serviceBlurbs: window.OGServiceCatalog.blurbs.en,
     processTitle: 'How we work',
     processSteps: [
@@ -194,7 +194,7 @@ const copy = {
     svcChip: 'Servicio seleccionado', svcPricingLabel: 'Presupuesto',
     svcQuote: 'Presupuesto personalizado', svcLinked: 'Tu selección queda enlazada al formulario.',
     svcNone: 'Ningún servicio seleccionado', svcPickOne: 'Elige uno para ver su detalle.',
-    svcSelectedSuffix: 'seleccionado — cuéntanos qué tienes en mente.',
+    svcSelectedSuffix: 'Cuéntanos qué tienes en mente.',
     serviceBlurbs: window.OGServiceCatalog.blurbs.es,
     processTitle: 'Cómo trabajamos',
     processSteps: [
@@ -260,7 +260,7 @@ function renderNav() {
       items: NAV_PAGES.map(([href, key]) => ({
         key,
         href,
-        label: key === 'home' ? (lang === 'es' ? 'Inicio' : 'Home') : t[key],
+        label: key === 'home' ? (lang === 'es' ? 'Inicio' : 'Home') : key === 'contact' ? t.quoteAction : t[key],
       })),
     });
   }
@@ -491,6 +491,8 @@ function renderServices() {
   // don't repeat each other.
   if ($('services-label')) $('services-label').textContent = t.services;
   if ($('services-heading')) $('services-heading').textContent = t.capabilities;
+  if ($('services-quote-intro')) $('services-quote-intro').textContent = t.quoteIntro;
+  if ($('services-quote-link')) $('services-quote-link').textContent = t.quoteAction + ' ↗';
 
   const cards = $('service-cards');
   if (cards) {
@@ -503,7 +505,8 @@ function renderServices() {
       ? t.serviceList.map((s, i) => {
           const blurb = t.serviceBlurbs?.[i];
           return `<li><div class="svc-row"><a class="svc-link" href="/contact?service=${encodeURIComponent(currentServices()[i].id)}"><span>${attrEscape(s)}</span></a>` +
-            (blurb ? `<p class="svc-blurb">${attrEscape(blurb)}</p>` : '') + `</div></li>`;
+            (blurb ? `<p class="svc-blurb">${attrEscape(blurb)}</p>` : '') +
+            `<a class="svc-quote-link" href="/contact?service=${encodeURIComponent(currentServices()[i].id)}" aria-label="${attrEscape(t.quoteAction + ': ' + s)}">${attrEscape(t.quoteAction)} <span aria-hidden="true">↗</span></a></div></li>`;
         }).join('')
       : t.serviceList.map((s, i) => `
         <article>
@@ -628,7 +631,7 @@ function renderServiceCard() {
   const lede = $('contact-lede');
   if (lede) {
     lede.textContent = chosen
-      ? `${list[i]} ${t.svcSelectedSuffix}`
+      ? `${t.fService}: ${list[i]}. ${t.svcSelectedSuffix}`
       : t.ctaLede;
   }
 }
@@ -653,6 +656,7 @@ function renderContact() {
   const es = lang === 'es';
   if ($('contact-heading')) $('contact-heading').textContent = t.cta;
   if ($('contact-lede')) $('contact-lede').textContent = t.ctaLede;
+  if ($('contact-brief')) $('contact-brief').textContent = t.quoteBrief;
   $('label-name').firstChild.textContent = t.fName;
   $('label-phone').firstChild.textContent = t.fPhone;
   $('label-service').firstChild.textContent = t.fService;

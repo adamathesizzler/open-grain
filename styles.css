@@ -944,3 +944,12 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 /* Public per-photo captions remain readable without pushing gallery controls offscreen. */
 #lightbox-eyebrow{max-height:6em;overflow:auto;overflow-wrap:anywhere;max-width:min(70ch,85vw)}
 #lightbox-eyebrow:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+/* Quote entry points use the existing editorial palette, outside the home grid. */
+.svc-quote-intro{max-width:44rem;margin:20px 0 12px;line-height:1.6;font-size:clamp(.9rem,1.4vw,1rem);}
+.quote-link,.svc-quote-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;color:inherit;text-decoration:underline;text-underline-offset:5px;font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.04em;}
+.quote-link:focus-visible,.svc-quote-link:focus-visible{outline:2px solid currentColor;outline-offset:5px;border-radius:3px;}
+.svc-quote-link{margin-top:8px;}
+.contact-brief{grid-column:1 / -1;margin:0;line-height:1.6;font-size:13px;color:var(--muted);overflow-wrap:anywhere;}
+
+.project-form > .portfolio-context{grid-column:1 / -1;min-width:0;overflow-wrap:anywhere;}

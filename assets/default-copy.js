@@ -18,6 +18,9 @@ window.DEFAULT_COPY = {
     intro: 'Creating what words can’t explain.',
     introBody: 'Photography, film and digital content shaped around people, places and brands.',
     capabilities: 'What we create',
+    quoteAction: 'Request a quote',
+    quoteIntro: 'For brands, people and events in Mallorca. Choose a service to tell us what you have in mind.',
+    quoteBrief: 'Tell us what you need and where. Name, email, service and your idea are required; phone, date and budget are optional.',
     serviceList: ['Photography', 'Film & Reels', 'UGC', 'Events', 'Social Content'],
     about: 'Made with intention. Told with feeling.',
     aboutBody: 'OPEN GRAIN is an independent creative studio based in Mallorca. We build visual stories with an honest eye, careful craft and a little grain.',
@@ -35,6 +38,9 @@ window.DEFAULT_COPY = {
     intro: 'Creamos lo que las palabras no pueden explicar.',
     introBody: 'Fotografía, vídeo y contenido digital creado alrededor de personas, lugares y marcas.',
     capabilities: 'Lo que creamos',
+    quoteAction: 'Pedir presupuesto',
+    quoteIntro: 'Para marcas, personas y eventos en Mallorca. Elige un servicio y cuéntanos qué tienes en mente.',
+    quoteBrief: 'Cuéntanos qué necesitas y dónde. Nombre, email, servicio e idea son obligatorios; teléfono, fecha y presupuesto son opcionales.',
     serviceList: ['Fotografía', 'Vídeo y reels', 'UGC', 'Eventos', 'Contenido para redes'],
     about: 'Hecho con intención. Contado con emoción.',
     aboutBody: 'OPEN GRAIN es un estudio creativo independiente de Mallorca. Construimos historias visuales con una mirada honesta, oficio y un poco de grano.',
@@ -57,6 +63,9 @@ window.CONTENT_FIELD_LABELS = {
   intro: 'Titular de la sección "Creamos lo que..."',
   introBody: 'Texto de la sección "Creamos lo que..."',
   capabilities: 'Título de la sección "Servicios"',
+  quoteAction: 'Texto del enlace para pedir presupuesto',
+  quoteIntro: 'Para quién trabajamos (página Servicios)',
+  quoteBrief: 'Ayuda para completar la solicitud de presupuesto',
   about: 'Titular de la sección "Estudio"',
   aboutBody: 'Texto de la sección "Estudio"',
   studioTag: 'Frase pequeña junto al icono (sección Estudio)',
@@ -69,7 +78,7 @@ window.CONTENT_FIELD_LABELS = {
 // Order in which fields are shown in the editor (mirrors page order).
 window.CONTENT_FIELD_ORDER = [
   'eyebrow', 'headline', 'explore', 'workBlurb',
-  'intro', 'introBody', 'capabilities',
+  'intro', 'introBody', 'capabilities', 'quoteAction', 'quoteIntro', 'quoteBrief',
   'about', 'aboutBody', 'studioTag',
   'cta', 'ctaLede', 'based', 'socialLede',
 ];
