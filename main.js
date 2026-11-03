@@ -570,6 +570,9 @@ function renderStudio() {
   $('studio-heading').textContent = t.about;
   $('studio-body').textContent = t.aboutBody;
   if ($('studio-tag')) $('studio-tag').textContent = t.studioTag;
+  if ($('studio-work-link')) $('studio-work-link').textContent = t.explore + ' ↗';
+  if ($('studio-services-link')) $('studio-services-link').textContent = t.workMore + ' ↗';
+  if ($('studio-links')) $('studio-links').setAttribute('aria-label', lang === 'es' ? 'Explora el estudio' : 'Explore the studio');
 }
 
 // Stable catalogue IDs survive translation, renaming and reordering.

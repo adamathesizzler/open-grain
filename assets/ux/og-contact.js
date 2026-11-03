@@ -56,6 +56,7 @@
     const errorNodes = new Map();
     let busy = false;
     let completed = false;
+    let summaryKind = null;
     const noValidateBefore = form.noValidate;
     // We intentionally handle validation ourselves for inline ES/EN errors.
     // This must NOT be copied without the validate() calls below.
@@ -113,6 +114,7 @@
       setButtonText(busy ? t().pending : t().submit);
       fields.filter(x => x.hasAttribute('aria-invalid')).forEach(validate);
       if (completed) success.textContent = t().success;
+      if (summaryKind) summary.textContent = t()[summaryKind];
     }
     form.addEventListener('input', (e) => {
       if (errorNodes.has(e.target) && e.target.hasAttribute('aria-invalid')) validate(e.target);
@@ -126,6 +128,7 @@
       if (field('email')) field('email').value = field('email').value.trim();
       const invalid = fields.filter(x => !validate(x));
       if (invalid.length) {
+        summaryKind = 'summary';
         summary.textContent = t().summary;
         summary.hidden = false;
         invalid[0].focus();
@@ -140,6 +143,7 @@
       busy = true;
       button.disabled = true;
       form.setAttribute('aria-busy', 'true');
+      summaryKind = null;
       summary.hidden = true;
       refresh();
       try {
@@ -151,6 +155,7 @@
         success.focus();
       } catch {
         // Do not expose backend messages or credentials to the visitor.
+        summaryKind = 'failure';
         summary.textContent = t().failure;
         summary.hidden = false;
         summary.tabIndex = -1;

@@ -953,3 +953,20 @@ body.is-services, body.is-light{ background:#f4f9ff; }
 .contact-brief{grid-column:1 / -1;margin:0;line-height:1.6;font-size:13px;color:var(--muted);overflow-wrap:anywhere;}
 
 .project-form > .portfolio-context{grid-column:1 / -1;min-width:0;overflow-wrap:anywhere;}
+
+/* Public audit: readable form hints and native controls in both themes. */
+.studio-links{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:24px;}
+#contact-form input,#contact-form select,#contact-form textarea{color-scheme:light;min-width:0;}
+#contact-form input::placeholder,#contact-form textarea::placeholder{color:#6d6b64;opacity:1;}
+.site-shell.dark-mode .contact-brief{color:#c3c0bb;}
+.site-shell.dark-mode #contact-form input,.site-shell.dark-mode #contact-form select,.site-shell.dark-mode #contact-form textarea{color-scheme:dark;}
+.site-shell.dark-mode #contact-form input::placeholder,.site-shell.dark-mode #contact-form textarea::placeholder{color:#c3c0bb;}
+.site-shell.dark-mode #contact-form input:focus::placeholder,.site-shell.dark-mode #contact-form textarea:focus::placeholder{color:#f3efe8;}
+@media(max-width:600px){
+  #contact-form label{min-width:0;}
+  #contact-form input:not([type="checkbox"]),#contact-form select,#contact-form textarea{width:100%;font-size:16px;}
+  #contact-form .submit-btn{width:100%;max-width:100%;min-width:0;justify-content:space-between;gap:12px;white-space:normal;}
+  #contact-form .submit-btn [data-og-label]{min-width:0;overflow-wrap:anywhere;text-align:left;}
+  #contact-form .submit-btn svg{flex-shrink:0;}
+}
+.site-shell.dark-mode #contact-form input:focus,.site-shell.dark-mode #contact-form select:focus,.site-shell.dark-mode #contact-form textarea:focus{outline:2px solid #ffac9a;outline-offset:2px;border-color:#ffac9a;}

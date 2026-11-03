@@ -55,3 +55,39 @@ test('editable conversion text is rendered safely and catalog error never offers
 test('new editable fields are exposed to Studio and public homepage remains pure grid',()=>{const h=harness();for(const key of ['quoteAction','quoteIntro','quoteBrief'])assert(h.context.window.CONTENT_FIELD_ORDER.includes(key));const home=fs.readFileSync(require.resolve('../index.html'),'utf8');assert(!home.includes('services-quote-link'));assert(!source.includes('setInterval(rotatePortfolioCovers'));});
 
 test('selected-service explanation is neutral and helper/reference span both form columns',()=>{const h=harness();const Node=h.nodes['contact-heading'].constructor;for(const id of ['service-card','service-card-chip','service-card-label','service-card-img','service-card-index','service-card-title','service-card-desc','service-card-price','service-card-note'])h.nodes[id]=new Node(id);h.nodes.service.value=C.legacyId(0);h.context.renderContact();assert.match(h.nodes['contact-lede'].textContent,/^Servicio: Fotografía\. Cuéntanos/);const css=fs.readFileSync(require.resolve('../styles.css'),'utf8');assert.match(css,/\.contact-brief\{grid-column:1 \/ -1/);assert.match(css,/\.project-form > \.portfolio-context\{grid-column:1 \/ -1/);});
+
+test('About uses existing bilingual copy and real onward routes without resetting forms',()=>{
+ const h=harness();const Node=h.nodes['contact-heading'].constructor;
+ for(const id of ['studio-heading','studio-body','studio-tag','studio-label','studio-work-link','studio-services-link','studio-links'])h.nodes[id]=new Node(id);
+ vm.runInContext(block('function renderStudio()','// Stable catalogue IDs'),h.context);
+ h.context.renderStudio();assert.match(h.nodes['studio-body'].textContent,/estudio independiente de fotografía y vídeo/);assert.equal(h.nodes['studio-work-link'].textContent,'Ver proyectos ↗');assert.equal(h.nodes['studio-services-link'].textContent,'Ver servicios ↗');
+ h.override('aboutBody','Texto propio del estudio');h.context.renderStudio();assert.equal(h.nodes['studio-body'].textContent,'Texto propio del estudio');
+ h.context.lang='en';h.context.renderStudio();assert.match(h.nodes['studio-body'].textContent,/independent photography and film studio/);assert.equal(h.nodes['studio-links'].getAttribute('aria-label'),'Explore the studio');assert.equal(h.nodes.message.value,'A synthetic project brief');
+ const about=fs.readFileSync(require.resolve('../about.html'),'utf8');assert.match(about,/id="studio-work-link" href="\/work"/);assert.match(about,/id="studio-services-link" href="\/services"/);
+});
+test('condensed ES fallbacks match editable defaults and never call privacy consent optional',()=>{
+ const h=harness(),copy=h.context.window.DEFAULT_COPY.es;
+ for(const [file,keys] of [['about.html',['aboutBody']],['services.html',['introBody','quoteIntro']],['contact.html',['quoteBrief']]]){const body=fs.readFileSync(require.resolve('../'+file),'utf8');for(const key of keys)assert(body.includes(copy[key]));}
+ assert.equal(copy.quoteBrief,'Cuéntanos tu idea. Teléfono, fecha y presupuesto son opcionales.');assert.equal(h.context.window.DEFAULT_COPY.en.quoteBrief,'Tell us your idea. Phone, date and budget are optional.');
+ assert(!copy.aboutBody.includes('años'));assert(!copy.aboutBody.includes('Mansu'));
+});
+function contrast(a,b){const luminance=hex=>{const v=hex.match(/[a-f0-9]{2}/gi).map(n=>parseInt(n,16)/255).map(n=>n<=.04045?n/12.92:((n+.055)/1.055)**2.4);return .2126*v[0]+.7152*v[1]+.0722*v[2];};const x=luminance(a),y=luminance(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
+test('contact hint tokens exceed AA against observed dark card and focused field backgrounds',()=>{
+ const css=fs.readFileSync(require.resolve('../styles.css'),'utf8');assert.match(css,/\.site-shell\.dark-mode \.contact-brief\{color:#c3c0bb;/);assert(contrast('c3c0bb','464747')>=4.5);assert(contrast('c3c0bb','191a19')>=4.5);assert(contrast('f3efe8','595a5a')>=4.5);assert(contrast('6d6b64','f2eee6')>=4.5);
+});
+test('native form controls follow theme and narrow submit/input rules stay scoped outside home',()=>{
+ const css=fs.readFileSync(require.resolve('../styles.css'),'utf8');assert.match(css,/#contact-form input,#contact-form select,#contact-form textarea\{color-scheme:light/);assert.match(css,/\.site-shell\.dark-mode #contact-form textarea\{color-scheme:dark/);assert.match(css,/#contact-form input:not\(\[type="checkbox"\]\),#contact-form select,#contact-form textarea\{width:100%;font-size:16px/);assert.match(css,/#contact-form \.submit-btn\{width:100%;max-width:100%;min-width:0;justify-content:space-between;gap:12px/);
+});
+
+test('validation summary changes language with fields without moving focus or losing draft',async()=>{
+ const h=harness();await h.submit();const summary=h.nodes['contact-form'].children.find(n=>n.id==='og-contact-summary');assert.match(summary.textContent,/Revisa/);assert.equal(h.focused(),h.nodes.service);
+ h.context.lang='en';h.context.renderContact();assert.equal(summary.textContent,'Check the highlighted fields before sending.');assert.equal(h.focused(),h.nodes.service);assert.equal(h.nodes.message.value,'A synthetic project brief');assert.equal(h.writes.length,0);
+});
+test('failed-send summary changes language without retrying, erasing context or moving focus',async()=>{
+ const h=harness();h.nodes.service.value=C.legacyId(0);h.context.location.search='?portfolio_photo=photo&portfolio_group=group';h.nodes['contact-form'].portfolioContext={photo_id:'photo',group_id:'group'};h.setFail(true);await h.submit();const summary=h.focused();assert.match(summary.textContent,/confirmar/);
+ h.context.lang='en';h.context.renderContact();assert.match(summary.textContent,/could not confirm delivery/);assert.equal(h.focused(),summary);assert.equal(h.writes.length,1);assert.equal(h.nodes.message.value,'A synthetic project brief');assert.equal(h.nodes['contact-form'].portfolioContext.photo_id,'photo');assert.equal(h.nodes.service.value,C.legacyId(0));
+});
+
+test('dark contact keyboard focus has a visible high-contrast scoped outline',()=>{
+ const css=fs.readFileSync(require.resolve('../styles.css'),'utf8');assert.match(css,/\.site-shell\.dark-mode #contact-form textarea:focus\{outline:2px solid #ffac9a;outline-offset:2px;border-color:#ffac9a/);assert(contrast('ffac9a','464747')>=3);assert(contrast('ffac9a','595a5a')>=3);
+});
