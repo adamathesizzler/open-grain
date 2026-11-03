@@ -225,7 +225,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible,
    Cuando un proyecto todavía no tiene imagen de portada, el hueco quedaba
    como un rectángulo gris sin explicación. Ahora dice qué falta. */
 .og-featured-photo{ position:relative; }
-.og-featured-photo:empty::after{
+.og-featured-photo.is-empty::after{
   content:"Sin portada todavía";
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   font:10px ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -263,3 +263,10 @@ html[data-theme="night"] .og-nav-item[aria-current="page"]{
   .og-sidebar{ background:var(--og-bg); }
   body.studio-body::before{ animation:none; transform:none; }
 }
+
+/* Dedicated accessible action fills; decorative brand accents stay unchanged. */
+body.studio-body{--og-action-start:#1745ba;--og-action-end:#2455ce}
+html[data-theme="night"] body.studio-body{--og-action-start:#a53616;--og-action-end:#b83d17}
+.og-btn-solid{background:linear-gradient(135deg,var(--og-action-start),var(--og-action-end));color:#fff}
+.og-btn-solid:not(:disabled):hover{opacity:1;filter:brightness(.94)}
+.photo-group-launcher strong,.photo-group-launcher span{overflow-wrap:anywhere;max-width:100%}

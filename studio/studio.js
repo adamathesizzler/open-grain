@@ -140,7 +140,7 @@ async function switchTab(tab) {
   document.querySelectorAll('.og-nav-item[data-tab]').forEach(b => {
     const active = b.dataset.tab === tab;
     b.classList.toggle('active', active);
-    b.setAttribute('aria-selected', String(active));
+    if(active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
   });
   document.querySelectorAll('.studio-panel').forEach(p => { p.hidden = p.dataset.panel !== tab; });
   const search = document.getElementById('global-search');
@@ -314,45 +314,52 @@ function statusPillClass(status) {
   return { published: 'og-pill-live', draft: 'og-pill-draft', hidden: 'og-pill-hidden' }[status] || 'og-pill-draft';
 }
 
+async function readStudio(query){
+ try{return await window.OGPortfolioPhotoEditor.bounded(query,12000);}
+ catch(error){return {data:null,error:{message:error.message||'No se pudo completar la lectura.'}};}
+}
+let messageBadgeVersion=0;
 async function updateMessageBadge() {
-  const { count } = await supabaseClient.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new');
+  const version=++messageBadgeVersion;
+  const { count,error } = await readStudio(supabaseClient.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'new'));
+  if(version!==messageBadgeVersion)return null;
+  if(error){const badge=document.getElementById('badge-messages');badge.textContent='?';badge.hidden=false;badge.setAttribute('aria-label','No se pudo comprobar mensajes nuevos');return null;}
   const n = count || 0;
   const badge = document.getElementById('badge-messages');
-  badge.textContent = String(n);
+  badge.removeAttribute('aria-label');badge.textContent = String(n);
   badge.hidden = n === 0;
   document.getElementById('bell-dot').hidden = n === 0;
   return n;
 }
 
+let overviewLoadVersion=0;
 async function loadOverview() {
+  const version=++overviewLoadVersion;const notice=document.getElementById('overview-load-status');notice.textContent='Actualizando resumen…';
   const todayIso = new Date().toISOString().slice(0, 10);
 
-  const [
-    { count: publishedCount },
-    { count: categoryCount },
-    { data: recentProjects },
-    { data: allProjectsForBar },
-    { data: latestMessages },
-    { data: upcomingRaw },
-  ] = await Promise.all([
+  const results = await Promise.all([
     supabaseClient.from('portfolio_projects').select('*', { count: 'exact', head: true }).eq('is_published', true),
     supabaseClient.from('portfolio_categories').select('*', { count: 'exact', head: true }),
     supabaseClient.from('portfolio_projects').select('*, portfolio_categories(name)').order('created_at', { ascending: false }).limit(6),
     supabaseClient.from('portfolio_projects').select('status, is_published'),
     supabaseClient.from('enquiries').select('*').order('created_at', { ascending: false }).limit(3),
     supabaseClient.from('projects').select('*, clients(name)').gte('event_date', todayIso).order('event_date', { ascending: true }).limit(30),
-  ]);
+  ].map(readStudio));
 
+  if(version!==overviewLoadVersion)return;
+  if(results.some(result=>result.error)){notice.textContent='No se pudo actualizar el resumen. Los datos anteriores, si aparecen, no están comprobados ahora. Vuelve a Inicio para reintentar.';return;}
+  const [{count:publishedCount},{count:categoryCount},{data:recentProjects},{data:allProjectsForBar},{data:latestMessages},{data:upcomingRaw}]=results;
   const newMsgCount = await updateMessageBadge();
+  if(version!==overviewLoadVersion)return;notice.textContent=newMsgCount===null?'No se pudieron comprobar los mensajes nuevos.':'';
   const upcoming = (upcomingRaw || []).filter(j => j.status !== 'cancelled' && j.status !== 'delivered');
 
   document.getElementById('stat-projects').textContent = publishedCount ?? '0';
   document.getElementById('stat-galleries').textContent = categoryCount ?? '0';
   document.getElementById('stat-bookings').textContent = String(upcoming.length);
-  document.getElementById('stat-messages').textContent = String(newMsgCount);
+  document.getElementById('stat-messages').textContent = newMsgCount===null?'—':String(newMsgCount);
 
   const quickMsgSub = document.getElementById('quick-messages-sub');
-  if (quickMsgSub) quickMsgSub.textContent = newMsgCount ? `${newMsgCount} sin leer` : 'Sin novedades';
+  if (quickMsgSub) quickMsgSub.textContent = newMsgCount===null?'Sin comprobar':newMsgCount ? `${newMsgCount} sin leer` : 'Sin novedades';
 
   // Featured / most recent project
   const featuredEl = document.getElementById('featured-project');
@@ -375,9 +382,10 @@ async function loadOverview() {
             ${featured.is_published?'<a class="og-btn og-btn-outline og-btn-sm" href="/work" target="_blank" rel="noopener">Ver galería pública</a>':''}
           </div>
         </div>
-        <div class="og-featured-photo" style="${featured.cover_image_url ? `background-image:url('${featured.cover_image_url}')` : 'background:var(--og-bg-soft);'}"></div>
+        <div class="og-featured-photo" ></div>
       </div>
     `;
+    const featuredUrl=window.OGServiceCatalog.imageUrl(featured.cover_image_url||'');featuredEl.querySelector('.og-featured-photo').classList.toggle('is-empty',!featuredUrl);if(featuredUrl)featuredEl.querySelector('.og-featured-photo').style.backgroundImage='url('+JSON.stringify(featuredUrl.startsWith('assets/')?'/'+featuredUrl:featuredUrl)+')';
     document.getElementById('featured-edit-btn').addEventListener('click',async()=>{await switchTab('projects');await openPortfolioPhotoById(featured.id);});
   }
 
@@ -418,11 +426,12 @@ async function loadOverview() {
   const stripEl = document.getElementById('recent-work');
   stripEl.innerHTML = (recentProjects && recentProjects.length) ? recentProjects.map(p => `
     <button type="button" class="og-strip-item" data-project-id="${escapeAttr(p.id)}">
-      <div class="og-strip-photo${p.cover_image_url ? '' : ' empty'}" style="${p.cover_image_url ? `background-image:url('${p.cover_image_url}')` : ''}">${p.cover_image_url ? '' : '–'}</div>
+      <div class="og-strip-photo${p.cover_image_url ? '' : ' empty'}" >${p.cover_image_url ? '' : '–'}</div>
       <b>${escapeHtml(p.title)}</b>
       <span>${escapeHtml(p.portfolio_categories?.name || 'Sin categoría')}</span>
     </button>
   `).join('') : '<p class="panel-sub">Todavía no hay fotografías — añade el primer proyecto desde Portfolio.</p>';
+  stripEl.querySelectorAll('.og-strip-item').forEach(el=>{const photo=recentProjects.find(p=>p.id===el.dataset.projectId);const url=window.OGServiceCatalog.imageUrl(photo?.cover_image_url||'');if(url)el.querySelector('.og-strip-photo').style.backgroundImage='url('+JSON.stringify(url.startsWith('assets/')?'/'+url:url)+')';});
   stripEl.querySelectorAll('.og-strip-item').forEach(el=>el.addEventListener('click',async()=>{await switchTab('projects');await openPortfolioPhotoById(el.dataset.projectId);}));
 }
 
@@ -434,7 +443,7 @@ let allProjectsCache = [];
 
 async function loadCategories() {
   const { data: categories, error } = await supabaseClient.from('portfolio_categories').select('*').order('sort_order');
-  if (error) { console.error(error); return []; }
+  if(error){document.getElementById('category-list').textContent='No se pudieron cargar las categorías. Vuelve a abrir Portfolio para reintentar.';return [];}
 
   const catList = document.getElementById('category-list');
   catList.innerHTML = '';
@@ -451,7 +460,7 @@ async function loadCategories() {
       </label>
     `;
     row.querySelector('input').addEventListener('change', async (e) => {
-      await supabaseClient.from('portfolio_categories').update({ is_active: e.target.checked }).eq('id', cat.id);
+      const toggle=e.target,value=toggle.checked;toggle.disabled=true;try{const result=await supabaseClient.from('portfolio_categories').update({is_active:value}).eq('id',cat.id).eq('is_active',cat.is_active).select('id');if(result.error||!result.data?.length)throw Error('No se pudo confirmar la categoría. Recarga para revisar su estado.');cat.is_active=value;}catch(error){toggle.checked=cat.is_active;alert(error.message);}finally{toggle.disabled=false;}
     });
     catList.appendChild(row);
   });
@@ -553,8 +562,8 @@ function renderProjects() {
     row.querySelector('[data-field="status"]').addEventListener('change', async (e) => {
       const next = e.target.value;
       const patch = { is_published: next === 'published' };
-      const { error } = await supabaseClient.from('portfolio_projects').update({ ...patch, status: next }).eq('id', p.id);
-      if(error){e.target.value=status;alert('No se pudo confirmar la publicación. Recarga para comprobar el estado.');return;}
+      e.target.disabled=true;const { data,error } = await supabaseClient.from('portfolio_projects').update({ ...patch, status: next }).eq('id', p.id).eq('is_published',p.is_published).select('id');e.target.disabled=false;
+      if(error||!data?.length){e.target.value=status;alert('No se pudo confirmar la publicación. Recarga para comprobar el estado.');return;}
       await loadProjectsData();
       renderProjects();
     });
@@ -573,7 +582,7 @@ function renderProjects() {
     if (emptyPhotoInput) emptyPhotoInput.addEventListener('change', handlePhotoChange);
     row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
       if (!confirm(`¿Eliminar "${p.title}"?`)) return;
-      await supabaseClient.from('portfolio_projects').delete().eq('id', p.id);
+      const result=await supabaseClient.from('portfolio_projects').delete().eq('id',p.id).select('id');if(result.error||!result.data?.length){alert('No se pudo confirmar la eliminación. Recarga para comprobarlo.');return;}
       await loadProjectsData();
       renderProjects();
     });
@@ -1149,32 +1158,28 @@ async function applyAiChanges() {
 // ============================================================
 // UGC (proyectos + posts sociales)
 // ============================================================
-async function loadUgc() {
-  const { data: categories } = await supabaseClient.from('portfolio_categories').select('*');
-  const ugcCat = (categories || []).find(c => (c.slug || '').toLowerCase() === 'ugc' || (c.name || '').toLowerCase().includes('ugc'));
-  const listEl = document.getElementById('ugc-project-list');
-  if (!ugcCat) {
-    listEl.innerHTML = '<p class="panel-sub">Crea una categoría "UGC" en Proyectos para verla aquí.</p>';
-  } else {
-    const { data: projects } = await supabaseClient.from('portfolio_projects').select('*').eq('category_id', ugcCat.id).order('sort_order');
-    listEl.innerHTML = (projects && projects.length) ? projects.map(p => `
-      <div class="album-card album-card-compact">
-        <div class="album-stack">
-          <span class="album-ghost album-ghost-1"></span>
-          <span class="album-ghost album-ghost-2"></span>
-          ${p.cover_image_url ? `<img class="album-photo" src="${escapeAttr(window.OGServiceCatalog.imageUrl(p.cover_image_url)||'')}" alt="">` : `<span class="album-photo album-photo-empty"><span>–</span></span>`}
-        </div>
-        <div class="album-info"><span class="album-title">${escapeHtml(p.title)}</span></div>
-      </div>
-    `).join('') : '<p class="panel-sub">Todavía no hay proyectos UGC.</p>';
-  }
-  await loadSocial();
+let ugcLoadVersion=0;
+async function loadUgc(){
+ const version=++ugcLoadVersion,listEl=document.getElementById('ugc-project-list');
+ const categories=await readStudio(supabaseClient.from('portfolio_categories').select('*'));
+ if(version!==ugcLoadVersion)return;
+ if(categories.error||!Array.isArray(categories.data)){listEl.textContent='No se pudo comprobar la categoría UGC. Vuelve a abrir la sección para reintentar.';await loadSocial();return;}
+ const cat=categories.data.find(c=>(c.slug||'').toLowerCase()==='ugc'||(c.name||'').toLowerCase().includes('ugc'));
+ if(!cat){listEl.textContent='No hay una categoría UGC configurada.';await loadSocial();return;}
+ const result=await readStudio(supabaseClient.from('portfolio_projects').select('*').eq('category_id',cat.id).order('sort_order'));
+ if(version!==ugcLoadVersion)return;
+ if(result.error||!Array.isArray(result.data))listEl.textContent='No se pudieron cargar las fotos UGC. No significa que la categoría esté vacía.';
+ else{listEl.replaceChildren();if(!result.data.length)listEl.textContent='Todavía no hay fotos UGC.';
+  for(const photo of result.data){const button=document.createElement('button');button.type='button';button.className='album-card photo-group-launcher';const url=window.OGServiceCatalog.imageUrl(photo.cover_image_url||'');if(url){const img=document.createElement('img');img.src=url.startsWith('assets/')?'/'+url:url;img.alt='';img.loading='lazy';button.append(img);}const label=document.createElement('strong');label.textContent=photo.title;button.append(label);button.addEventListener('click',()=>openPortfolioPhotoById(photo.id));listEl.append(button);}}
+ await loadSocial();
 }
 
+let socialLoadVersion=0;
 async function loadSocial() {
-  const { data, error } = await supabaseClient.from('social_posts').select('*').order('sort_order');
-  if (error) return console.error(error);
-  const list = document.getElementById('social-list');
+  const version=++socialLoadVersion;
+  const { data, error } = await readStudio(supabaseClient.from('social_posts').select('*').order('sort_order'));
+  if(version!==socialLoadVersion)return;const list=document.getElementById('social-list');
+  if(error||!Array.isArray(data)){list.textContent='No se pudieron cargar las publicaciones. Vuelve a abrir UGC para reintentar.';return;}
   list.innerHTML = '';
   if (!data.length) { list.innerHTML = '<p class="panel-sub">Todavía no hay publicaciones.</p>'; return; }
   data.forEach(post => {
@@ -1186,10 +1191,10 @@ async function loadSocial() {
       <button class="link-btn" data-action="delete">Eliminar</button>
     `;
     row.querySelector('input').addEventListener('change', async (e) => {
-      await supabaseClient.from('social_posts').update({ is_selected: e.target.checked }).eq('id', post.id);
+      const toggle=e.target,value=toggle.checked;toggle.disabled=true;try{const result=await supabaseClient.from('social_posts').update({is_selected:value}).eq('id',post.id).eq('is_selected',post.is_selected).select('id');if(result.error||!result.data?.length)throw Error('No se pudo confirmar la selección. Recarga para comprobarlo.');post.is_selected=value;}catch(error){toggle.checked=post.is_selected;alert(error.message);}finally{toggle.disabled=false;}
     });
     row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      await supabaseClient.from('social_posts').delete().eq('id', post.id);
+      if(!confirm('¿Eliminar esta referencia social?'))return;const result=await supabaseClient.from('social_posts').delete().eq('id',post.id).select('id');if(result.error||!result.data?.length){alert('No se pudo confirmar la eliminación. Recarga para comprobarlo.');return;}
       loadSocial();
     });
     list.appendChild(row);
@@ -1197,14 +1202,13 @@ async function loadSocial() {
 }
 
 document.getElementById('social-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
+  e.preventDefault();const form=e.currentTarget;if(form.dataset.saving==='true')return;form.dataset.saving='true';const controls=form.querySelectorAll('input,select,button');controls.forEach(el=>el.disabled=true);try{
   const platform = document.getElementById('social-platform').value;
   const external_url = document.getElementById('social-url').value.trim();
   if (!external_url) return;
-  const { error } = await supabaseClient.from('social_posts').insert({ platform, external_url });
-  if (error) return alert(error.message);
+  await saveNewRecord(form,'social_posts',{platform,external_url});
   e.target.reset();
-  loadSocial();
+  loadSocial();  }catch(error){alert(error.message||'No se pudo confirmar el guardado.');}finally{delete form.dataset.saving;controls.forEach(el=>el.disabled=false);}
 });
 
 // ---------- Content ideas (drafts only — never saved automatically) ----------
@@ -1441,6 +1445,21 @@ const clientIconNew = '<svg width="18" height="18" viewBox="0 0 24 24" fill="non
 function clientActiveBookings(c) { return (c.projects || []).filter(p => ['confirmed', 'in_progress'].includes(p.status)); }
 function clientIsNew(c) { return (Date.now() - new Date(c.created_at).getTime()) < 30 * 24 * 60 * 60 * 1000; }
 
+const clientNotesDrafts=new Map();
+async function persistClientNotes(client,hint){
+ const draft=clientNotesDrafts.get(client.id);if(!draft||draft.busy)return;draft.busy=true;
+ try{do{
+  const value=draft.value.trim()||null;hint.textContent='Guardando…';let query=supabaseClient.from('clients').update({notes:value}).eq('id',client.id);
+  query=draft.baseline==null?query.is('notes',null):query.eq('notes',draft.baseline);
+  const result=await window.OGPortfolioPhotoEditor.bounded(query.select('id'));
+  if(result.error)throw Error('No se pudo confirmar el guardado. Tu borrador sigue aquí; vuelve a salir del campo para reintentar.');
+  if(!result.data?.length){const check=await window.OGPortfolioPhotoEditor.bounded(supabaseClient.from('clients').select('id,notes').eq('id',client.id).maybeSingle());if(check.error||!check.data||(check.data.notes??null)!==value)throw Error('Las notas cambiaron en otra sesión. Se conserva tu borrador; copia lo necesario y descártalo para cargar la versión actual.');}
+  client.notes=value;draft.baseline=value;draft.error='';
+  if((draft.value.trim()||null)===value){clientNotesDrafts.delete(client.id);hint.textContent='Guardado.';break;}
+ }while(clientNotesDrafts.get(client.id)===draft);
+ }catch(error){draft.error=error.message;hint.textContent=error.message;}finally{draft.busy=false;}
+}
+window.addEventListener('beforeunload',event=>{if(clientNotesDrafts.size){event.preventDefault();event.returnValue='';}});
 let clientLoadVersion = 0;
 async function loadClients() {
   const version = ++clientLoadVersion;
@@ -1449,7 +1468,7 @@ async function loadClients() {
     .select('*, projects(id, title, status, event_date), quotes(id, amount, status, created_at)')
     .order('created_at', { ascending: false });
   if (version !== clientLoadVersion) return;
-  if (error) { allClientsCache = []; closeClientDetail(); document.getElementById('client-list').textContent = 'No se pudieron cargar los clientes. Vuelve a abrir esta sección.'; return; }
+  if (error) { allClientsCache = []; closeClientDetail(); document.getElementById('client-list').textContent = 'No se pudieron cargar los clientes. Vuelve a abrir esta sección.';document.getElementById('client-stats').textContent='Estadísticas de clientes no disponibles.'; return; }
   allClientsCache = data || [];
   renderClientStats();
   renderClients();
@@ -1536,7 +1555,8 @@ function openClientDetail(id) {
 
     <div class="client-detail-section">
       <b>Notas</b>
-      <textarea id="client-detail-notes" placeholder="Añade notas sobre este cliente…">${escapeHtml(c.notes || '')}</textarea>
+      <textarea id="client-detail-notes" placeholder="Añade notas sobre este cliente…">${escapeHtml(clientNotesDrafts.get(c.id)?.value??c.notes??'')}</textarea>
+      <button type="button" class="link-btn" id="client-notes-discard">Descartar borrador y recargar notas</button>
       <p class="client-detail-save-hint" id="client-notes-hint">Se guarda automáticamente al salir del campo.</p>
     </div>
 
@@ -1567,17 +1587,14 @@ function openClientDetail(id) {
   document.getElementById('client-new-quote').addEventListener('click', () => draftForClient('quotes', c.id));
   document.getElementById('client-new-booking').addEventListener('click', () => draftForClient('bookings', c.id));
   document.getElementById('client-detail-close').addEventListener('click', closeClientDetail);
-  document.getElementById('client-detail-notes').addEventListener('blur', async (e) => {
-    const hint = document.getElementById('client-notes-hint');
-    hint.textContent = 'Guardando…';
-    const { error } = await supabaseClient.from('clients').update({ notes: e.target.value.trim() || null }).eq('id', c.id);
-    hint.textContent = error ? 'No se pudo guardar.' : 'Guardado.';
-    if (!error) { c.notes = e.target.value.trim() || null; }
-    setTimeout(() => { if (hint) hint.textContent = 'Se guarda automáticamente al salir del campo.'; }, 2000);
-  });
+  const notesInput=document.getElementById('client-detail-notes'),notesHint=document.getElementById('client-notes-hint');
+  if(clientNotesDrafts.has(c.id))notesHint.textContent=clientNotesDrafts.get(c.id).error||'Borrador pendiente de guardar.';
+  notesInput.addEventListener('input',()=>{let draft=clientNotesDrafts.get(c.id);if(!draft){draft={baseline:c.notes??null,value:notesInput.value,busy:false,error:''};clientNotesDrafts.set(c.id,draft);}else draft.value=notesInput.value;notesHint.textContent='Cambios pendientes; se guardan al salir del campo.';});
+  notesInput.addEventListener('blur',()=>persistClientNotes(c,notesHint));
+  document.getElementById('client-notes-discard').addEventListener('click',async()=>{if(clientNotesDrafts.get(c.id)?.busy)return;if(clientNotesDrafts.has(c.id)&&!confirm('¿Descartar tus notas sin guardar y cargar la versión actual?'))return;clientNotesDrafts.delete(c.id);await loadClients();});
   document.getElementById('client-detail-delete').addEventListener('click', async () => {
     if (!confirm(`¿Eliminar "${c.name}"? Esta acción no se puede deshacer.`)) return;
-    await supabaseClient.from('clients').delete().eq('id', c.id);
+    const result=await supabaseClient.from('clients').delete().eq('id',c.id).select('id');if(result.error||!result.data?.length){alert('No se pudo confirmar la eliminación. Recarga para comprobarlo.');return;}
     closeClientDetail();
     loadClients();
   });
@@ -1742,7 +1759,7 @@ async function loadAnalytics() {
     supabaseClient.from('projects').select('id, status, created_at'),
     supabaseClient.from('quotes').select('*, clients(name), projects(title, status)').order('created_at', { ascending: false }),
     supabaseClient.from('enquiries').select('id, status, created_at'),
-  ]);
+  ].map(readStudio));
   if(version!==analyticsLoadVersion)return;
   if(results.some(result=>result.error)){notice.textContent='No se pudieron actualizar los datos. Si hay cifras anteriores visibles, no están verificadas ahora. Vuelve a abrir Analíticas para reintentar.';return;}
   notice.textContent='';
@@ -1915,10 +1932,12 @@ document.getElementById('analytics-quotes-filters').addEventListener('click', (e
 // ============================================================
 // Inventario
 // ============================================================
+let inventoryLoadVersion=0;
 async function loadInventory() {
-  const { data, error } = await supabaseClient.from('inventory_items').select('*').order('name');
-  if (error) return console.error(error);
-  const list = document.getElementById('inventory-list');
+  const version=++inventoryLoadVersion;
+  const { data, error } = await readStudio(supabaseClient.from('inventory_items').select('*').order('name'));
+  if(version!==inventoryLoadVersion)return;const list=document.getElementById('inventory-list');
+  if(error||!Array.isArray(data)){list.textContent='No se pudo cargar el inventario. Vuelve a abrir esta sección para reintentar.';return;}
   list.innerHTML = '';
   if (!data.length) { list.innerHTML = '<p class="panel-sub">Todavía no hay inventario.</p>'; return; }
   data.forEach(item => {
@@ -1931,7 +1950,7 @@ async function loadInventory() {
     `;
     row.querySelector('[data-action="delete"]').addEventListener('click', async () => {
       if (!confirm(`¿Eliminar "${item.name}"?`)) return;
-      await supabaseClient.from('inventory_items').delete().eq('id', item.id);
+      const result=await supabaseClient.from('inventory_items').delete().eq('id',item.id).select('id');if(result.error||!result.data?.length){alert('No se pudo confirmar la eliminación. Recarga para comprobarlo.');return;}
       loadInventory();
     });
     list.appendChild(row);
@@ -1939,15 +1958,15 @@ async function loadInventory() {
 }
 
 document.getElementById('inventory-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
+  e.preventDefault();const form=e.currentTarget;if(form.dataset.saving==='true')return;form.dataset.saving='true';const controls=form.querySelectorAll('input,select,button');controls.forEach(el=>el.disabled=true);try{
   const name = document.getElementById('inventory-name').value.trim();
   const category = document.getElementById('inventory-category').value.trim() || null;
-  const quantity = parseInt(document.getElementById('inventory-quantity').value, 10) || 0;
+  const quantityRaw=document.getElementById('inventory-quantity').value.trim(),quantity=Number(quantityRaw);
+  if(!quantityRaw||!Number.isSafeInteger(quantity)||quantity<0||quantity>2147483647)throw Error('Escribe una cantidad entera entre 0 y 2147483647.');
   if (!name) return;
-  const { error } = await supabaseClient.from('inventory_items').insert({ name, category, quantity });
-  if (error) return alert(error.message);
+  await saveNewRecord(form,'inventory_items',{name,category,quantity});
   e.target.reset();
-  loadInventory();
+  loadInventory();  }catch(error){alert(error.message||'No se pudo confirmar el guardado.');}finally{delete form.dataset.saving;controls.forEach(el=>el.disabled=false);}
 });
 
 // ============================================================
@@ -2132,7 +2151,7 @@ function renderPortfolioPhotoGroups(target=document.getElementById('portfolio-ph
   const photos=group.photo_ids.map(id=>portfolioGroupEditorState.photos.find(p=>p.id===id)).filter(Boolean);
   const cover=photos.find(p=>p.is_published)||photos[0];const url=window.OGServiceCatalog.imageUrl(cover?.cover_image_url||'');
   if(url){const img=document.createElement('img');img.src=url.startsWith('assets/')?'/'+url:url;img.alt='';img.loading='lazy';button.append(img);}
-  const title=document.createElement('strong');title.textContent=group.name;const detail=document.createElement('span');detail.textContent=photos.length+' fotos · abrir y editar';button.append(title,detail);button.addEventListener('click',()=>openPortfolioPhotoGroup(group));target.append(button);
+  const title=document.createElement('strong');title.textContent=group.name;const detail=document.createElement('span');detail.textContent=photos.length+' fotos · '+photos.filter(p=>p.is_published).length+' publicadas · '+photos.filter(p=>!p.is_published).length+' sin publicar · abrir y editar';button.append(title,detail);button.addEventListener('click',()=>openPortfolioPhotoGroup(group));target.append(button);
  }
  const assigned=new Set((portfolioGroupEditorState?.groups||[]).flatMap(g=>g.photo_ids));
  for(const photo of portfolioGroupEditorState?.photos||[]){if(assigned.has(photo.id))continue;
@@ -2170,7 +2189,7 @@ function renderPortfolioGroupsEditor(){
 async function loadPortfolioGroupsEditor(force=false){
  if(portfolioGroupEditorBusy||(!force&&portfolioGroupEditorState?.dirty))return;
  const version=++portfolioGroupEditorVersion;pgControls(true);pgStatus.textContent='Cargando grupos…';
- try{const {data,error}=await supabaseClient.rpc('studio_portfolio_groups_snapshot');
+ try{const {data,error}=await readStudio(supabaseClient.rpc('studio_portfolio_groups_snapshot'));
   if(version!==portfolioGroupEditorVersion)return;if(error||!Array.isArray(data?.groups)||!Array.isArray(data?.photos))throw Error('No se pudieron cargar los grupos. No se han sustituido por datos vacíos.');
   portfolioGroupEditorState={groups:window.OGPortfolioGroups.editable(data.groups,data.photos),photos:data.photos,expected:data,dirty:false};renderPortfolioGroupsEditor();if(typeof renderPortfolioPhotoGroups==='function')renderPortfolioPhotoGroups();pgStatus.textContent='La primera foto publicada de cada grupo se usa como portada pública.';
  }catch(error){if(version!==portfolioGroupEditorVersion)return;pgStatus.textContent=error.message;document.getElementById('portfolio-group-reload').disabled=false;return;}finally{if(version===portfolioGroupEditorVersion&&portfolioGroupEditorState)pgControls(false);}
