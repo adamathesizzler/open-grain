@@ -1199,16 +1199,15 @@ function preparePortfolioImage(url, ready, failed = () => {}, sizes = null) {
   if(local){const base='/assets/portfolio/'+local[1];image.sizes=sizes;image.srcset=base+'-480.webp 480w, '+base+'-960.webp 960w';}
   image.src=url;
 }
-let portfolioRotationPaused = false;
 (function initLightbox() {
   const lightbox=$('lightbox');if(!lightbox)return;
   const imgEl=$('lightbox-img'),titleEl=$('lightbox-title'),eyebrowEl=$('lightbox-eyebrow'),closeBtn=$('lightbox-close'),shell=$('site-shell');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)');
   let lastFocused=null,currentGroup=null,index=0,epoch=0,touch=null,previousOverflow='',photoRequest=0,displayedIndex=0;
   const controls=document.createElement('div');controls.className='portfolio-gallery-controls';
-  const prev=document.createElement('button'),next=document.createElement('button'),count=document.createElement('span'),contact=document.createElement('a'),pause=document.createElement('button');
-  prev.type=next.type=pause.type='button';prev.textContent='←';next.textContent='→';count.setAttribute('aria-live','polite');contact.className='portfolio-gallery-contact';
-  controls.append(prev,count,next,contact,pause);lightbox.querySelector('figure').append(controls);
+  const prev=document.createElement('button'),next=document.createElement('button'),count=document.createElement('span'),contact=document.createElement('a');
+  prev.type=next.type='button';prev.textContent='←';next.textContent='→';count.setAttribute('aria-live','polite');contact.className='portfolio-gallery-contact';
+  controls.append(prev,count,next,contact);lightbox.querySelector('figure').append(controls);
   function showPhoto(){
     const photos=currentGroup.photos?.length?currentGroup.photos:[currentGroup];index=(index+photos.length)%photos.length;const photo=photos[index];
     const request=++photoRequest;
@@ -1226,7 +1225,6 @@ let portfolioRotationPaused = false;
     contact.textContent=lang==='es'?'Consultar sobre estas fotos':'Enquire about these photos';
     const params=new URLSearchParams();if(photo.photoId)params.set('portfolio_photo',photo.photoId);if(currentGroup.groupId)params.set('portfolio_group',currentGroup.groupId);
     contact.href='/contact'+(params.size?'?'+params.toString():'');contact.hidden=!photo.photoId;
-    pause.textContent=portfolioRotationPaused?(lang==='es'?'Reanudar portadas':'Resume covers'):(lang==='es'?'Pausar portadas':'Pause covers');pause.setAttribute('aria-pressed',String(portfolioRotationPaused));
   }
   function openFromTile(tile){
     currentGroup=projects.find(p=>(p.groupId||p.photoId||p.id)===tile.dataset.portfolioKey);if(!currentGroup)return;
@@ -1241,7 +1239,7 @@ let portfolioRotationPaused = false;
     if(lastFocused?.isConnected)lastFocused.focus({preventScroll:true});
   }
   function move(delta){index+=delta;showPhoto();}
-  prev.addEventListener('click',()=>move(-1));next.addEventListener('click',()=>move(1));pause.addEventListener('click',()=>{portfolioRotationPaused=!portfolioRotationPaused;pause.textContent=portfolioRotationPaused?(lang==='es'?'Reanudar portadas':'Resume covers'):(lang==='es'?'Pausar portadas':'Pause covers');pause.setAttribute('aria-pressed',String(portfolioRotationPaused));});
+  prev.addEventListener('click',()=>move(-1));next.addEventListener('click',()=>move(1));
   contact.addEventListener('click',event=>{if(contact.getAttribute('aria-disabled')==='true')event.preventDefault();});
   document.addEventListener('click',e=>{const tile=e.target.closest('.project-tile');if(tile)openFromTile(tile);});
   document.addEventListener('keydown',e=>{const tile=e.target.closest?.('.project-tile');if(tile&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openFromTile(tile);}if(!lightbox.hidden&&e.key==='Escape'){e.preventDefault();close();}});
@@ -1252,34 +1250,7 @@ let portfolioRotationPaused = false;
   imgEl.addEventListener('touchcancel',()=>{touch=null;});
 })();
 
-(function rotatePortfolioCovers(){
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)');let cursor=0,interactionUntil=0,touchActive=false,preparing=false;
-  const pauseForInteraction=()=>{interactionUntil=Date.now()+1500;};
-  document.addEventListener('touchstart',()=>{touchActive=true;pauseForInteraction();},{passive:true});
-  for(const name of ['touchend','touchcancel'])document.addEventListener(name,event=>{touchActive=!!event.touches?.length;pauseForInteraction();},{passive:true});
-  for(const name of ['scroll','resize','pointerdown'])window.addEventListener(name,pauseForInteraction,{passive:true});
-  function canRotate(tile){if(document.hidden||touchActive||Date.now()<interactionUntil||reduced.matches||portfolioRotationPaused||navigator.connection?.saveData||!$('lightbox')?.hidden||!tile.isConnected||tile.matches(':hover,:focus-within'))return false;const r=tile.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight&&r.right>0&&r.left<innerWidth;}
-  setInterval(()=>{
-    if(preparing)return;
-    const tiles=[...document.querySelectorAll('.project-tile[data-portfolio-key]')].filter(tile=>canRotate(tile));if(!tiles.length)return;
-    for(let n=0;n<tiles.length;n++){
-      const tile=tiles[(cursor+n)%tiles.length],group=projects.find(p=>(p.groupId||p.photoId||p.id)===tile.dataset.portfolioKey);
-      if(!group?.photos||group.photos.length<2||tile.dataset.preparingPhoto||Date.now()-Number(tile.dataset.lastRotation||0)<6500)continue;
-      cursor=(cursor+n+1)%tiles.length;const previous=Number(tile.dataset.photoIndex)||0,index=(previous+1)%group.photos.length,photo=group.photos[index];
-      tile.dataset.lastRotation=String(Date.now());tile.dataset.preparingPhoto='true';preparing=true;
-      preparePortfolioImage(photo.image,prepared=>{
-        delete tile.dataset.preparingPhoto;preparing=false;
-        if(!canRotate(tile)||(Number(tile.dataset.photoIndex)||0)!==previous)return;
-        const old=tile.querySelector('picture')||tile.querySelector('img');if(!old)return;
-        // No fade-to-empty: the replacement is already decoded and geometry stays fixed.
-        prepared.element.alt=tile.getAttribute('aria-hidden')==='true'?'':photoAlt(photo);prepared.element.decoding='sync';
-        const picture=document.createElement('picture');picture.append(prepared.element);old.replaceWith(picture);
-        tile.dataset.photoIndex=String(index);tile.dataset.lightboxImage=photo.image;tile.dataset.lightboxAlt=photoAlt(photo);if(tile.getAttribute('aria-hidden')!=='true')tile.setAttribute('aria-label',tileLabel({...photo,title:group.title}));
-      },()=>{delete tile.dataset.preparingPhoto;preparing=false;},tile.closest('#home-grid')?SIZES_HOME:SIZES_WORK);
-      break;
-    }
-  },2300);
-})();
+// Public covers stay static; photos change only through the manual family viewer.
 
 // ============================================================
 // Cookie consent + Google Analytics (only loads after "Aceptar")
