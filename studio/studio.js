@@ -707,56 +707,72 @@ window.addEventListener('beforeunload',event=>{if(projectCreateIntent||projectCr
 // ============================================================
 // Galerías y archivos multimedia
 // ============================================================
-async function loadGalleries() {
-  await loadPortfolioGroupsEditor();
-  const groupsEl=document.getElementById('gallery-groups');
-  if(!portfolioGroupEditorState){groupsEl.textContent='No se pudieron cargar los álbumes. Vuelve a abrir esta sección para reintentar.';}
-  else renderPortfolioPhotoGroups(groupsEl);
-
-  const mediaEl = document.getElementById('media-library');
-  const { data: files, error } = await supabaseClient.storage.from('media').list('portfolio', {
-    limit: 60, sortBy: { column: 'created_at', order: 'desc' },
-  });
-  if(error){mediaEl.textContent='No se pudo cargar la biblioteca de archivos. No significa que esté vacía.';}
-  else if (!files || !files.length) {
-    mediaEl.innerHTML = '<p class="panel-sub">Todavía no has subido archivos.</p>';
-  } else {
-    mediaEl.innerHTML = files.filter(f => f.name && !f.name.startsWith('.')).map(f => {
-      const { data } = supabaseClient.storage.from('media').getPublicUrl(`portfolio/${f.name}`);
-      const url = data?.publicUrl || '';
-      return `
-        <div class="media-item">
-          <img src="${url}" alt="${escapeAttr(f.name)}" loading="lazy">
-          <div class="media-item-actions">
-            <button type="button" class="media-item-btn" data-action="copy-media-url" data-url="${escapeAttr(url)}" title="Copiar URL">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            </button>
-            <button type="button" class="media-item-btn media-item-btn-danger" data-action="delete-media" data-name="${escapeAttr(f.name)}" title="Eliminar">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-          </div>
-        </div>`;
-    }).join('');
-    mediaEl.querySelectorAll('[data-action="copy-media-url"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(btn.dataset.url);
-          const original = btn.title;
-          btn.title = '¡Copiado!';
-          setTimeout(() => { btn.title = original; }, 1500);
-        } catch (e) { alert(btn.dataset.url); }
-      });
-    });
-    mediaEl.querySelectorAll('[data-action="delete-media"]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm(`¿Eliminar "${btn.dataset.name}"? Si esta foto se usa como portada de un proyecto o en el contenido del sitio, dejará de verse ahí.`)) return;
-        const { error: delError } = await supabaseClient.storage.from('media').remove([`portfolio/${btn.dataset.name}`]);
-        if (delError) { alert('No se pudo eliminar: ' + delError.message); return; }
-        await loadGalleries();
-      });
-    });
-  }
+// Each page is a read of Storage, not a transactional snapshot. Refresh after external changes.
+const MEDIA_PAGE_SIZE=60;
+let mediaLibraryState={version:0,offset:0,files:new Map(),done:false,busy:false,error:''};
+function resetMediaLibrary(){
+ mediaLibraryState={version:mediaLibraryState.version+1,offset:0,files:new Map(),done:false,busy:false,error:''};
+ return mediaLibraryState;
 }
+function renderMediaLibrary(){
+ const state=mediaLibraryState,mediaEl=document.getElementById('media-library');
+ const attr=value=>escapeAttr(escapeHtml(value));
+ mediaEl.innerHTML=[...state.files.values()].map(file=>`<div class="media-item">
+   <img src="${attr(file.url)}" alt="${attr(file.name)}" loading="lazy">
+   <div class="media-item-actions">
+    <button type="button" class="media-item-btn" data-action="copy-media-url" data-url="${attr(file.url)}" title="Copiar URL" aria-label="Copiar URL de ${attr(file.name)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+    <button type="button" class="media-item-btn media-item-btn-danger" data-action="delete-media" data-name="${attr(file.name)}" title="Eliminar" aria-label="Eliminar ${attr(file.name)}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+   </div></div>`).join('');
+ const status=document.getElementById('media-library-status');
+ status.textContent=state.error||(state.busy?'Cargando archivos…':state.files.size?`${state.files.size} archivos mostrados.${state.done?' Fin de la carpeta.':' Puedes cargar más.'} Actualiza si cambian los archivos en otra sesión.`:state.done?'No hay archivos visibles en esta carpeta.':'No hay archivos visibles en esta página; puedes seguir cargando.');
+ const more=document.getElementById('media-library-more');more.hidden=state.done&&!state.error;more.disabled=state.busy;more.textContent=state.error?'Reintentar carga':'Cargar más archivos';
+ document.getElementById('media-library-reload').disabled=state.busy;
+ mediaEl.querySelectorAll('[data-action="copy-media-url"]').forEach(btn=>btn.addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(btn.dataset.url);const original=btn.title;btn.title='¡Copiado!';setTimeout(()=>{btn.title=original;},1500);}catch(error){alert(btn.dataset.url);}
+ }));
+ mediaEl.querySelectorAll('[data-action="delete-media"]').forEach(btn=>btn.addEventListener('click',async()=>{
+  if(!confirm(`¿Eliminar "${btn.dataset.name}"? Si esta foto se usa como portada de un proyecto o en el contenido del sitio, dejará de verse ahí.`))return;
+  const {error}=await supabaseClient.storage.from('media').remove([`portfolio/${btn.dataset.name}`]);
+  if(error){alert('No se pudo eliminar: '+error.message);return;}
+  await loadGalleries();
+ }));
+}
+async function loadMediaLibrary(reset=false){
+ const state=reset?resetMediaLibrary():mediaLibraryState;
+ if(state.busy||state.done)return;
+ state.busy=true;state.error='';renderMediaLibrary();
+ try{
+  const {data,error}=await readStudio({abortSignal:signal=>supabaseClient.storage.from('media').list('portfolio',{
+   limit:MEDIA_PAGE_SIZE,offset:state.offset,sortBy:{column:'created_at',order:'desc'},
+  },{signal})});
+  if(state!==mediaLibraryState)return;
+  if(error||!Array.isArray(data))throw Error('No se pudo cargar esta página. Los archivos mostrados se conservan; reintenta.');
+  const page=[];
+  for(const file of data){
+   // Folders and hidden placeholders still count toward the Storage offset.
+   if(!file||file.id==null||typeof file.name!=='string'||!file.name||file.name.startsWith('.')||/[\\/\x00-\x1f\x7f]/.test(file.name))continue;
+   const {data:publicData}=supabaseClient.storage.from('media').getPublicUrl(`portfolio/${file.name}`);
+   if(typeof publicData?.publicUrl!=='string'||!/^https:\/\//i.test(publicData.publicUrl))continue;
+   page.push({name:file.name,url:publicData.publicUrl});
+  }
+  page.forEach(file=>state.files.set(file.name,file));state.offset+=data.length;state.done=data.length<MEDIA_PAGE_SIZE;
+ }catch(error){if(state===mediaLibraryState)state.error='No se pudo cargar esta página. Los archivos mostrados se conservan; reintenta.';}
+ finally{if(state===mediaLibraryState){state.busy=false;renderMediaLibrary();}}
+}
+async function loadGalleries(){
+ const state=resetMediaLibrary();state.busy=true;renderMediaLibrary();
+ let groupError=false;try{await loadPortfolioGroupsEditor();}catch(error){groupError=true;}
+ if(state!==mediaLibraryState)return;
+ const groupsEl=document.getElementById('gallery-groups');
+ if(groupError||!portfolioGroupEditorState)groupsEl.textContent='No se pudieron cargar los álbumes. Vuelve a abrir esta sección para reintentar.';
+ else renderPortfolioPhotoGroups(groupsEl);
+ state.busy=false;await loadMediaLibrary();
+}
+document.getElementById('media-library-more').addEventListener('click',async()=>{
+ const version=mediaLibraryState.version;await loadMediaLibrary();if(version!==mediaLibraryState.version)return;const button=document.getElementById('media-library-more');if(button.hidden)document.getElementById('media-library-status').focus();
+});
+document.getElementById('media-library-reload').addEventListener('click',()=>loadMediaLibrary(true));
+document.addEventListener('studio:tabchange',event=>{if(event.detail.tab!=='galleries')mediaLibraryState={...mediaLibraryState,version:mediaLibraryState.version+1,busy:false};});
 
 // ============================================================
 // Servicios (shared between the dedicated tab and the Content editor)
