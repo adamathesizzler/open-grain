@@ -204,13 +204,28 @@ document.querySelectorAll('[data-jump]').forEach(el => {
 document.getElementById('bell-btn').addEventListener('click', () => switchTab('messages'));
 
 // ---------- Quick actions (Inicio) ----------
-document.querySelector('[data-action="quick-new-project"]').addEventListener('click', () => {
-  switchTab('projects');
-  const form = document.getElementById('project-form');
-  form.hidden = false;
-  document.getElementById('project-title').focus();
-});
-document.querySelector('[data-action="quick-upload"]').addEventListener('click',async()=>{await switchTab('projects');const target=document.getElementById('portfolio-photo-groups');target.scrollIntoView({block:'start'});target.querySelector('button')?.focus();});
+function toggleCreateChooser(open) {
+  const chooser=document.getElementById('studio-create-chooser');
+  const trigger=document.querySelector('[data-action="quick-new-project"]');
+  chooser.hidden=!open;trigger.setAttribute('aria-expanded',String(open));
+  if(open){chooser.scrollIntoView({block:'nearest'});chooser.querySelector('button').focus();}else trigger.focus();
+}
+async function openCreateRoute(route) {
+  if(!['job','album','upload'].includes(route))return;
+  const pending=switchTab(route==='job'?'bookings':'projects'),version=navigationVersion;
+  try{await pending;}catch(error){if(version===navigationVersion)alert('No se pudo abrir esta sección. Tu borrador se conserva; vuelve a intentarlo.');return;}
+  if(version!==navigationVersion)return;
+  // Never reset a draft or write records merely by navigating.
+  let target,focus;
+  if(route==='job'){target=document.getElementById('booking-create');target.open=true;focus=document.getElementById('job-title');}
+  else if(route==='album'){target=document.getElementById('project-form');target.hidden=false;focus=document.getElementById('project-title');}
+  else{target=document.getElementById('portfolio-photo-groups');focus=target.querySelector('button');if(!focus){target=document.getElementById('new-project-btn');focus=target;}}
+  target.scrollIntoView({block:'start'});if(!focus.disabled)focus.focus();
+}
+document.querySelector('[data-action="quick-new-project"]').addEventListener('click',()=>toggleCreateChooser(document.getElementById('studio-create-chooser').hidden));
+document.getElementById('studio-create-close').addEventListener('click',()=>toggleCreateChooser(false));
+document.querySelectorAll('[data-create-route]').forEach(button=>button.addEventListener('click',()=>openCreateRoute(button.dataset.createRoute)));
+document.querySelector('[data-action="quick-upload"]').addEventListener('click',()=>openCreateRoute('upload'));
 document.querySelector('[data-action="quick-edit-content"]').addEventListener('click', () => switchTab('content'));
 document.querySelector('[data-action="quick-messages"]').addEventListener('click', () => switchTab('messages'));
 
@@ -262,9 +277,9 @@ async function populateClientSelect(selectEl) {
   const current = selectEl.value;
   selectEl.disabled = true;
   try {
-    const { data, error } = await supabaseClient.from('clients').select('id, name').order('name');
+    const { data, error } = await readStudio(supabaseClient.from('clients').select('id, name').order('name'));
     if (clientSelectVersions.get(selectEl) !== version) return false;
-    if (error || !Array.isArray(data)) throw new Error('Clients unavailable');
+    if (error || !Array.isArray(data) || (current && !data.some(client=>String(client.id)===current))) throw new Error('Clients unavailable');
     selectEl.innerHTML = '<option value="">Sin cliente</option>' +
       data.map(c => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join('');
     selectEl.value = current;
@@ -272,7 +287,9 @@ async function populateClientSelect(selectEl) {
     return true;
   } catch (error) {
     if (clientSelectVersions.get(selectEl) !== version) return false;
-    selectEl.innerHTML = '<option value="">No se pudieron cargar los clientes</option>';
+    // Keep the selected ID in the disabled error option: retry must not erase a draft association.
+    selectEl.innerHTML = '<option value="'+escapeAttr(escapeHtml(current))+'">No se pudieron cargar los clientes</option>';
+    selectEl.value = current;
     selectEl.disabled = true;
     return false;
   }
@@ -442,7 +459,7 @@ let currentProjectFilter = 'all';
 let allProjectsCache = [];
 
 async function loadCategories() {
-  const { data: categories, error } = await supabaseClient.from('portfolio_categories').select('*').order('sort_order');
+  const { data: categories, error } = await readStudio(supabaseClient.from('portfolio_categories').select('*').order('sort_order'));
   if(error){document.getElementById('category-list').textContent='No se pudieron cargar las categorías. Vuelve a abrir Portfolio para reintentar.';return [];}
 
   const catList = document.getElementById('category-list');
@@ -488,7 +505,7 @@ async function loadCategories() {
 let portfolioLoadVersion=0,portfolioLoadError=false;
 async function loadProjectsData() {
   const version=++portfolioLoadVersion;
-  const { data, error } = await supabaseClient.from('portfolio_projects').select('*, portfolio_categories(name), portfolio_workflows(project_id)').order('sort_order');
+  const { data, error } = await readStudio(supabaseClient.from('portfolio_projects').select('*, portfolio_categories(name), portfolio_workflows(project_id)').order('sort_order'));
   if(version!==portfolioLoadVersion)return;
   portfolioLoadError=!!error||!Array.isArray(data);
   if(portfolioLoadError){allProjectsCache=[];return;}
@@ -654,7 +671,7 @@ document.getElementById('portfolio-workflow-form').addEventListener('submit',asy
 document.getElementById('new-project-btn').addEventListener('click', () => {
   const form = document.getElementById('project-form');
   if(!form.hidden){closeProjectCreate();return;}
-  form.hidden=false;document.getElementById('project-title').focus();
+  form.hidden=false;form.scrollIntoView({block:'start'});document.getElementById('project-title').focus();
 });
 
 let projectCreateIntent=null,projectCreateBusy=false;
@@ -1650,7 +1667,7 @@ async function loadCalendar() {
   const version = ++bookingLoadVersion;
   await populateClientSelect(document.getElementById('job-client'));
   const list = document.getElementById('job-list');
-  const { data, error } = await supabaseClient.from('projects').select('*, clients(name), quotes(id), enquiry_workflows(enquiry_id), portfolio_workflows(portfolio_project_id, portfolio_projects(title))').order('event_date', { ascending: true, nullsFirst: false });
+  const { data, error } = await readStudio(supabaseClient.from('projects').select('*, clients(name), quotes(id), enquiry_workflows(enquiry_id), portfolio_workflows(portfolio_project_id, portfolio_projects(title))').order('event_date', { ascending: true, nullsFirst: false }));
   if (version !== bookingLoadVersion) return;
   if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar las reservas. Vuelve a abrir esta sección para reintentarlo.'); return; }
   StudioWorkspace.mountBookings(list, data || [], {

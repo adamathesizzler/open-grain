@@ -186,13 +186,13 @@
         </div>
 
         <div class="og-quick-grid">
-          <button class="og-quick" data-action="quick-new-project" type="button">
+          <button class="og-quick" data-action="quick-new-project" type="button" aria-expanded="false" aria-controls="studio-create-chooser">
             <span class="og-quick-icon a"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
-            <span class="og-quick-text"><b>Nuevo proyecto</b><small>Crea una colección</small></span>
+            <span class="og-quick-text"><b>Crear nuevo</b><small>Trabajo o álbum de fotos</small></span>
           </button>
           <button class="og-quick" data-action="quick-upload" type="button">
             <span class="og-quick-icon b"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
-            <span class="og-quick-text"><b>Subir fotografías</b><small>Añade a un proyecto</small></span>
+            <span class="og-quick-text"><b>Añadir fotografías</b><small>Elige un álbum existente</small></span>
           </button>
           <button class="og-quick" data-action="quick-edit-content" type="button">
             <span class="og-quick-icon c"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
@@ -203,6 +203,17 @@
             <span class="og-quick-text"><b>Ver mensajes</b><small id="quick-messages-sub">Sin novedades</small></span>
           </button>
         </div>
+
+        <section id="studio-create-chooser" class="og-card studio-create-chooser" aria-labelledby="studio-create-heading" hidden>
+          <h3 id="studio-create-heading">¿Qué quieres crear?</h3>
+          <p class="panel-sub">El trabajo con un cliente y el álbum de fotos son registros distintos. Puedes vincularlos después, sin publicar nada automáticamente.</p>
+          <div class="studio-create-options">
+            <button type="button" class="og-btn og-btn-outline" data-create-route="job"><b>Trabajo con cliente</b><span>Nombre, cliente y fecha opcional. Se guarda en Reservas.</span></button>
+            <button type="button" class="og-btn og-btn-outline" data-create-route="album"><b>Álbum de portfolio</b><span>Nombre y varias fotos. Empieza en borrador.</span></button>
+          </div>
+          <p class="panel-sub">Abrir una opción conserva lo que tengas escrito; no crea registros hasta que pulses Guardar o Crear.</p>
+          <button type="button" class="og-btn og-btn-outline og-btn-sm" id="studio-create-close">Cerrar opciones</button>
+        </section>
 
         <p id="overview-load-status" role="status" aria-live="polite"></p>
         <div class="og-stat-grid" id="stat-grid">
@@ -337,14 +348,14 @@
       <section data-panel="projects" class="studio-panel" hidden>
         <div class="og-panel-head">
           <div>
-            <p class="og-eyebrow">Proyectos y portfolio</p>
-            <h2>Biblioteca de proyectos</h2>
-            <p class="panel-sub" style="margin-bottom:0;">Organiza y gestiona tus proyectos y colecciones fotográficas.</p>
+            <p class="og-eyebrow">Portfolio · álbumes</p>
+            <h2>Tus álbumes de fotos</h2>
+            <p class="panel-sub" style="margin-bottom:0;">Abre un álbum para añadir fotos y editar sus pies. Los trabajos con cliente y fecha se gestionan en Reservas.</p>
           </div>
           <div class="og-panel-actions">
             <button type="button" class="og-btn og-btn-solid" id="new-project-btn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Nuevo proyecto
+              Nuevo álbum
             </button>
           </div>
         </div>
@@ -363,12 +374,12 @@
         <div id="category-list" class="category-list panel-mt" style="margin-top:0;"></div>
 
         <form id="project-form" class="inline-form panel-mt" hidden>
-          <label>Nombre del proyecto / álbum<input type="text" id="project-title" maxlength="120" placeholder="Nombre del proyecto" required></label>
+          <label>Nombre del álbum<input type="text" id="project-title" maxlength="120" placeholder="Ej. Campaña de marca · Mallorca" required></label>
           <label class="file-label">Seleccionar varias fotos<input type="file" id="project-photo" accept="image/jpeg,image/png,image/webp,image/avif" multiple required></label>
           <p class="panel-sub">Se crea un álbum con sus fotos en borrador. No se publica automáticamente. El almacenamiento de archivos es público: cualquiera con su enlace puede verlos.</p>
           <label class="checkbox-label"><input type="checkbox" id="project-upload-consent" required> Autorizo subir estas fotos al almacenamiento público; no contienen material confidencial.</label>
           <p id="project-create-status" role="status" aria-live="polite"></p>
-          <button type="submit" class="og-btn og-btn-dark">Crear proyecto con fotos</button>
+          <button type="submit" class="og-btn og-btn-dark">Crear álbum con fotos</button>
           <button type="button" id="project-create-cancel" class="og-btn og-btn-outline">Cerrar</button>
         </form>
 
@@ -507,12 +518,12 @@
 
       <!-- ============ RESERVAS ============ -->
       <section data-panel="bookings" class="studio-panel ws-section" hidden>
-        <div class="og-panel-head ws-panel-head"><div><p class="og-eyebrow">PLANIFICA / CREA / ENTREGA</p><h2>Tu próxima historia.</h2><p class="panel-sub">Reservas, sesiones y fechas. Todo en una misma agenda.</p></div><a href="#booking-create" class="og-btn og-btn-dark ws-create-link" data-open-create="booking-create">+ Nueva reserva</a></div>
-        <details id="booking-create" class="ws-composer"><summary>Nueva reserva <span aria-hidden="true">＋</span></summary>
+        <div class="og-panel-head ws-panel-head"><div><p class="og-eyebrow">PLANIFICA / CREA / ENTREGA</p><h2>Tu próxima historia.</h2><p class="panel-sub">Trabajos con cliente, sesiones y fechas. Puedes empezar sin fecha y completarla después.</p></div><a href="#booking-create" class="og-btn og-btn-dark ws-create-link" data-open-create="booking-create">+ Nuevo trabajo / reserva</a></div>
+        <details id="booking-create" class="ws-composer"><summary>Nuevo trabajo / reserva <span aria-hidden="true">＋</span></summary>
           <form id="job-form" class="inline-form ws-form">
-            <label>Nombre de la sesión<input type="text" id="job-title" placeholder="Ej. Sesión de marca" required></label>
+            <label>Nombre del trabajo / sesión<input type="text" id="job-title" placeholder="Ej. Sesión de marca" required></label>
             <label>Cliente<select id="job-client"><option value="">Sin cliente</option></select></label>
-            <label>Fecha<input type="date" id="job-date"></label>
+            <label>Fecha (opcional)<input type="date" id="job-date"></label>
             <label>Estado<select id="job-status"><option value="enquiry">Consulta</option><option value="confirmed">Confirmada</option><option value="in_progress">En curso</option><option value="delivered">Entregada</option><option value="cancelled">Cancelada</option></select></label>
             <button type="submit" class="og-btn og-btn-dark">Guardar reserva</button>
           </form>
@@ -670,7 +681,7 @@
     <p class="panel-sub">El importe y el estado del presupuesto no cambian. Una reserva nueva empieza como consulta, no como confirmada. No se envía nada al cliente.</p>
     <label>Reserva<select id="quote-booking-target"><option value="">Nueva reserva</option></select></label>
     <div id="quote-booking-fields">
-      <label>Nombre de la sesión<input id="quote-booking-title" maxlength="200" required></label>
+      <label>Nombre del trabajo / sesión<input id="quote-booking-title" maxlength="200" required></label>
       <label>Fecha (opcional)<input id="quote-booking-date" type="date"></label>
       <label>Servicio (opcional)<input id="quote-booking-service" maxlength="200"></label>
       <label>Notas internas (opcional)<textarea id="quote-booking-notes" maxlength="5000" rows="3"></textarea></label>
