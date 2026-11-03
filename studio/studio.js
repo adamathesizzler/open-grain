@@ -679,6 +679,7 @@ const projectCreateForm=document.getElementById('project-form');
 function closeProjectCreate(){
  if(projectCreateBusy)return;
  if(projectCreateIntent&&!confirm('¿Cerrar el proyecto pendiente? Los borradores o archivos ya subidos se conservarán en la biblioteca; no se eliminan.'))return;
+ ++navigationVersion; // Cancel also invalidates an earlier guided opening still awaiting data.
  for(const item of projectCreateIntent?.items||[])if(item.preview)URL.revokeObjectURL(item.preview);
  projectCreateIntent=null;projectCreateForm.reset();projectCreateForm.hidden=true;
  projectCreateForm.querySelectorAll('input,button').forEach(el=>el.disabled=false);
