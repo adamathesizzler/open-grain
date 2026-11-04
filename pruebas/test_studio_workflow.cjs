@@ -24,6 +24,7 @@ function dialogHarness(responses, rpc) {
   const calls=[],navigation=[];
   const client={from(table){const response=responses.shift();calls.push(['read',table]);const query={select(){return query},eq(){return query},neq(){return query},single(){return Promise.resolve(response)},order(){return Promise.resolve(response)}};return query},rpc(name,args){calls.push(['rpc',name,args]);return rpc?rpc(args):Promise.resolve({data:'p-new',error:null})}};
   const context=vm.createContext({document:{getElementById:get},supabaseClient:client,StudioWorkspace:W,escapeHtml:W.escape,openWorkspaceEntity:async(tab,id)=>navigation.push([tab,id]),Error,Array,String});
+  installSaveHelpers(context, get, 'quote-booking');
   vm.runInContext(source.slice(source.indexOf("const quoteBookingDialog ="),source.indexOf("document.getElementById('quote-form').addEventListener('submit'")),context);
   return {context,get,calls,navigation,submit:()=>get('quote-booking-form').listeners.submit({preventDefault(){}})};
 }
@@ -48,9 +49,9 @@ test('client selector disables synchronously and ignores stale deferred response
 test('failed newer selector request cannot be overwritten by old successful response',async()=>{const h=selectHarness(),select={value:'c1',disabled:false,innerHTML:''};const old=h.context.populateClientSelect(select),fresh=h.context.populateClientSelect(select);h.pending[1].resolve({data:null,error:{message:'offline'}});await fresh;h.pending[0].resolve({data:[{id:'c1',name:'Stale'}]});await old;assert.equal(select.disabled,true);assert.match(select.innerHTML,/No se pudieron/);});
 test('thrown selector request fails closed',async()=>{const h=selectHarness(),select={value:'c1',disabled:false,innerHTML:''};const load=h.context.populateClientSelect(select);h.pending[0].reject(new Error('network'));assert.equal(await load,false);assert.equal(select.disabled,true);});
 function draftHarness(field, allow) {
-  let reset=0,confirmations=0; const select={value:'',options:[{value:''},{value:'c1'}]},form={querySelectorAll:()=>[field],reset(){reset++}};
+  let reset=0,confirmations=0; const select={value:'',options:[{value:''},{value:'c1'}]},form={dataset:{},querySelectorAll:()=>[field],reset(){reset++}};
   const nodes={'quote-client':select,'quote-form':form,'quote-create':{open:false},'quote-amount':{focus(){}}};
-  const context=vm.createContext({navigationVersion:0,document:{getElementById:id=>nodes[id]},confirm(){confirmations++;return allow},alert(){throw new Error('unexpected alert')},Array});
+  const context=vm.createContext({recordCreateIntents:new WeakMap(),navigationVersion:0,document:{getElementById:id=>nodes[id]},confirm(){confirmations++;return allow},alert(){throw new Error('unexpected alert')},Array});
   context.switchTab=async()=>{context.navigationVersion++};
   const start=source.indexOf('async function draftForClient(');vm.runInContext(source.slice(start,source.indexOf("document.querySelectorAll('.og-nav-item[data-tab]').forEach(btn",start)),context);
   return {context,select,counts:()=>({reset,confirmations})};
@@ -63,6 +64,7 @@ function enquiryHarness(responses, rpc) {
   const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',innerHTML:'',hidden:false,disabled:false,open:false,listeners:{},addEventListener(type,fn){this.listeners[type]=fn},reset(){for(const [key,node] of nodes)if(key.startsWith('enquiry-workflow-'))node.value=''},focus(){},showModal(){this.open=true},close(){this.open=false}});return nodes.get(id)};
   const client={from(table){calls.push(['read',table]);const response=responses.shift();const q={select(){return q},eq(){return q},neq(){return q},single(){return Promise.resolve(response)},order(){return Promise.resolve(response)}};return q},rpc(name,args){calls.push(['rpc',name,args]);return rpc?rpc(args):Promise.resolve({data:{client_id:'c1',project_id:'p1'}})}};
   const context=vm.createContext({document:{getElementById:get},supabaseClient:client,escapeHtml:W.escape,openWorkspaceEntity:async(tab,id)=>navigation.push([tab,id]),Object,Array,Error});
+  installSaveHelpers(context, get, 'enquiry-workflow');
   const start=source.indexOf('const enquiryWorkflowDialog =');vm.runInContext(source.slice(start,source.indexOf('\n// ===',start)),context);
   return {context,get,calls,navigation,choose:async value=>{get('enquiry-workflow-client').value=value;await get('enquiry-workflow-client').listeners.change()},submit:()=>get('enquiry-workflow-form').listeners.submit({preventDefault(){}})};
 }
@@ -164,3 +166,131 @@ test('failed client reload preserves selected ID with actual select replacement 
 test('missing selected client stays disabled rather than silently saving an unassigned draft',async()=>{const h=selectHarness(),select=browserSelect('c1');const p=h.context.populateClientSelect(select);h.pending[0].resolve({data:[{id:'c2',name:'Other'}]});await p;assert.equal(select.value,'c1');assert.equal(select.disabled,true);});
 
 test('actual album cancel invalidates a pending guided opening and cannot be undone by late load',async()=>{const h=createRouteHarness();const form=h.get('project-form');form.hidden=false;form.reset=()=>{};form.querySelectorAll=()=>[];h.c.projectCreateIntent=null;h.c.projectCreateBusy=false;h.c.projectCreateForm=form;const a=source.indexOf('function closeProjectCreate()');vm.runInContext(source.slice(a,source.indexOf("document.getElementById('project-create-cancel')",a)),h.c);const p=h.c.openCreateRoute('album');h.c.closeProjectCreate();h.pending.shift()();await p;assert.equal(form.hidden,true);assert.equal(h.focused(),null);});
+
+function installSaveHelpers(context, get, prefix) {
+  const fields = prefix === 'quote-booking' ? ['target','title','date','service','notes','save','cancel'] : ['client','project','title','save','cancel'];
+  get(prefix+'-form').querySelectorAll = () => fields.map(key=>get(prefix+'-'+key));
+  context.window = {OGPortfolioPhotoEditor:{bounded:query=>query}};
+  const start=source.indexOf('function freezeStudioForm(');
+  vm.runInContext(source.slice(start,source.indexOf('let enquiryLoadVersion =',start)),context);
+}
+function deferred() { let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}; }
+for (const kind of ['quote-booking','enquiry-workflow']) {
+  for (const failure of ['reject','no-row','rls']) test(kind+' freezes every control, preserves exact failed draft and prior disabled state: '+failure,async()=>{
+    let pending=deferred();
+    const h=kind==='quote-booking'?dialogHarness([quoteResponse,bookingResponse],()=>pending.promise):enquiryHarness([{data:enquiry},clientResult],()=>pending.promise);
+    if(kind==='quote-booking')await h.context.prepareQuoteBooking('q1');else{await h.context.prepareEnquiryWorkflow('e1');await h.choose('__new__');}
+    const form=h.get(kind+'-form'),title=h.get(kind+'-title');title.value='  Exact draft  ';
+    const priorDisabled=h.get(kind+(kind==='quote-booking'?'-service':'-project'));priorDisabled.disabled=true;
+    const before=form.querySelectorAll().map(el=>({el,value:el.value,disabled:el.disabled}));
+    const saving=h.submit();assert(before.every(({el})=>el.disabled));
+    await h.submit();h.context[kind==='quote-booking'?'closeQuoteBooking':'closeEnquiryWorkflow']();
+    await h.context[kind==='quote-booking'?'prepareQuoteBooking':'prepareEnquiryWorkflow']('different');
+    assert.equal(h.calls.filter(c=>c[0]==='rpc').length,1);assert(h.get(kind+'-dialog').open);assert.equal(title.value,'  Exact draft  ');
+    if(failure==='reject')pending.reject(Error('offline'));else pending.resolve(failure==='rls'?{error:{code:'42501'}}:{data:null});
+    await saving;
+    for(const {el,value,disabled} of before){assert.equal(el.value,value);assert.equal(el.disabled,disabled);}
+    assert(h.get(kind+'-dialog').open);assert.equal(h.navigation.length,0);assert.equal(h.get(kind+'-error').hidden,false);
+    pending=deferred();const retry=h.submit();assert.equal(h.calls.filter(c=>c[0]==='rpc').length,2);
+    assert.deepEqual(h.calls.filter(c=>c[0]==='rpc')[0][2],h.calls.filter(c=>c[0]==='rpc')[1][2]);
+    pending.resolve({data:kind==='quote-booking'?'p1':{client_id:'c1',project_id:'p1'}});await retry;
+    assert.equal(h.get(kind+'-dialog').open,false);assert.equal(h.navigation.length,1);assert.equal(priorDisabled.disabled,true);
+  });
+  test(kind+' timeout unlocks unchanged draft and ignores late RPC success',async()=>{
+    const pending=deferred(),timeout=deferred();
+    const h=kind==='quote-booking'?dialogHarness([quoteResponse,bookingResponse],()=>pending.promise):enquiryHarness([{data:enquiry},clientResult],()=>pending.promise);
+    h.context.window.OGPortfolioPhotoEditor.bounded=q=>Promise.race([q,timeout.promise]);
+    if(kind==='quote-booking')await h.context.prepareQuoteBooking('q1');else{await h.context.prepareEnquiryWorkflow('e1');await h.choose('__new__');}
+    h.get(kind+'-title').value='Keep this';const saving=h.submit();timeout.reject(Error('timeout'));await saving;
+    assert.equal(h.get(kind+'-title').disabled,false);assert.equal(h.get(kind+'-title').value,'Keep this');assert.match(h.get(kind+'-error').textContent,/puede haberse guardado/);
+    pending.resolve({data:kind==='quote-booking'?'p1':{client_id:'c1',project_id:'p1'}});await Promise.resolve();await Promise.resolve();
+    assert.equal(h.navigation.length,0);assert(h.get(kind+'-dialog').open);assert.equal(h.get(kind+'-title').value,'Keep this');
+  });
+}
+
+function enquiryStatusHarness() {
+  const pending=[],writes=[],alerts=[],rows=[];let badges=0;
+  const displayed={id:'e1',name:'Example',email:'example@example.test',status:'new'};
+  const list={innerHTML:'',appendChild:row=>rows.push(row)};
+  const c=vm.createContext({document:{getElementById:()=>list,createElement(){const status={value:'',disabled:false,addEventListener(k,fn){this[k]=fn}};return{dataset:{},querySelector:selector=>selector==='[data-field="status"]'?status:null}}},escapeHtml:W.escape,alert:m=>alerts.push(m),updateMessageBadge(){badges++},supabaseClient:{from(table){let write=false,filters=[],payload;const q={select(){return q},order(){return Promise.resolve({data:[displayed]})},update(v){write=true;payload=v;return q},eq(k,v){filters.push([k,v]);return q},maybeSingle(){writes.push({payload,filters});const d=deferred();pending.push(d);return d.promise},then(resolve){return Promise.resolve({data:table==='enquiry_workflows'?[]:[displayed]}).then(resolve)}};return q}}});
+  const start=source.indexOf('let enquiryLoadVersion =');vm.runInContext(source.slice(start,source.indexOf('const enquiryWorkflowDialog =',start)),c);
+  return{c,pending,writes,alerts,displayed,rows,badges:()=>badges};
+}
+for(const failure of ['stale','no-row','rls','reject'])test('enquiry status '+failure+' cannot claim success or advance expected status',async()=>{
+ const h=enquiryStatusHarness();await h.c.loadEnquiries();const select=h.rows[0].querySelector('[data-field="status"]');select.value='contacted';const saving=select.change();assert.equal(select.disabled,true);await select.change();assert.equal(h.writes.length,1);
+ assert.deepEqual(JSON.parse(JSON.stringify(h.writes[0].filters)),[['id','e1'],['status','new']]);
+ let remote='archived';if(failure==='stale'){const expected=h.writes[0].filters.find(([key])=>key==='status')[1];if(remote===expected)remote=h.writes[0].payload.status;assert.equal(remote,'archived');}
+ if(failure==='reject')h.pending[0].reject(Error('network'));else h.pending[0].resolve(failure==='rls'?{error:{code:'42501'}}:{data:null});await saving;
+ assert.equal(h.displayed.status,'new');assert.equal(select.value,'new');assert.equal(select.disabled,false);assert.equal(h.badges(),0);assert.match(h.alerts[0],/otra sesión.*Vuelve a abrir Mensajes/);
+ select.value='archived';const retry=select.change();h.pending[1].resolve({data:{id:'e1'}});await retry;assert.equal(h.displayed.status,'archived');assert.equal(h.badges(),1);
+ select.value='contacted';const next=select.change();assert.equal(h.writes[2].filters.find(([k])=>k==='status')[1],'archived');h.pending[2].resolve({data:{id:'e1'}});await next;
+});
+function recordFormHarness(kind){
+ const fields=kind==='job'?['title','client','date','status','submit']:['client','amount','status','submit'];const nodes=new Map(),pending=[],calls=[],alerts=[];let resets=0,loads=0,uuids=0;
+ const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false,dataset:{},listeners:{},addEventListener(k,fn){this.listeners[k]=fn},focus(){}});return nodes.get(id)};
+ const form=get(kind+'-form');form.querySelectorAll=()=>fields.map(key=>get(kind+'-'+key));form.reset=()=>{resets++;for(const el of form.querySelectorAll())el.value=''};
+ get(kind+'-client').value='c1';get(kind+'-status').value='enquiry';if(kind==='job'){get('job-title').value='  Exact session  ';get('job-date').value='2026-12-01';}else{get('quote-amount').value=' 150,50 ';get('quote-status').value='draft';}
+ const c=vm.createContext({document:{getElementById:get},window:{OGPortfolioPhotoEditor:{bounded:q=>q}},crypto:{randomUUID(){uuids++;return 'stable-id'}},StudioWorkspace:W,alert:m=>alerts.push(m),loadCalendar:async()=>{loads++},loadQuotes:async()=>{loads++},supabaseClient:{from(table){const call={table,op:'read'};const q={select(){return q},eq(k,v){call.id=v;return q},insert(payload){call.op='insert';call.payload=payload;return q},maybeSingle(){return q},then(resolve,reject){calls.push(call);const d=deferred();pending.push(d);return d.promise.then(resolve,reject)}};return q}}});
+ const helper=source.indexOf('function freezeStudioForm(');vm.runInContext(source.slice(helper,source.indexOf('let enquiryLoadVersion =',helper)),c);
+ let start=source.indexOf('const recordCreateIntents=');vm.runInContext(source.slice(start,source.indexOf("document.getElementById('job-form').addEventListener",start)),c);
+ start=source.indexOf("document.getElementById('"+kind+"-form').addEventListener('submit'");vm.runInContext(source.slice(start,source.indexOf('\n});',start)+4),c);
+ return{c,get,form,pending,calls,alerts,counts:()=>({resets,loads,uuids}),submit:()=>form.listeners.submit({preventDefault(){},currentTarget:form})};
+}
+async function flushPromises(){for(let i=0;i<8;i++)await Promise.resolve();}
+for(const kind of ['job','quote'])for(const failure of ['reject','no-row','rls'])test(kind+' record save locks full draft, retains durable intent and restores controls after '+failure,async()=>{
+ const h=recordFormHarness(kind);const priorDisabled=h.get(kind+'-status');priorDisabled.disabled=true;const before=h.form.querySelectorAll().map(el=>({el,value:el.value,disabled:el.disabled}));
+ const saving=h.submit();assert(before.every(({el})=>el.disabled));await h.submit();await flushPromises();assert.equal(h.calls.length,1);
+ h.pending[0].resolve({data:null});await flushPromises();assert.equal(h.calls.length,2);
+ if(failure==='reject')h.pending[1].reject(Error('offline'));else h.pending[1].resolve(failure==='rls'?{error:{code:'42501'}}:{data:[]});await saving;
+ for(const {el,value,disabled} of before){assert.equal(el.value,value);assert.equal(el.disabled,disabled);}assert.deepEqual(h.counts(),{resets:0,loads:0,uuids:1});assert.equal(h.alerts.length,1);
+ // The retry verifies the original ID, even if the first write succeeded but its response was lost.
+ const retry=h.submit();await flushPromises();assert.equal(h.calls[2].id,'stable-id');h.pending[2].resolve({data:h.calls[1].payload});await retry;
+ assert.deepEqual(h.counts(),{resets:1,loads:1,uuids:1});assert.equal(h.calls.filter(c=>c.op==='insert').length,1);assert.equal(priorDisabled.disabled,true);
+});
+for(const pending of ['saving','intent'])test('client draft replacement cannot clear '+pending+' record',async()=>{
+ const h=draftHarness({tagName:'INPUT',value:'Original',defaultValue:''},true),form=h.context.document.getElementById('quote-form');let alerts=[];h.context.alert=m=>alerts.push(m);
+ if(pending==='saving')form.dataset.saving='true';else h.context.recordCreateIntents.set(form,{id:'existing-intent'});
+ await h.context.draftForClient('quotes','c1');assert.deepEqual(h.counts(),{reset:0,confirmations:0});assert.equal(h.context.navigationVersion,0);assert.match(alerts[0],/guardado pendiente/);
+});
+test('client reload cannot unlock or change a submitted selector',async()=>{const h=selectHarness(),select={form:{dataset:{saving:'true'}},disabled:true,value:'c1',innerHTML:'original'};assert.equal(await h.context.populateClientSelect(select),false);assert.equal(h.pending.length,0);assert.equal(select.disabled,true);assert.equal(select.value,'c1');assert.equal(select.innerHTML,'original');});
+test('stale enquiry compare-and-swap is enforced by the query, not by a client precheck', async () => {
+ let stored={id:'e1',status:'new'},control,badges=0;
+ const list={textContent:'',innerHTML:'',appendChild(){}};
+ const c=vm.createContext({document:{getElementById:()=>list,createElement(){const status={value:'',disabled:false,addEventListener(type,fn){this[type]=fn}};control=status;return{dataset:{},querySelector:s=>s==='[data-field="status"]'?status:null}}},escapeHtml:String,alert(){},updateMessageBadge(){badges++},supabaseClient:{from(table){let value,filters=[];const q={select(){return q},order:async()=>({data:[{...stored}]}),update(v){value=v;return q},eq(k,v){filters.push([k,v]);return q},maybeSingle:async()=>{if(filters.every(([k,v])=>stored[k]===v)){Object.assign(stored,value);return{data:{id:'e1'}}}return{data:null}},then(resolve){resolve({data:[]})}};return q}}});
+ vm.runInContext(source.slice(source.indexOf('let enquiryLoadVersion ='),source.indexOf('const enquiryWorkflowDialog =')),c);
+ await c.loadEnquiries();stored.status='archived';control.value='contacted';await control.change();
+ assert.equal(stored.status,'archived');assert.equal(badges,0);assert.equal(control.disabled,false);assert.equal(control.value,'new');
+});
+for(const kind of ['quote-booking','enquiry-workflow'])test(kind+' real bounded helper aborts stalled RPC and ignores its late result',async()=>{
+ const d=deferred(),editor=require('../studio/portfolio-photo-editor.js');let aborted=false;
+ const query={abortSignal(signal){signal.addEventListener('abort',()=>{aborted=true});return d.promise}};
+ const h=kind==='quote-booking'?dialogHarness([quoteResponse,bookingResponse],()=>query):enquiryHarness([{data:enquiry},clientResult],()=>query);
+ h.context.window.OGPortfolioPhotoEditor.bounded=q=>editor.bounded(q,5);
+ if(kind==='quote-booking')await h.context.prepareQuoteBooking('q1');else{await h.context.prepareEnquiryWorkflow('e1');await h.choose('__new__');}
+ h.get(kind+'-title').value='Unchanged';await h.submit();assert.equal(aborted,true);assert.equal(h.get(kind+'-title').disabled,false);assert.equal(h.get(kind+'-title').value,'Unchanged');
+ d.resolve({data:kind==='quote-booking'?'p1':{client_id:'c1',project_id:'p1'}});await flushPromises();assert.equal(h.navigation.length,0);assert.equal(h.get(kind+'-dialog').open,true);
+});
+for(const kind of ['quote-booking','enquiry-workflow'])test(kind+' navigation failure reports saved result without presenting a failed save',async()=>{
+ const h=kind==='quote-booking'?dialogHarness([quoteResponse,bookingResponse]):enquiryHarness([{data:enquiry},clientResult]);let alerts=[];
+ h.context.alert=m=>alerts.push(m);h.context.openWorkspaceEntity=async()=>{throw Error('offline')};
+ if(kind==='quote-booking')await h.context.prepareQuoteBooking('q1');else{await h.context.prepareEnquiryWorkflow('e1');await h.choose('__new__');}
+ h.get(kind+'-title').value='Saved';await h.submit();assert.equal(h.get(kind+'-dialog').open,false);assert.match(alerts[0],/conexión se guardó/);assert.equal(h.get(kind+'-title').disabled,false);
+});
+for(const kind of ['job','quote'])for(const refreshOutcome of ['stall-then-success','reject','failed-result'])test(kind+' successful save releases controls before '+refreshOutcome+' list refresh and preserves newer draft',async()=>{
+ const h=recordFormHarness(kind),refresh=deferred(),loader=kind==='job'?'loadCalendar':'loadQuotes';let refreshClients;
+ h.c[loader]=value=>{refreshClients=value;return refresh.promise};
+ const saving=h.submit();await flushPromises();h.pending[0].resolve({data:null});await flushPromises();h.pending[1].resolve({data:[{id:'stable-id'}]});await flushPromises();
+ assert.equal(h.form.dataset.saving,undefined);assert(h.form.querySelectorAll().every(el=>!el.disabled));assert.equal(h.counts().resets,1);assert.equal(refreshClients,false);
+ // User can work on a second draft while the first list refresh is stalled.
+ const field=h.get(kind+(kind==='job'?'-title':'-amount'));field.value=kind==='job'?'New draft':'250,00';const nextValue=field.value;
+ if(refreshOutcome==='reject')refresh.reject(Error('offline'));else refresh.resolve(refreshOutcome==='failed-result'?false:undefined);
+ await saving;assert.equal(field.value,nextValue);assert.equal(h.counts().resets,1);assert.equal(h.form.dataset.saving,undefined);
+ if(refreshOutcome!=='stall-then-success'){assert.match(h.alerts[0],/se guardó.*actualizar la lista/);assert.equal(h.alerts.length,1);}else assert.equal(h.alerts.length,0);
+});
+for(const kind of ['job','quote'])test(kind+' actual post-save loader skips draft selector and bounds stalled list read',async()=>{
+ const editor=require('../studio/portfolio-photo-editor.js'),nodes=new Map();let clientReads=0,aborted=false;
+ const get=id=>{if(!nodes.has(id))nodes.set(id,{value:'new draft client',disabled:false,textContent:''});return nodes.get(id)};
+ const c=vm.createContext({document:{getElementById:get},populateClientSelect(){clientReads++},readStudio:async q=>{try{return await editor.bounded(q,5)}catch(error){return{error}}},supabaseClient:{from(){const q={select(){return q},order(){return q},abortSignal(signal){signal.addEventListener('abort',()=>{aborted=true});return new Promise(()=>{})}};return q}},StudioWorkspace:{showError(node,message){node.textContent=message}}});
+ const start=source.indexOf(kind==='job'?'let bookingLoadVersion =':'let quoteLoadVersion ='),end=source.indexOf(kind==='job'?'const recordCreateIntents=':'// The conversion is one reviewed transaction',start);vm.runInContext(source.slice(start,end),c);
+ assert.equal(await c[kind==='job'?'loadCalendar':'loadQuotes'](false),false);assert.equal(clientReads,0);assert.equal(aborted,true);assert.equal(get(kind+'-client').value,'new draft client');assert.equal(get(kind+'-client').disabled,false);
+});

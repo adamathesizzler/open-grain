@@ -182,13 +182,16 @@ async function openWorkspaceEntity(tab, id) {
   }
 }
 async function draftForClient(tab, clientId) {
+  const isQuote = tab === 'quotes';
+  const form = document.getElementById(isQuote ? 'quote-form' : 'job-form');
+  const cannotReplace = () => form.dataset.saving === 'true' || recordCreateIntents.has(form);
+  if (cannotReplace()) return alert('Hay un guardado pendiente. Reintenta el borrador actual para comprobarlo sin duplicar antes de sustituirlo.');
   const pending = switchTab(tab), version = navigationVersion;
   await pending;
   if (version !== navigationVersion) return;
-  const isQuote = tab === 'quotes';
+  if (cannotReplace()) return alert('Hay un guardado pendiente. Conserva el borrador actual y reintenta para comprobarlo.');
   const select = document.getElementById(isQuote ? 'quote-client' : 'job-client');
   if (!Array.from(select.options).some(o => o.value === clientId)) return alert('No se pudo cargar este cliente. Vuelve a abrir su ficha.');
-  const form = document.getElementById(isQuote ? 'quote-form' : 'job-form');
   if (Array.from(form.querySelectorAll('input, select, textarea')).some(field => field.tagName === 'SELECT' ? field.value !== (Array.from(field.options).find(o => o.defaultSelected)?.value ?? field.options[0]?.value ?? '') : field.value !== field.defaultValue) && !confirm('Hay un borrador sin guardar. ¿Sustituirlo por uno nuevo para este cliente?')) return;
   form.reset(); select.value = clientId;
   document.getElementById(isQuote ? 'quote-create' : 'booking-create').open = true;
@@ -272,6 +275,7 @@ async function persistOrder(container,itemSelector,table){
 // ============================================================
 const clientSelectVersions = new WeakMap();
 async function populateClientSelect(selectEl) {
+  if (selectEl.form?.dataset.saving === 'true') return false;
   const version = (clientSelectVersions.get(selectEl) || 0) + 1;
   clientSelectVersions.set(selectEl, version);
   const current = selectEl.value;
@@ -1328,6 +1332,22 @@ function renderIdeas(summary, ideas) {
 // ============================================================
 // Mensajes y solicitudes (enquiries)
 // ============================================================
+// Freeze the submitted draft, restoring each control's original availability.
+function freezeStudioForm(form) {
+  const controls = Array.from(form.querySelectorAll('input, select, textarea, button'));
+  const disabled = controls.map(control => control.disabled);
+  controls.forEach(control => { control.disabled = true; });
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    controls.forEach((control, index) => { control.disabled = disabled[index]; });
+  };
+}
+async function saveStudioWorkflow(query) {
+  try { return await window.OGPortfolioPhotoEditor.bounded(query); }
+  catch (error) { throw new Error('No se pudo confirmar la conexión. El borrador se conserva. Revisa el resultado antes de reintentar; la solicitud puede haberse guardado.'); }
+}
 let enquiryLoadVersion = 0;
 async function loadEnquiries() {
   const version = ++enquiryLoadVersion;
@@ -1360,13 +1380,15 @@ async function loadEnquiries() {
     row.querySelector('[data-start-workflow]')?.addEventListener('click', () => prepareEnquiryWorkflow(en.id));
     const status = row.querySelector('[data-field="status"]'); status.value = en.status;
     status.addEventListener('change', async () => {
-      const value = status.value; if (!['new','contacted','archived'].includes(value)) return;
+      if (status.disabled) return;
+      const value = status.value, expected = en.status;
+      if (!['new','contacted','archived'].includes(value) || value === expected) return;
       status.disabled = true;
       try {
-        const {data: saved, error} = await supabaseClient.from('enquiries').update({status:value}).eq('id',en.id).select('id').single();
+        const {data: saved, error} = await supabaseClient.from('enquiries').update({status:value}).eq('id',en.id).eq('status',expected).select('id').maybeSingle();
         if (error || !saved) throw new Error('No se pudo guardar el estado.');
         en.status = value; updateMessageBadge();
-      } catch (error) { status.value = en.status; alert('No se pudo guardar el estado de la solicitud.'); }
+      } catch (error) { status.value = expected; alert('No se pudo confirmar el estado de la solicitud. Puede haber cambiado en otra sesión o ya no estar disponible. Vuelve a abrir Mensajes para revisar el estado actual antes de reintentar.'); }
       finally { status.disabled = false; }
     });
     list.appendChild(row);
@@ -1450,21 +1472,26 @@ document.getElementById('enquiry-workflow-form').addEventListener('submit', asyn
   const title = document.getElementById('enquiry-workflow-title').value.trim();
   if (!(client === '__new__' || intent.clientIds.includes(client)) || (project && !intent.projectIds.includes(project)) || (!project && !title)) return;
   const errorEl = document.getElementById('enquiry-workflow-error'); errorEl.hidden = true;
-  const controls = ['save','cancel','client','project'].map(key=>document.getElementById('enquiry-workflow-'+key));
-  enquiryWorkflowSaving = true; controls.forEach(el=>el.disabled=true);
+  const restoreControls = freezeStudioForm(document.getElementById('enquiry-workflow-form'));
+  enquiryWorkflowSaving = true;
+  let linkedProject = null;
   try {
-    const {data,error} = await supabaseClient.rpc('studio_start_enquiry_workflow',{
+    const {data,error} = await saveStudioWorkflow(supabaseClient.rpc('studio_start_enquiry_workflow',{
       p_enquiry_id:intent.enquiryId,p_expected_source:intent.source,
       p_existing_client_id:client === '__new__' ? null : client,p_create_client:client === '__new__',
       p_existing_project_id:project,p_title:project ? null : title
-    });
+    }));
     if (error || !data?.client_id || !data?.project_id) throw new Error(error && ['PGRST202','42883'].includes(error.code)
       ? 'Falta instalar la migración de conexión de solicitudes. No se ha creado nada.'
       : 'No se pudo conectar la solicitud. Puede haber cambiado o tener otra conexión. Cierra y revisa sus datos antes de reintentar.');
-    enquiryWorkflowSaving = false; closeEnquiryWorkflow();
-    await openWorkspaceEntity('bookings',data.project_id);
+    linkedProject = data.project_id;
   } catch(error) { errorEl.textContent = error.message || 'No se pudo guardar la conexión.'; errorEl.hidden = false; }
-  finally { enquiryWorkflowSaving=false; controls.forEach(el=>el.disabled=false); }
+  finally { enquiryWorkflowSaving=false; restoreControls(); }
+  if (linkedProject) {
+    closeEnquiryWorkflow();
+    try { await openWorkspaceEntity('bookings',linkedProject); }
+    catch (error) { alert('La conexión se guardó, pero no se pudo abrir la reserva. Revísala en Reservas antes de crear otra.'); }
+  }
 });
 
 // ============================================================
@@ -1680,13 +1707,13 @@ document.getElementById('client-form').addEventListener('submit', async (e) => {
 // Reservas y calendario (projects table)
 // ============================================================
 let bookingLoadVersion = 0;
-async function loadCalendar() {
+async function loadCalendar(refreshClients = true) {
   const version = ++bookingLoadVersion;
-  await populateClientSelect(document.getElementById('job-client'));
+  if (refreshClients) await populateClientSelect(document.getElementById('job-client'));
   const list = document.getElementById('job-list');
   const { data, error } = await readStudio(supabaseClient.from('projects').select('*, clients(name), quotes(id), enquiry_workflows(enquiry_id), portfolio_workflows(portfolio_project_id, portfolio_projects(title))').order('event_date', { ascending: true, nullsFirst: false }));
   if (version !== bookingLoadVersion) return;
-  if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar las reservas. Vuelve a abrir esta sección para reintentarlo.'); return; }
+  if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar las reservas. Vuelve a abrir esta sección para reintentarlo.'); return false; }
   StudioWorkspace.mountBookings(list, data || [], {
     openClient: id => openWorkspaceEntity('clients', id),
     openQuote: id => openWorkspaceEntity('quotes', id),
@@ -1723,8 +1750,8 @@ document.getElementById('job-form').addEventListener('submit', async (e) => {
   if (form.dataset.saving === 'true') return;
   if (document.getElementById('job-client').disabled) return alert('Espera a que se carguen los clientes antes de guardar.');
   form.dataset.saving = 'true';
-  const submit = form.querySelector('[type="submit"]');
-  submit.disabled = true;
+  const restoreControls = freezeStudioForm(form);
+  let saved = false;
   try {
   const title = document.getElementById('job-title').value.trim();
   const client_id = document.getElementById('job-client').value || null;
@@ -1733,9 +1760,15 @@ document.getElementById('job-form').addEventListener('submit', async (e) => {
   if (!title) return;
   await saveNewRecord(form,'projects',{title,client_id,event_date,status});
   form.reset();
-  await loadCalendar();
+  saved = true;
   } catch (error) { alert(error.message||'No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
-  finally { delete form.dataset.saving; submit.disabled = false; }
+  finally { delete form.dataset.saving; restoreControls(); }
+  if (saved) {
+    // Refresh the list only: a new draft may already be editable.
+    try {
+      if (await loadCalendar(false) === false) throw new Error('Refresh failed');
+    } catch (error) { alert('La reserva se guardó, pero no se pudo actualizar la lista. Vuelve a abrir esta sección antes de crear otra copia.'); }
+  }
 });
 
 // ============================================================
@@ -2007,13 +2040,13 @@ document.getElementById('inventory-form').addEventListener('submit', async (e) =
 // Presupuestos y contratos
 // ============================================================
 let quoteLoadVersion = 0;
-async function loadQuotes() {
+async function loadQuotes(refreshClients = true) {
   const version = ++quoteLoadVersion;
-  await populateClientSelect(document.getElementById('quote-client'));
+  if (refreshClients) await populateClientSelect(document.getElementById('quote-client'));
   const list = document.getElementById('quote-list');
-  const { data, error } = await supabaseClient.from('quotes').select('*, clients(name)').order('created_at', { ascending: false });
+  const { data, error } = await readStudio(supabaseClient.from('quotes').select('*, clients(name)').order('created_at', { ascending: false }));
   if (version !== quoteLoadVersion) return;
-  if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar los presupuestos. Vuelve a abrir esta sección para reintentarlo.'); return; }
+  if (error) { StudioWorkspace.showError(list, 'No se pudieron cargar los presupuestos. Vuelve a abrir esta sección para reintentarlo.'); return false; }
   StudioWorkspace.mountQuotes(list, data || [], {
     prepareBooking: prepareQuoteBooking,
     openClient: id => openWorkspaceEntity('clients', id),
@@ -2089,24 +2122,28 @@ document.getElementById('quote-booking-form').addEventListener('submit', async e
   const title = document.getElementById('quote-booking-title').value.trim();
   const eventDate = document.getElementById('quote-booking-date').value || null;
   if (!target && (!title || (eventDate && !StudioWorkspace.localDate(eventDate)))) return;
-  const submit = document.getElementById('quote-booking-save');
-  const cancel = document.getElementById('quote-booking-cancel');
+  const restoreControls = freezeStudioForm(document.getElementById('quote-booking-form'));
   const errorEl = document.getElementById('quote-booking-error');
-  quoteBookingSaving = true; submit.disabled = true; cancel.disabled = true; errorEl.hidden = true;
+  quoteBookingSaving = true; errorEl.hidden = true;
+  let linkedProject = null;
   try {
-    const {data, error} = await supabaseClient.rpc('studio_link_quote_booking', {
+    const {data, error} = await saveStudioWorkflow(supabaseClient.rpc('studio_link_quote_booking', {
       p_quote_id: intent.quoteId, p_expected_client_id: intent.clientId, p_existing_project_id: target,
       p_title: target ? null : title, p_event_date: target ? null : eventDate,
       p_service: target ? null : document.getElementById('quote-booking-service').value.trim() || null,
       p_notes: target ? null : document.getElementById('quote-booking-notes').value.trim() || null
-    });
+    }));
     if (error || !data) throw new Error(error && ['PGRST202','42883'].includes(error.code)
       ? 'La conexión de reservas aún no está disponible. Falta instalar su migración; no se ha creado nada.'
-      : 'No se pudo completar la conexión. Revisa el presupuesto antes de reintentar; un reintento no creará otra reserva para el mismo presupuesto.');
-    quoteBookingSaving = false; closeQuoteBooking();
-    await openWorkspaceEntity('bookings', data);
+      : 'No se pudo completar la conexión. El borrador se conserva. Revisa el presupuesto y sus reservas antes de reintentar.');
+    linkedProject = data;
   } catch (error) { errorEl.textContent = error.message || 'No se pudo conectar la reserva.'; errorEl.hidden = false; }
-  finally { quoteBookingSaving = false; submit.disabled = false; cancel.disabled = false; }
+  finally { quoteBookingSaving = false; restoreControls(); }
+  if (linkedProject) {
+    closeQuoteBooking();
+    try { await openWorkspaceEntity('bookings',linkedProject); }
+    catch (error) { alert('La conexión se guardó, pero no se pudo abrir la reserva. Revísala en Reservas antes de crear otra.'); }
+  }
 });
 
 document.getElementById('quote-form').addEventListener('submit', async (e) => {
@@ -2115,8 +2152,8 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   if (form.dataset.saving === 'true') return;
   if (document.getElementById('quote-client').disabled) return alert('Espera a que se carguen los clientes antes de guardar.');
   form.dataset.saving = 'true';
-  const submit = form.querySelector('[type="submit"]');
-  submit.disabled = true;
+  const restoreControls = freezeStudioForm(form);
+  let saved = false;
   try {
   const client_id = document.getElementById('quote-client').value || null;
   const amountRaw = document.getElementById('quote-amount').value.trim();
@@ -2125,9 +2162,15 @@ document.getElementById('quote-form').addEventListener('submit', async (e) => {
   const status = document.getElementById('quote-status').value;
   await saveNewRecord(form,'quotes',{client_id,amount,status});
   form.reset();
-  await loadQuotes();
+  saved = true;
   } catch (error) { alert(error.message||'No se pudo completar el guardado. Comprueba la lista antes de reintentarlo.'); }
-  finally { delete form.dataset.saving; submit.disabled = false; }
+  finally { delete form.dataset.saving; restoreControls(); }
+  if (saved) {
+    // Refresh the list only: a new draft may already be editable.
+    try {
+      if (await loadQuotes(false) === false) throw new Error('Refresh failed');
+    } catch (error) { alert('El presupuesto se guardó, pero no se pudo actualizar la lista. Vuelve a abrir esta sección antes de crear otra copia.'); }
+  }
 });
 
 // ============================================================
